@@ -1,0 +1,1 @@
+export const DEFAULT_EXPENDITURE_YEAR = 2026;

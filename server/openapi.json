@@ -1,0 +1,183 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Clerk Pro AI API",
+    "version": "1.0.0",
+    "description": "REST API for AI-assisted letter composition using Google Gemini"
+  },
+  "servers": [
+    { "url": "http://localhost:8787" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } }
+          }
+        }
+      }
+    },
+    "/api/ai/compose-letter": {
+      "post": {
+        "summary": "Compose a professional letter",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ComposeRequest" },
+              "examples": {
+                "example1": {
+                  "value": {
+                    "recipient": "District Education Officer",
+                    "tone": "formal, respectful",
+                    "purpose": "Submitting monthly attendance summary and requesting acknowledgement",
+                    "keyPoints": [
+                      "Attendance summary attached",
+                      "No discrepancies observed",
+                      "Acknowledgement requested"
+                    ],
+                    "length": { "maxWords": 250 },
+                    "language": "English",
+                    "senderName": "Fazal Ali",
+                    "senderTitle": "Clerk, Education Office",
+                    "referenceNo": "DEO/ATTN/2026-02-04"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Composed letter",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ComposeResponse" }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted for async processing",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JobAccepted" } } }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "429": {
+            "description": "Quota exceeded",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "502": {
+            "description": "Network error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/api/ai/jobs/{id}": {
+      "get": {
+        "summary": "Get async job status and result",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job state",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Job" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "ts": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ComposeRequest": {
+        "type": "object",
+        "required": ["recipient", "tone", "purpose", "keyPoints"],
+        "properties": {
+          "recipient": { "type": "string", "maxLength": 200 },
+          "tone": { "type": "string", "maxLength": 120 },
+          "purpose": { "type": "string", "maxLength": 400 },
+          "keyPoints": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "minItems": 1, "maxItems": 12 },
+          "length": {
+            "type": "object",
+            "properties": {
+              "minWords": { "type": "integer", "minimum": 1 },
+              "maxWords": { "type": "integer", "minimum": 1 },
+              "maxChars": { "type": "integer", "minimum": 1 }
+            }
+          },
+          "language": { "type": "string", "maxLength": 40 },
+          "senderName": { "type": "string", "maxLength": 120 },
+          "senderTitle": { "type": "string", "maxLength": 120 },
+          "referenceNo": { "type": "string", "maxLength": 80 },
+          "async": { "type": "boolean" },
+          "webhookUrl": { "type": "string", "format": "uri" }
+        }
+      },
+      "ComposeResponse": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "tokens": { "type": "integer" },
+              "ms": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "JobAccepted": {
+        "type": "object",
+        "properties": {
+          "jobId": { "type": "string" },
+          "status": { "type": "string", "enum": ["queued"] }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string", "enum": ["queued", "processing", "completed", "failed"] },
+          "payload": { "$ref": "#/components/schemas/ComposeRequest" },
+          "result": { "$ref": "#/components/schemas/ComposeResponse" },
+          "error": { "$ref": "#/components/schemas/ErrorResponse" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "code": { "type": "string" }
+        }
+      }
+    }
+  }
+}

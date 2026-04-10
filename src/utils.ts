@@ -1,29 +1,162 @@
-import { differenceInDays, addYears, parseISO, intervalToDuration, differenceInYears } from 'date-fns';
+/**
+ * Core Utilities Module
+ *
+ * Comprehensive utility functions for the KPK RPMS application.
+ * Includes calculations, migrations, validations, storage, PDF helpers,
+ * department-aware cover-letter helpers, and checklist generators.
+ *
+ * @module utils
+ * @version 3.1.0
+ */
+
+import {
+  differenceInDays,
+  addYears,
+  parseISO,
+  intervalToDuration,
+  differenceInYears,
+  isValid,
+  format,
+} from 'date-fns';
+
 export * from './utils/dateUtils';
+
 import { AGE_FACTORS } from './constants';
-import { EmployeeRecord, CURRENT_SCHEMA_VERSION, CaseRecord, CURRENT_CASE_SCHEMA_VERSION, CaseType, CaseChecklistItem, PdfTemplate } from './types';
+import {
+  PensionCalculationResult,
+  EmployeeRecord,
+  CURRENT_SCHEMA_VERSION,
+  CaseRecord,
+  CURRENT_CASE_SCHEMA_VERSION,
+  CaseType,
+  CaseChecklistItem,
+  PdfTemplate,
+} from './types';
 import { PDFDocument, StandardFonts, PDFTextField } from 'pdf-lib';
 
-// --- DISTRICTS & TEHSILS ---
+// Dynamic department detector
+import {
+  getDepartmentInfo,
+  isGirlsInstitution,
+  detectGender,
+  getSalutation as getDetectorSalutation,
+  DepartmentInfo,
+} from './utils/departmentDetector';
+
+// Re-export detector helpers
+export {
+  getDepartmentInfo,
+  isGirlsInstitution,
+  detectGender,
+  type DepartmentInfo,
+} from './utils/departmentDetector';
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
 export const KPK_DISTRICTS = [
-  'Battagram', 'Mansehra', 'Abbottabad', 'Kohistan', 'Haripur', 'Shangla', 'Swat', 'Dir Upper', 'Dir Lower', 'Malakand', 
-  'Peshawar', 'Mardan', 'Charsadda', 'Nowshera', 'Swabi', 'Kohat', 'Hangu', 'Karak', 'Bannu', 'Lakki Marwat', 
-  'D.I. Khan', 'Tank', 'Kurram', 'Orakzai', 'Khyber', 'Mohmand', 'Bajaur', 'North Waziristan', 'South Waziristan'
+  'Abbottabad',
+  'Bajaur',
+  'Bannu',
+  'Battagram',
+  'Buner',
+  'Charsadda',
+  'Chitral Lower',
+  'Chitral Upper',
+  'D.I. Khan',
+  'Dir Lower',
+  'Dir Upper',
+  'Hangu',
+  'Haripur',
+  'Karak',
+  'Khyber',
+  'Kohat',
+  'Kohistan Lower',
+  'Kohistan Upper',
+  'Kolai Palas',
+  'Kurram',
+  'Lakki Marwat',
+  'Malakand',
+  'Mansehra',
+  'Mardan',
+  'Mohmand',
+  'North Waziristan',
+  'Nowshera',
+  'Orakzai',
+  'Peshawar',
+  'Shangla',
+  'South Waziristan',
+  'Swabi',
+  'Swat',
+  'Tank',
+  'Torghar',
+].sort();
+
+export const DECEASED_STATUSES = [
+  'Deceased',
+  'Death in Service',
+  'Death after Retirement',
+  'Died in Service',
+  'Expired',
 ];
 
-export const DECEASED_STATUSES = ['Deceased', 'Death in Service', 'Death after Retirement'];
-
-export const isDeceasedStatus = (status: string | undefined | null): boolean => {
-  return DECEASED_STATUSES.includes(status || '');
-};
-
 export const DISTRICT_TEHSIL_MAP: Record<string, string[]> = {
-  'Battagram': ['Allai', 'Battagram'],
+  Battagram: ['Allai', 'Battagram'],
+  Mansehra: ['Mansehra', 'Balakot', 'Oghi', 'Baffa'],
+  Abbottabad: ['Abbottabad', 'Havelian', 'Lora'],
+  Haripur: ['Haripur', 'Ghazi', 'Khanpur'],
+  Peshawar: ['Peshawar City', 'Peshawar Saddar', 'Peshawar Cantt'],
+  Mardan: ['Mardan', 'Takht Bhai', 'Katlang'],
+  Swat: ['Mingora', 'Matta', 'Bahrain', 'Kabal', 'Khwazakhela'],
+  // Add more as needed
 };
 
-// --- DOMAIN LOGIC ---
+// ============================================================================
+// TYPE GUARDS & VALIDATORS
+// ============================================================================
 
-type Gender = 'M' | 'F';
+/**
+ * Checks if a status indicates the person is deceased
+ */
+export const isDeceasedStatus = (status: string | undefined | null): boolean => {
+  if (!status) return false;
+  const normalized = status.toLowerCase().trim();
+  return DECEASED_STATUSES.some(
+    (s) =>
+      normalized.includes(s.toLowerCase()) || s.toLowerCase().includes(normalized)
+  );
+};
+
+/**
+ * Checks if BPS is Class IV (1-4)
+ */
+export const isClassIV = (bps: unknown): boolean => {
+  const b = Number(bps);
+  return !isNaN(b) && b >= 1 && b <= 4;
+};
+
+/**
+ * Checks if BPS is greater than 4
+ */
+export const isBpsGreaterThan4 = (bps: unknown): boolean => {
+  const b = Number(bps);
+  return !isNaN(b) && b > 4;
+};
+
+/**
+ * Checks if BPS is gazetted (16 and above)
+ */
+export const isGazetted = (bps: unknown): boolean => {
+  const b = Number(bps);
+  return !isNaN(b) && b >= 16;
+};
+
+// ============================================================================
+// SCHOOL / INSTITUTION INFO (Dynamic Department Detector)
+// ============================================================================
+
+export type Gender = 'M' | 'F';
 
 export interface SchoolInfo {
   gender: 'Male' | 'Female';
@@ -32,283 +165,200 @@ export interface SchoolInfo {
   isFemale: boolean;
 }
 
-export const parseSchoolInfo = (schoolName: string, tehsil: string = ''): SchoolInfo => {
-  const name = (schoolName || '').toUpperCase();
-  
-  const femaleKeywords = ['GIRLS', 'FEMALE', 'GGHS', 'GGPS', 'GGMS', 'GGHSS', 'GGMPS', 'GGMKS', 'GGCMS'];
-  const isFemale = femaleKeywords.some(kw => name.includes(kw)) || name.includes('(F)');
-  const gender: 'Male' | 'Female' = isFemale ? 'Female' : 'Male';
-  const salutation: 'Sir' | 'Madam' = isFemale ? 'Madam' : 'Sir';
+/**
+ * Parses school/institution information dynamically
+ *
+ * @param schoolName - The full school/institution name
+ * @param tehsil - Optional tehsil
+ * @returns SchoolInfo object
+ */
+export const parseSchoolInfo = (
+  schoolName: string,
+  tehsil: string = ''
+): SchoolInfo => {
+  const info = getDepartmentInfo(schoolName, '', tehsil);
 
-  let authorityTitle = 'District Education Officer';
-  
-  if (name.includes('GHSS') || name.includes('GGHSS') || name.includes('HIGHER SECONDARY')) {
-    authorityTitle = 'Principal';
-  } else if (name.includes('GHS') || name.includes('GGHS') || name.includes('HIGH SCHOOL')) {
-    authorityTitle = isFemale ? 'Headmistress' : 'Headmaster';
-  } else if (name.includes('GMS') || name.includes('GGMS') || name.includes('MIDDLE SCHOOL')) {
-    authorityTitle = isFemale ? 'Headmistress' : 'Headmaster';
-  } else if (name.includes('GPS') || name.includes('GGPS') || name.includes('GGMPS') || name.includes('GMPS') || name.includes('GGMKS') || name.includes('GMKS') || name.includes('GGCMS')) {
-    authorityTitle = `Sub Divisional Education Officer (${isFemale ? 'Female' : 'Male'})${tehsil ? ` ${tehsil}` : ''}`;
-  } else if (name.includes('PRIMARY SCHOOL')) {
-    authorityTitle = `Sub Divisional Education Officer (${isFemale ? 'Female' : 'Male'})${tehsil ? ` ${tehsil}` : ''}`;
-  }
-
-  return { gender, salutation, authorityTitle, isFemale };
+  return {
+    gender: info.gender,
+    salutation: info.salutation,
+    authorityTitle: info.authorityTitle,
+    isFemale: info.isGirlsInstitution,
+  };
 };
 
+/**
+ * Detects gender from school/institution name
+ */
 export const detectGenderFromSchoolName = (schoolName: string): Gender => {
-  const info = parseSchoolInfo(schoolName);
-  return info.isFemale ? 'F' : 'M';
+  return detectGender(schoolName);
 };
 
-export const isClassIV = (bps: unknown): boolean => {
-  const b = Number(bps);
-  return !isNaN(b) && b >= 1 && b <= 4;
-};
-
-export const isBpsGreaterThan4 = (bps: unknown): boolean => {
-  const b = Number(bps);
-  return !isNaN(b) && b > 4;
-};
-
-export const splitToChars = (
-  value: string | number | undefined,
-  count: number,
-  opts?: { padLeft?: string; onlyDigits?: boolean } | boolean
-): string[] => {
-  const resolved = typeof opts === 'boolean' ? { onlyDigits: opts } : opts;
-  const onlyDigits = resolved?.onlyDigits ?? true;
-  if (value === undefined || value === null) return Array(count).fill('');
-  let str = String(value);
-  if (onlyDigits) {
-    str = str.replace(/\D/g, '');
-  }
-  if (resolved?.padLeft) {
-    str = str.padStart(count, resolved.padLeft);
-  }
-  const chars = str.split('');
-  while (chars.length < count) chars.push('');
-  return chars.slice(0, count);
-};
-
+/**
+ * Gets the head of institution title based on school/office type
+ */
 export const getHeadOfInstitutionTitle = (employee: EmployeeRecord): string => {
-  const schoolName = employee.employees.school_full_name || '';
-  const tehsil = employee.employees.tehsil || '';
-  const info = parseSchoolInfo(schoolName, tehsil);
-  return info.authorityTitle;
-};
-
-type DepartmentKey =
-  | 'education'
-  | 'health'
-  | 'local_government'
-  | 'police'
-  | 'finance'
-  | 'revenue'
-  | 'agriculture'
-  | 'irrigation'
-  | 'works'
-  | 'other';
-
-interface DepartmentTemplate {
-  fullName: string;
-  recipientTitle: (employee: EmployeeRecord) => string;
-  signatureAlign?: 'right' | 'center' | 'left';
-}
-
-const DEPARTMENT_TEMPLATES: Record<DepartmentKey, DepartmentTemplate> = {
-  education: {
-    fullName: 'Department of Elementary & Secondary Education',
-    recipientTitle: (employee) => {
-      const gender = detectGenderFromSchoolName(employee.employees.school_full_name);
-      const district = employee.employees.district || 'Battagram';
-      return `The District Education Officer (${gender === 'F' ? 'Female' : 'Male'}), District ${district}.`;
-    },
-    signatureAlign: 'right'
-  },
-  health: {
-    fullName: 'Health Department',
-    recipientTitle: (employee) => `The District Health Officer, District ${employee.employees.district || '__________'}.`,
-    signatureAlign: 'right'
-  },
-  local_government: {
-    fullName: 'Local Government, Elections & Rural Development Department',
-    recipientTitle: (employee) => `The Chief Officer, Tehsil Municipal Administration ${employee.employees.tehsil || ''}, District ${employee.employees.district || '__________'}.`,
-    signatureAlign: 'right'
-  },
-  police: {
-    fullName: 'Police Department',
-    recipientTitle: (employee) => `The District Police Officer, District ${employee.employees.district || '__________'}.`,
-    signatureAlign: 'right'
-  },
-  finance: {
-    fullName: 'Finance Department',
-    recipientTitle: (employee) => `The District Accounts Officer, District ${employee.employees.district || '__________'}.`,
-    signatureAlign: 'right'
-  },
-  revenue: {
-    fullName: 'Revenue Department',
-    recipientTitle: (employee) => `The Deputy Commissioner, District ${employee.employees.district || '__________'}.`,
-    signatureAlign: 'right'
-  },
-  agriculture: {
-    fullName: 'Agriculture Department',
-    recipientTitle: (employee) => `The Deputy Director Agriculture, District ${employee.employees.district || '__________'}.`,
-    signatureAlign: 'right'
-  },
-  irrigation: {
-    fullName: 'Irrigation Department',
-    recipientTitle: (employee) => `The Executive Engineer (Irrigation), District ${employee.employees.district || '__________'}.`,
-    signatureAlign: 'right'
-  },
-  works: {
-    fullName: 'Communication & Works Department',
-    recipientTitle: (employee) => `The Executive Engineer (C&W), District ${employee.employees.district || '__________'}.`,
-    signatureAlign: 'right'
-  },
-  other: {
-    fullName: 'Government Department',
-    recipientTitle: () => 'The Administrative Officer.',
-    signatureAlign: 'right'
-  }
-};
-
-const DEPARTMENT_KEYWORDS: Array<{ key: DepartmentKey; terms: string[] }> = [
-  { key: 'education', terms: ['teacher', 'school', 'education', 'sdeo', 'deo', 'principal', 'headmaster', 'headmistress'] },
-  { key: 'health', terms: ['doctor', 'nurse', 'medical', 'hospital', 'health', 'bhU', 'rhu', 'dho', 'paramedic'] },
-  { key: 'local_government', terms: ['village secretary', 'secretary council', 'municipal', 'tma', 'local government', 'village council', 'union council'] },
-  { key: 'police', terms: ['police', 'constable', 'asi', 'si', 'inspector', 'dpo', 'thana'] },
-  { key: 'finance', terms: ['accounts', 'accountant', 'finance', 'treasury', 'audit', 'dao'] },
-  { key: 'revenue', terms: ['revenue', 'patwari', 'tehsildar', 'naib tehsildar', 'land record'] },
-  { key: 'agriculture', terms: ['agriculture', 'agri', 'field assistant', 'soil', 'livestock'] },
-  { key: 'irrigation', terms: ['irrigation', 'canal', 'water management'] },
-  { key: 'works', terms: ['c&w', 'works', 'engineering', 'sub engineer', 'xen'] }
-];
-
-const normalizeText = (v: unknown): string =>
-  String(v || '')
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-const detectDepartmentKey = (employee: EmployeeRecord): DepartmentKey => {
-  const e: any = employee?.employees || {};
-  const explicitDepartment = normalizeText(
-    e.department || e.department_name || e.dept || employee?.extras?.department
+  const info = getDepartmentInfo(
+    employee?.employees?.school_full_name || '',
+    employee?.employees?.office_name || '',
+    employee?.employees?.tehsil || '',
+    employee?.employees?.district || '',
+    employee?.employees?.designation_full ||
+      employee?.employees?.designation ||
+      ''
   );
 
-  const designation = normalizeText(e.designation_full || e.designation);
-  const office = normalizeText(e.office_name || e.school_full_name);
-  const merged = `${explicitDepartment} ${designation} ${office}`.trim();
-
-  for (const m of DEPARTMENT_KEYWORDS) {
-    if (m.terms.some(t => merged.includes(normalizeText(t)))) return m.key;
-  }
-  return 'education';
+  return info.signatureTitleShort;
 };
 
-export const getDepartmentProfile = (employee: EmployeeRecord) => {
-  const departmentKey = detectDepartmentKey(employee);
-  const template = DEPARTMENT_TEMPLATES[departmentKey];
-  const district = employee?.employees?.district || 'Khyber Pakhtunkhwa';
-  const designation = employee?.employees?.designation_full || employee?.employees?.designation || 'Head of Office';
-
-  const educationHead = departmentKey === 'education' ? getHeadOfInstitutionTitle(employee) : designation;
-  const officeLine = `OFFICE OF THE ${String(educationHead).toUpperCase()}`;
-  const departmentLine = `${template.fullName}, ${district}`;
-  const govtLine = 'Govt. of Khyber Pakhtunkhwa.';
-  const recipientTitle = template.recipientTitle(employee);
-  const signatureTitle = departmentKey === 'education' && !String(educationHead).toUpperCase().includes('OFFICER')
-    ? `${educationHead}\n${employee.employees.school_full_name || employee.employees.office_name || ''}`
-    : educationHead;
-
-  return {
-    departmentKey,
-    officeLine,
-    departmentLine,
-    govtLine,
-    recipientTitle,
-    signatureTitle,
-    signatureAlign: template.signatureAlign || 'right'
-  };
-};
-
+/**
+ * Gets DEO recipient title for education letters
+ */
 export const getDEORecipientTitle = (employee: EmployeeRecord): string => {
-  return getDepartmentProfile(employee).recipientTitle;
+  const gender = detectGenderFromSchoolName(employee?.employees?.school_full_name || '');
+  const district = employee?.employees?.district || 'Battagram';
+  return `The District Education Officer (${gender === 'F' ? 'Female' : 'Male'}), District ${district}.`;
 };
 
-// --- FORMATTERS ---
-export const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-PK', {
-    style: 'currency',
-    currency: 'PKR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+/**
+ * Gets salutation based on school/institution name
+ */
+export const getSalutationFromSchoolName = (
+  schoolName: string = ''
+): 'Sir' | 'Madam' => {
+  return getDetectorSalutation(schoolName);
 };
 
-export const getSalutationFromSchoolName = (schoolName: string = ''): 'Sir' | 'Madam' => {
-  const info = parseSchoolInfo(schoolName);
-  return info.salutation;
-};
-
-export const getCoverLetterInfo = (employee: EmployeeRecord) => {
-  const profile = getDepartmentProfile(employee);
-  const schoolName = employee.employees.school_full_name || employee.employees.office_name || '';
-  let headerTitle = profile.officeLine;
-  const upperHeader = profile.officeLine.toUpperCase();
-  if (
-    profile.departmentKey === 'education' &&
-    !upperHeader.includes('OFFICER') &&
-    !upperHeader.includes('SDEO') &&
-    schoolName
-  ) {
-    headerTitle += `\n${schoolName.toUpperCase()}`;
+/**
+ * Gets cover letter / letterhead info dynamically from employee data
+ * Includes dynamic department detection and safe fallback behavior.
+ */
+export const getCoverLetterInfo = (
+  employee: EmployeeRecord
+): {
+  headerTitle: string;
+  signatureTitle: string;
+  letterhead: {
+    line1: string;
+    line2: string;
+    line3: string;
+    full: string;
+  };
+  department: string;
+  departmentShort: string;
+} => {
+  if (!employee || !employee.employees) {
+    return {
+      headerTitle: 'OFFICE',
+      signatureTitle: 'Head of Office',
+      letterhead: {
+        line1: 'OFFICE',
+        line2: 'Government Office',
+        line3: 'Govt. of Khyber Pakhtunkhwa',
+        full: 'OFFICE\nGovernment Office\nGovt. of Khyber Pakhtunkhwa',
+      },
+      department: 'GOVERNMENT OF KHYBER PAKHTUNKHWA',
+      departmentShort: 'Government Office',
+    };
   }
+
+  const info = getDepartmentInfo(
+    employee.employees.school_full_name || '',
+    employee.employees.office_name || '',
+    employee.employees.tehsil || '',
+    employee.employees.district || '',
+    employee.employees.designation_full ||
+      employee.employees.designation ||
+      ''
+  );
+
   return {
-    headerTitle,
-    signatureTitle: profile.signatureTitle,
-    departmentLine: profile.departmentLine,
-    govtLine: profile.govtLine,
-    recipientTitle: profile.recipientTitle,
-    signatureAlign: profile.signatureAlign,
-    departmentKey: profile.departmentKey
+    headerTitle: info.headerTitle,
+    signatureTitle: info.signatureTitle,
+    letterhead: info.letterhead,
+    department: info.department,
+    departmentShort: info.departmentShort,
   };
 };
 
-export const getBeneficiaryDetails = (employee: EmployeeRecord) => {
-  const ben = employee.extras?.beneficiary || {};
-  if (ben.name) return ben;
+// ============================================================================
+// BENEFICIARY & FAMILY HELPERS
+// ============================================================================
 
-  const family = employee.family_members || [];
-  const heir = family.find(m => 
-    m.relation.toLowerCase().includes('wife') || 
-    m.relation.toLowerCase().includes('widow')
-  ) || family.find(m => m.relation.toLowerCase().includes('husband'))
-    || family.find(m => m.relation.toLowerCase().includes('son') || m.relation.toLowerCase().includes('daughter'));
+export interface BeneficiaryDetails {
+  name?: string;
+  relation?: string;
+  cnic?: string;
+  age?: string;
+  bank_name?: string;
+  branch_name?: string;
+  account_no?: string;
+  contact?: string;
+  id_mark?: string;
+}
+
+/**
+ * Gets beneficiary details from employee record
+ * Priority:
+ * 1. employee.extras.beneficiary
+ * 2. Wife / Widow
+ * 3. Husband
+ * 4. Son / Daughter
+ */
+export const getBeneficiaryDetails = (
+  employee: EmployeeRecord
+): BeneficiaryDetails => {
+  const ben = employee?.extras?.beneficiary || {};
+
+  if (ben && (ben.name || ben.cnic || ben.account_no)) {
+    return {
+      name: ben.name || '',
+      relation: ben.relation || '',
+      cnic: ben.cnic || '',
+      age: ben.age || '',
+      bank_name: ben.bank_name || '',
+      branch_name: ben.branch_name || '',
+      account_no: ben.account_no || '',
+      contact: ben.contact || '',
+      id_mark: ben.id_mark || '',
+    };
+  }
+
+  const family = Array.isArray(employee?.family_members) ? employee.family_members : [];
+
+  const heir =
+    family.find(
+      (m) =>
+        (m.relation || '').toLowerCase().includes('wife') ||
+        (m.relation || '').toLowerCase().includes('widow')
+    ) ||
+    family.find((m) => (m.relation || '').toLowerCase().includes('husband')) ||
+    family.find(
+      (m) =>
+        (m.relation || '').toLowerCase().includes('son') ||
+        (m.relation || '').toLowerCase().includes('daughter')
+    );
 
   if (heir) {
     return {
-      name: heir.relative_name,
-      relation: heir.relation,
-      cnic: heir.cnic,
-      dob: heir.dob,
-      age: heir.age,
-      status: heir.status,
+      name: heir.relative_name || '',
+      relation: heir.relation || '',
+      cnic: heir.cnic || '',
+      age: heir.age || '',
       bank_name: '',
       branch_name: '',
       account_no: '',
       contact: '',
-      id_mark: ''
+      id_mark: '',
     };
   }
+
   return {};
 };
 
-export const getApplicantRelationTitle = (relation: string = '') => {
+/**
+ * Gets the relation title for applicant's relationship to deceased
+ */
+export const getApplicantRelationTitle = (relation: string = ''): string => {
   const r = relation.toLowerCase();
   if (r.includes('wife') || r.includes('widow')) return 'Husband';
   if (r.includes('husband')) return 'Wife';
@@ -316,11 +366,21 @@ export const getApplicantRelationTitle = (relation: string = '') => {
   return 'Father/Husband';
 };
 
+// ============================================================================
+// RETIREMENT TYPE DETECTION
+// ============================================================================
+
 export type RetirementType = 'superannuation' | 'premature' | 'medical';
 
-export const getRetirementType = (employee: EmployeeRecord, caseRec?: CaseRecord): RetirementType => {
+/**
+ * Determines the type of retirement from employee/case data
+ */
+export const getRetirementType = (
+  employee: EmployeeRecord,
+  caseRec?: CaseRecord
+): RetirementType => {
   if (caseRec?.extras?.nature_of_retirement) {
-    const type = caseRec.extras.nature_of_retirement.toLowerCase();
+    const type = String(caseRec.extras.nature_of_retirement).toLowerCase();
     if (type.includes('medical')) return 'medical';
     if (type.includes('premature') || type.includes('compulsory')) return 'premature';
     if (type.includes('superannuation')) return 'superannuation';
@@ -329,101 +389,183 @@ export const getRetirementType = (employee: EmployeeRecord, caseRec?: CaseRecord
   const status = employee?.employees?.status?.toLowerCase() || '';
   if (status.includes('medical')) return 'medical';
   if (status.includes('premature') || status.includes('compulsory')) return 'premature';
-  if (status.includes('superannuation') || status.includes('retired') || status.includes('lpr')) return 'superannuation';
+  if (
+    status.includes('superannuation') ||
+    status.includes('retired') ||
+    status.includes('lpr')
+  ) {
+    return 'superannuation';
+  }
 
   if (employee?.employees?.dob && employee?.service_history?.date_of_retirement) {
-    const dob = parseISO(employee.employees.dob);
-    const dor = parseISO(employee.service_history.date_of_retirement);
-    const age = differenceInYears(dor, dob);
-    if (age >= 60) return 'superannuation';
+    try {
+      const dob = parseISO(employee.employees.dob);
+      const dor = parseISO(employee.service_history.date_of_retirement);
+      if (isValid(dob) && isValid(dor)) {
+        const age = differenceInYears(dor, dob);
+        if (age >= 60) return 'superannuation';
+      }
+    } catch {
+      // ignore invalid dates
+    }
   }
 
   return 'superannuation';
 };
 
-// --- CALCULATIONS ---
+// ============================================================================
+// FORMATTERS
+// ============================================================================
 
+/**
+ * Formats number as Pakistani Rupees
+ */
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-PK', {
+    style: 'currency',
+    currency: 'PKR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+/**
+ * Splits a value into chars for form boxes
+ */
+export const splitToChars = (
+  value: string | number | undefined,
+  count: number,
+  opts?: { padLeft?: string; onlyDigits?: boolean } | boolean
+): string[] => {
+  const resolved = typeof opts === 'boolean' ? { onlyDigits: opts } : opts;
+  const onlyDigits = resolved?.onlyDigits ?? true;
+
+  if (value === undefined || value === null) return Array(count).fill('');
+
+  let str = String(value);
+  if (onlyDigits) {
+    str = str.replace(/\D/g, '');
+  }
+  if (resolved?.padLeft) {
+    str = str.padStart(count, resolved.padLeft);
+  }
+
+  const chars = str.split('');
+  while (chars.length < count) chars.push('');
+  return chars.slice(0, count);
+};
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+
+/**
+ * Calculates payroll totals
+ */
 export const calculatePayroll = (financials: EmployeeRecord['financials']) => {
   const f: any = financials || {};
-  
-  const grossPay = 
-    // Basic Pay & Core Allowances
-    (f.basic_pay || 0) + 
-    (f.p_pay || 0) + 
-    (f.hra || 0) + 
-    (f.ca || 0) + 
-    (f.ma || 0) + 
-    (f.uaa || 0) + 
-    
-    // Special Allowances
-    (f.spl_allow_2021 || 0) +
-    (f.teaching_allow || 0) + 
-    (f.spl_allow_female || 0) + 
-    (f.spl_allow_disable || 0) +
-    (f.integrated_allow || 0) + 
-    (f.charge_allow || 0) + 
-    (f.wa || 0) + 
-    (f.dress_allow || 0) + 
-    
-    // New Allowances
-    (f.computer_allow || 0) + 
-    (f.mphil_allow || 0) + 
-    (f.entertainment_allow || 0) + 
-    (f.science_teaching_allow || 0) + 
-    (f.weather_allow || 0) +
-    
-    // Adhoc Reliefs
-    (f.adhoc_2013 || 0) + 
-    (f.adhoc_2015 || 0) +
-    (f.dra_2022kp || 0) + 
-    (f.adhoc_2022_ps17 || 0) +
-    (f.adhoc_2023_35 || 0) + 
-    (f.adhoc_2024_25 || 0) + 
-    (f.adhoc_2025_10 || 0) + 
-    (f.dra_2025_15 || 0) +
-    
-    // Dynamic Fields
-    Object.values(f.arrears || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0) +
-    Object.values(f.allowances_extra || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
 
-  const totalDeduction = 
-    (f.gpf || 0) + 
-    (f.gpf_advance || 0) + 
-    (f.bf || 0) + 
-    (f.eef || 0) + 
-    (f.rb_death || 0) + 
-    (f.adl_g_insurance || 0) + 
-    (f.group_insurance || 0) + 
-    (f.income_tax || 0) + 
-    (f.recovery || 0) + 
-    (f.edu_rop || 0) + 
-    (f.hba_loan_instal || 0) + 
+  const grossPay =
+    (f.basic_pay || 0) +
+    (f.p_pay || 0) +
+    (f.hra || 0) +
+    (f.ca || 0) +
+    (f.ma || 0) +
+    (f.uaa || 0) +
+    (f.spl_allow_2021 || 0) +
+    (f.teaching_allow || 0) +
+    (f.spl_allow_female || 0) +
+    (f.spl_allow_disable || 0) +
+    (f.integrated_allow || 0) +
+    (f.charge_allow || 0) +
+    (f.wa || 0) +
+    (f.dress_allow || 0) +
+    (f.computer_allow || 0) +
+    (f.mphil_allow || 0) +
+    (f.entertainment_allow || 0) +
+    (f.science_teaching_allow || 0) +
+    (f.weather_allow || 0) +
+    (f.adhoc_2013 || 0) +
+    (f.adhoc_2015 || 0) +
+    (f.dra_2022kp || 0) +
+    (f.adhoc_2022_ps17 || 0) +
+    (f.adhoc_2023_35 || 0) +
+    (f.adhoc_2024_25 || 0) +
+    (f.adhoc_2025_10 || 0) +
+    (f.dra_2025_15 || 0) +
+    Object.values(f.arrears || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0) +
+    Object.values(f.allowances_extra || {}).reduce(
+      (a: number, b: any) => a + (Number(b) || 0),
+      0
+    );
+
+  const totalDeduction =
+    (f.gpf || 0) +
+    (f.gpf_advance || 0) +
+    (f.bf || 0) +
+    (f.eef || 0) +
+    (f.rb_death || 0) +
+    (f.adl_g_insurance || 0) +
+    (f.group_insurance || 0) +
+    (f.income_tax || 0) +
+    (f.recovery || 0) +
+    (f.edu_rop || 0) +
+    (f.hba_loan_instal || 0) +
     (f.gpf_loan_instal || 0) +
-    Object.values(f.deductions_extra || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+    Object.values(f.deductions_extra || {}).reduce(
+      (a: number, b: any) => a + (Number(b) || 0),
+      0
+    );
 
   const netPay = grossPay - totalDeduction;
 
   return { grossPay, totalDeduction, netPay };
 };
 
+/**
+ * Calculates retirement date (60 years from DOB)
+ */
 export const calculateRetirementDate = (dob: string): string => {
   if (!dob) return '';
-  const birthDate = parseISO(dob);
-  if (isNaN(birthDate.getTime())) return '';
-  const retirementDate = addYears(birthDate, 60);
-  return retirementDate.toISOString().split('T')[0];
+  try {
+    const birthDate = parseISO(dob);
+    if (!isValid(birthDate)) return '';
+    const retirementDate = addYears(birthDate, 60);
+    return format(retirementDate, 'yyyy-MM-dd');
+  } catch {
+    return '';
+  }
 };
 
-export const autoCalculateRetirementDates = (employees: EmployeeRecord[]): EmployeeRecord[] => {
-  const inactiveStatuses = ['Retired', 'Deceased', 'LPR', 'Superannuation', 'Premature', 'Medical Board', 'Compulsory Retire'];
+/**
+ * Auto-calculates retirement dates for all employees
+ */
+export const autoCalculateRetirementDates = (
+  employees: EmployeeRecord[]
+): EmployeeRecord[] => {
+  const inactiveStatuses = [
+    'Retired',
+    'Deceased',
+    'LPR',
+    'Superannuation',
+    'Premature',
+    'Medical Board',
+    'Compulsory Retire',
+    'Death in Service',
+    'Expired',
+  ];
 
-  return employees.map(emp => {
+  return employees.map((emp) => {
     const { dob } = emp.employees;
     const status = emp.employees.status;
     const currentRetirement = emp.service_history.date_of_retirement;
-    const source = emp.extras?.retirement_date_source || (currentRetirement ? 'manual' : 'auto');
+    const source =
+      emp.extras?.retirement_date_source || (currentRetirement ? 'manual' : 'auto');
 
-    if (inactiveStatuses.includes(status) && currentRetirement) return emp;
+    if (inactiveStatuses.some((s) => status?.includes(s)) && currentRetirement) {
+      return emp;
+    }
+
     if (source === 'manual' && currentRetirement) return emp;
     if (!dob) return emp;
 
@@ -435,22 +577,119 @@ export const autoCalculateRetirementDates = (employees: EmployeeRecord[]): Emplo
         ...emp,
         service_history: { ...emp.service_history, date_of_retirement: calculated },
         extras: { ...emp.extras, retirement_date_source: 'auto' },
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
     }
-    
+
     if (!emp.extras?.retirement_date_source) {
-       return { 
-         ...emp, 
-         extras: { ...emp.extras, retirement_date_source: 'auto' } 
-       };
+      return {
+        ...emp,
+        extras: { ...emp.extras, retirement_date_source: 'auto' },
+      };
     }
 
     return emp;
   });
 };
 
-// Note: Removed redundant calculatePension. Use src/lib/pension.ts instead.
+/**
+ * Calculates service duration between two dates
+ */
+export const calculateServiceDuration = (
+  doa: string,
+  dor: string,
+  lwpDays: number = 0
+): { text: string; years: number; months: number; days: number } => {
+  if (!doa || !dor) {
+    return { text: '0 Years', years: 0, months: 0, days: 0 };
+  }
+
+  try {
+    const start = parseISO(doa);
+    const end = parseISO(dor);
+
+    if (!isValid(start) || !isValid(end)) {
+      return { text: 'Invalid Dates', years: 0, months: 0, days: 0 };
+    }
+
+    const duration = intervalToDuration({ start, end });
+    let years = duration.years || 0;
+    let months = duration.months || 0;
+    let days = duration.days || 0;
+
+    let totalDays = years * 365 + months * 30 + days - lwpDays;
+    if (totalDays < 0) totalDays = 0;
+
+    const finalYears = Math.floor(totalDays / 365);
+    const remDays = totalDays % 365;
+    const finalMonths = Math.floor(remDays / 30);
+    const finalDays = remDays % 30;
+
+    return {
+      text: `${finalYears} Years ${finalMonths} Months ${finalDays} Days`,
+      years: finalYears,
+      months: finalMonths,
+      days: finalDays,
+    };
+  } catch {
+    return { text: 'Invalid Dates', years: 0, months: 0, days: 0 };
+  }
+};
+
+/**
+ * Gets total service years only
+ */
+export const calculateServiceYears = (
+  doa: string,
+  dor: string,
+  lwpDays: number = 0
+): number => {
+  const dur = calculateServiceDuration(doa, dor, lwpDays);
+  return dur.years;
+};
+
+/**
+ * Legacy pension calculator (kept for compatibility)
+ */
+export const calculatePension = (
+  basicPay: number,
+  serviceYears: number,
+  age: number
+): PensionCalculationResult => {
+  const qualifyingService = Math.min(serviceYears, 30);
+  const grossPension = (basicPay * qualifyingService * 7) / 300;
+  const netPensionBase = grossPension * 0.65;
+  const commutationAmount = grossPension * 0.35;
+
+  const ageNextBirthday = Math.floor(age) + 1;
+  const ageFactor = AGE_FACTORS[ageNextBirthday] || AGE_FACTORS[61] || 11.8632;
+
+  const commutationLumpSum = commutationAmount * 12 * ageFactor;
+
+  const reliefs = [
+    { label: 'Medical Allowance (25% of Net)', amount: netPensionBase * 0.25 },
+    { label: 'Adhoc Relief 2022 (15%)', amount: netPensionBase * 0.15 },
+    { label: 'Adhoc Relief 2023 (15%)', amount: netPensionBase * 0.15 },
+    { label: 'Adhoc Relief 2024 (10%)', amount: netPensionBase * 0.10 },
+  ];
+
+  const totalReliefs = reliefs.reduce((sum, r) => sum + r.amount, 0);
+  const totalMonthlyPension = netPensionBase + totalReliefs;
+  const proposedNetPension = netPensionBase * 1.25;
+
+  return {
+    grossPension,
+    netPensionBase,
+    commutationLumpSum,
+    reliefs,
+    totalMonthlyPension,
+    proposedNetPension,
+  };
+};
+
+// ============================================================================
+// CHECKLISTS
+// ============================================================================
 
 export const getDefaultChecklist = (caseType: CaseType): CaseChecklistItem[] => {
   if (caseType === 'retirement') return getOfficialRetirementChecklist({} as any);
@@ -465,14 +704,11 @@ export const getDefaultChecklist = (caseType: CaseType): CaseChecklistItem[] => 
   if (caseType === 'court_case') return getCourtCaseChecklist();
   if (caseType === 'token_bill') return getTokenBillChecklist();
 
-  const base: CaseChecklistItem[] = [
+  return [
     { id: 'app', label: 'Application', done: false, required: true },
     { id: 'cnic', label: 'CNIC Copy (Attested)', done: false, required: true },
   ];
-  return base;
 };
-
-// --- CHECKLISTS ---
 
 export const getAuditParaChecklist = (): CaseChecklistItem[] => [
   { id: '1', label: 'Audit Observation / Para Copy', done: false, required: true },
@@ -498,7 +734,10 @@ export const getTokenBillChecklist = (): CaseChecklistItem[] => [
   { id: '5', label: 'Budget Allocation Copy', done: false, required: true },
 ];
 
-export const getOfficialRetirementChecklist = (employee: EmployeeRecord, caseRec?: CaseRecord): CaseChecklistItem[] => {
+export const getOfficialRetirementChecklist = (
+  employee: EmployeeRecord,
+  caseRec?: CaseRecord
+): CaseChecklistItem[] => {
   const status = employee?.employees?.status || '';
   const extras = caseRec?.extras || {};
   const bps = employee?.employees?.bps || 0;
@@ -525,7 +764,12 @@ export const getOfficialRetirementChecklist = (employee: EmployeeRecord, caseRec
   ];
 
   if (nature === 'medical') {
-    items.push({ id: '15', label: 'Medical Board Documents (In case of Medical Retirement)', done: false, required: true });
+    items.push({
+      id: '15',
+      label: 'Medical Board Documents (In case of Medical Retirement)',
+      done: false,
+      required: true,
+    });
   }
 
   if (isDeath) {
@@ -552,7 +796,10 @@ export const getOfficialRetirementChecklist = (employee: EmployeeRecord, caseRec
   return items;
 };
 
-export const getOfficialGPFChecklist = (caseType: CaseType, employee: EmployeeRecord): CaseChecklistItem[] => {
+export const getOfficialGPFChecklist = (
+  caseType: CaseType,
+  employee: EmployeeRecord
+): CaseChecklistItem[] => {
   const items: CaseChecklistItem[] = [
     { id: 'gpf_1', label: 'Application by concerned', done: false, required: true },
     { id: 'gpf_2', label: 'Printed Application Form Attested by DDO', done: false, required: true },
@@ -594,7 +841,7 @@ export const getOfficialGPFChecklist = (caseType: CaseType, employee: EmployeeRe
       { id: 'gpf_f_4', label: 'Pay-Stoppage Certificate', done: false, required: true },
       { id: 'gpf_f_5', label: 'Original Application', done: false, required: true },
       { id: 'gpf_f_6', label: 'Credit Memo (if transfer)', done: false, required: false },
-      { id: 'gpf_f_7', label: 'Nomination/Legal Heirs Docs (if Death case)', done: false, required: false }
+      { id: 'gpf_f_7', label: 'Nomination/Legal Heirs Docs (if Death case)', done: false, required: false },
     ];
   }
 
@@ -642,7 +889,9 @@ export const getRBDCChecklist = (): CaseChecklistItem[] => [
   { id: '18', label: 'Copy of Family Registration Certificate (NADRA)', done: false, required: true },
 ];
 
-export const getBenevolentFundChecklist = (isDeath: boolean): CaseChecklistItem[] => {
+export const getBenevolentFundChecklist = (
+  isDeath: boolean
+): CaseChecklistItem[] => {
   const list: CaseChecklistItem[] = [
     { id: '1', label: 'Prescribed Retirement Grant Application Form', done: false, required: true },
     { id: '2', label: 'Attested Copy of Retirement Order', done: false, required: true },
@@ -664,9 +913,10 @@ export const getBenevolentFundChecklist = (isDeath: boolean): CaseChecklistItem[
       { id: '14', label: 'Service Certificate', done: false, required: true },
       { id: '15', label: 'Fresh Photos', done: false, required: true },
       { id: '16', label: 'Attested Copy of Pension payment Order', done: false, required: true },
-      { id: '17', label: 'CNIC Guarantee', done: false, required: true },
+      { id: '17', label: 'CNIC Guarantee', done: false, required: true }
     );
   }
+
   return list;
 };
 
@@ -723,37 +973,71 @@ export const getFinancialAssistanceChecklist = (): CaseChecklistItem[] => [
   { id: '19', label: 'Affidavit duly attested by Oath commissioner', done: false, required: true },
 ];
 
-export const getGPFEligibilityWarnings = (caseRec: CaseRecord, employee: EmployeeRecord): { type: 'error' | 'warning' | 'success', message: string }[] => {
-  const warnings: { type: 'error' | 'warning' | 'success', message: string }[] = [];
+// ============================================================================
+// GPF ELIGIBILITY
+// ============================================================================
+
+export const getGPFEligibilityWarnings = (
+  caseRec: CaseRecord,
+  employee: EmployeeRecord
+): { type: 'error' | 'warning' | 'success'; message: string }[] => {
+  const warnings: { type: 'error' | 'warning' | 'success'; message: string }[] = [];
   const extras = caseRec.extras || {};
-  
+
   const balance = Number(extras.current_balance) || 0;
   const requested = Number(extras.amount_requested) || 0;
-  
+
   if (balance > 0 && requested > 0) {
-    if (requested > (balance * 0.8)) {
-      warnings.push({ type: 'error', message: `Requested amount exceeds 80% limit (${formatCurrency(balance * 0.8)}).` });
+    if (requested > balance * 0.8) {
+      warnings.push({
+        type: 'error',
+        message: `Requested amount exceeds 80% limit (${formatCurrency(balance * 0.8)}).`,
+      });
     } else {
-      warnings.push({ type: 'success', message: 'Amount is within 80% admissible limit.' });
+      warnings.push({
+        type: 'success',
+        message: 'Amount is within 80% admissible limit.',
+      });
     }
   }
 
   if (caseRec.case_type === 'gpf_non_refundable') {
     if (employee.employees.dob) {
-      const dob = parseISO(employee.employees.dob);
-      const age = differenceInYears(new Date(), dob);
-      if (age < 45) {
-        warnings.push({ type: 'error', message: `Employee age (${age}) is less than 45 years. Not eligible for Non-Refundable.` });
-      } else {
-        warnings.push({ type: 'success', message: `Age ${age} (Eligible for Non-Refundable).` });
+      try {
+        const dob = parseISO(employee.employees.dob);
+        if (isValid(dob)) {
+          const age = differenceInYears(new Date(), dob);
+          if (age < 45) {
+            warnings.push({
+              type: 'error',
+              message: `Employee age (${age}) is less than 45 years. Not eligible for Non-Refundable.`,
+            });
+          } else {
+            warnings.push({
+              type: 'success',
+              message: `Age ${age} (Eligible for Non-Refundable).`,
+            });
+          }
+        }
+      } catch {
+        // ignore invalid date
       }
     }
 
     if (extras.previous_non_refundable_date) {
-      const prevDate = parseISO(extras.previous_non_refundable_date);
-      const monthsDiff = differenceInDays(new Date(), prevDate) / 30;
-      if (monthsDiff < 12) {
-        warnings.push({ type: 'error', message: 'Less than 12 months since last Non-Refundable advance.' });
+      try {
+        const prevDate = parseISO(String(extras.previous_non_refundable_date));
+        if (isValid(prevDate)) {
+          const monthsDiff = differenceInDays(new Date(), prevDate) / 30;
+          if (monthsDiff < 12) {
+            warnings.push({
+              type: 'error',
+              message: 'Less than 12 months since last Non-Refundable advance.',
+            });
+          }
+        }
+      } catch {
+        // ignore invalid date
       }
     }
   }
@@ -761,14 +1045,19 @@ export const getGPFEligibilityWarnings = (caseRec: CaseRecord, employee: Employe
   if (caseRec.case_type === 'gpf_refundable') {
     const inst = Number(extras.installments);
     if (inst > 0 && (inst < 12 || inst > 36)) {
-      warnings.push({ type: 'warning', message: 'Installments should be between 12 and 36.' });
+      warnings.push({
+        type: 'warning',
+        message: 'Installments should be between 12 and 36.',
+      });
     }
   }
 
   return warnings;
 };
 
-// --- IDB / BLOB STORAGE ---
+// ============================================================================
+// INDEXED DB STORAGE
+// ============================================================================
 
 const DB_NAME = 'kpk_rpms_files';
 const STORE_NAME = 'files';
@@ -787,7 +1076,10 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-export const saveFileToIDB = async (id: string, file: Blob | Uint8Array | string): Promise<string> => {
+export const saveFileToIDB = async (
+  id: string,
+  file: Blob | Uint8Array | string
+): Promise<string> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -798,7 +1090,9 @@ export const saveFileToIDB = async (id: string, file: Blob | Uint8Array | string
   });
 };
 
-export const getFileFromIDB = async (id: string): Promise<Blob | Uint8Array | string | undefined> => {
+export const getFileFromIDB = async (
+  id: string
+): Promise<Blob | Uint8Array | string | undefined> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -811,6 +1105,7 @@ export const getFileFromIDB = async (id: string): Promise<Blob | Uint8Array | st
 
 export const getAllFilesFromIDB = async (): Promise<Record<string, Uint8Array>> => {
   const db = await openDB();
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
@@ -822,8 +1117,10 @@ export const getAllFilesFromIDB = async (): Promise<Record<string, Uint8Array>> 
       if (cursor) {
         const key = cursor.key as string;
         const value = cursor.value;
+
         if (value instanceof Uint8Array) {
           result[key] = value;
+          cursor.continue();
         } else if (value instanceof Blob) {
           const reader = new FileReader();
           reader.onload = () => {
@@ -832,21 +1129,28 @@ export const getAllFilesFromIDB = async (): Promise<Record<string, Uint8Array>> 
           };
           reader.onerror = () => reject(reader.error);
           reader.readAsArrayBuffer(value);
-          return;
         } else if (typeof value === 'string') {
-          const binaryString = window.atob(value.split(',')[1] || value);
-          const len = binaryString.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+          try {
+            const base64 = value.split(',')[1] || value;
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            result[key] = bytes;
+          } catch {
+            // ignore invalid base64 string
           }
-          result[key] = bytes;
+          cursor.continue();
+        } else {
+          cursor.continue();
         }
-        cursor.continue();
       } else {
         resolve(result);
       }
     };
+
     req.onerror = () => reject(req.error);
   });
 };
@@ -858,7 +1162,7 @@ export const clearCaseDocuments = async (): Promise<void> => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       const req = store.openCursor();
-      
+
       req.onsuccess = (e: any) => {
         const cursor = e.target.result;
         if (cursor) {
@@ -871,49 +1175,18 @@ export const clearCaseDocuments = async (): Promise<void> => {
           resolve();
         }
       };
+
       req.onerror = () => reject(req.error);
     });
   } catch (e) {
-    console.warn("IDB Clear Error or not supported:", e);
+    console.warn('IDB Clear Error or not supported:', e);
     return Promise.resolve();
   }
 };
 
-// --- PDF GENERATION ---
-
-export const calculateServiceDuration = (doa: string, dor: string, lwpDays: number = 0): { text: string, years: number, months: number, days: number } => {
-  if (!doa || !dor) return { text: '0 Years', years: 0, months: 0, days: 0 };
-  
-  const start = parseISO(doa);
-  const end = parseISO(dor);
-  
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return { text: 'Invalid Dates', years: 0, months: 0, days: 0 };
-  
-  const duration = intervalToDuration({ start, end });
-  let years = duration.years || 0;
-  let months = duration.months || 0;
-  let days = duration.days || 0;
-
-  let totalDays = (years * 365) + (months * 30) + days - lwpDays;
-  if (totalDays < 0) totalDays = 0;
-
-  const finalYears = Math.floor(totalDays / 365);
-  const remDays = totalDays % 365;
-  const finalMonths = Math.floor(remDays / 30);
-  const finalDays = remDays % 30;
-
-  return {
-    text: `${finalYears} Years ${finalMonths} Months ${finalDays} Days`,
-    years: finalYears,
-    months: finalMonths,
-    days: finalDays
-  };
-};
-
-export const calculateServiceYears = (doa: string, dor: string, lwpDays: number = 0): number => {
-  const dur = calculateServiceDuration(doa, dor, lwpDays);
-  return dur.years;
-};
+// ============================================================================
+// PDF GENERATION
+// ============================================================================
 
 export const generateFilledPdf = async (
   templateFile: Uint8Array | Blob | string,
@@ -931,7 +1204,7 @@ export const generateFilledPdf = async (
     for (let i = 0; i < len; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    pdfBytes = bytes.buffer;
+    pdfBytes = bytes.buffer as ArrayBuffer;
   } else {
     pdfBytes = templateFile.buffer as ArrayBuffer;
   }
@@ -946,47 +1219,96 @@ export const generateFilledPdf = async (
     employee.service_history.lwp_days
   );
 
+  const deptInfo = getDepartmentInfo(
+    employee.employees.school_full_name || '',
+    employee.employees.office_name || '',
+    employee.employees.tehsil || '',
+    employee.employees.district || '',
+    employee.employees.designation_full ||
+      employee.employees.designation ||
+      ''
+  );
+
+  const payroll = calculatePayroll(employee.financials);
+
   const context: Record<string, string> = {
-    'employee.name': employee.employees.name,
-    'employee.father_name': employee.employees.father_name,
-    'employee.designation': employee.employees.designation,
-    'employee.bps': employee.employees.bps.toString(),
-    'employee.personal_no': employee.employees.personal_no,
-    'employee.cnic_no': employee.employees.cnic_no,
-    'employee.office_name': employee.employees.office_name,
-    'employee.gpf_account_no': employee.employees.gpf_account_no,
-    'employee.bank_ac_no': employee.employees.bank_ac_no,
-    'employee.bank_name': employee.employees.bank_name,
-    'service.date_of_appointment': employee.service_history.date_of_appointment,
-    'service.date_of_retirement': employee.service_history.date_of_retirement,
-    'financials.basic_pay': employee.financials.basic_pay.toString(),
-    'financials.net_pay': (calculatePayroll(employee.financials).netPay).toString(),
-    'office.office_title': (employee.employees.office_name || 'Department of Education'),
-    'office.district_line': (employee.employees.district || 'Battagram'),
-    'service_history.date_of_appointment': employee.service_history.date_of_appointment,
-    'service_history.date_of_retirement': employee.service_history.date_of_retirement,
+    // Employee fields
+    'employee.name': employee.employees.name || '',
+    'employee.father_name': employee.employees.father_name || '',
+    'employee.designation': employee.employees.designation || '',
+    'employee.designation_full': employee.employees.designation_full || '',
+    'employee.bps': String(employee.employees.bps || ''),
+    'employee.personal_no': employee.employees.personal_no || '',
+    'employee.cnic_no': employee.employees.cnic_no || '',
+    'employee.office_name': employee.employees.office_name || '',
+    'employee.gpf_account_no': employee.employees.gpf_account_no || '',
+    'employee.bank_ac_no': employee.employees.bank_ac_no || '',
+    'employee.bank_name': employee.employees.bank_name || '',
+    'employee.school_full_name': employee.employees.school_full_name || '',
+    'employee.ppo_no': employee.employees.ppo_no || '',
+
+    // Service fields
+    'service.date_of_appointment': employee.service_history.date_of_appointment || '',
+    'service.date_of_retirement': employee.service_history.date_of_retirement || '',
+    'service_history.date_of_appointment': employee.service_history.date_of_appointment || '',
+    'service_history.date_of_retirement': employee.service_history.date_of_retirement || '',
+
+    // Financial fields
+    'financials.basic_pay': String(employee.financials.basic_pay || 0),
+    'financials.net_pay': String(payroll.netPay || 0),
+    'financials.gross_pay': String(payroll.grossPay || 0),
+    'financials.total_deduction': String(payroll.totalDeduction || 0),
+
+    // Office / Department fields
+    'office.office_title': deptInfo.headerTitle || '',
+    'office.department': deptInfo.department || '',
+    'office.department_short': deptInfo.departmentShort || '',
+    'office.district_line': employee.employees.district || 'Battagram',
+
+    // Computed fields
     'computed.total_service_text': service.text,
-    'case.extras.nature_of_retirement': (caseRec.extras?.nature_of_retirement || employee.employees.status) as string,
-    'current_date': new Date().toLocaleDateString('en-GB'),
-    'date': new Date().toLocaleDateString('en-GB'),
-    'school.gender': parseSchoolInfo(employee.employees.school_full_name).gender,
-    'school.salutation': parseSchoolInfo(employee.employees.school_full_name).salutation,
-    'school.authority_title': parseSchoolInfo(employee.employees.school_full_name, employee.employees.tehsil).authorityTitle,
+    'case.extras.nature_of_retirement': String(
+      caseRec.extras?.nature_of_retirement || employee.employees.status || ''
+    ),
+
+    // Dates
+    current_date: format(new Date(), 'dd/MM/yyyy'),
+    date: format(new Date(), 'dd/MM/yyyy'),
+
+    // Department detection fields
+    'school.gender': deptInfo.gender,
+    'school.salutation': deptInfo.salutation,
+    'school.authority_title': deptInfo.authorityTitle,
+    'department.name': deptInfo.department,
+    'department.short': deptInfo.departmentShort,
+    'department.type': deptInfo.departmentType,
+    'signature.title': deptInfo.signatureTitle,
+    'signature.title_short': deptInfo.signatureTitleShort,
+    'header.title': deptInfo.headerTitle,
+    'letterhead.line1': deptInfo.letterhead.line1,
+    'letterhead.line2': deptInfo.letterhead.line2,
+    'letterhead.line3': deptInfo.letterhead.line3,
+    'letterhead.full': deptInfo.letterhead.full,
   };
 
-  const fields = form.getFields();
-  const templateObj = (localStorage.getItem('kpk_rpms_templates') 
-    ? JSON.parse(localStorage.getItem('kpk_rpms_templates')!).find((t: PdfTemplate) => t.document_type === caseRec.case_type || t.id === (caseRec as any).templateId)
-    : null) as PdfTemplate | null;
+  const templateObj = localStorage.getItem('kpk_rpms_templates')
+    ? (JSON.parse(localStorage.getItem('kpk_rpms_templates')!).find(
+        (t: PdfTemplate) =>
+          t.document_type === caseRec.case_type || t.id === (caseRec as any).templateId
+      ) as PdfTemplate | undefined)
+    : undefined;
 
-  fields.forEach(field => {
+  const fields = form.getFields();
+
+  fields.forEach((field) => {
     const fieldName = field.getName();
-    
+
     let value = '';
-    if (templateObj && templateObj.fieldMappings && templateObj.fieldMappings[fieldName]) {
+
+    if (templateObj?.fieldMappings && templateObj.fieldMappings[fieldName]) {
       const mapping = templateObj.fieldMappings[fieldName];
       if (mapping === 'manual') {
-        value = (caseRec.extras?.[`field_${fieldName}`] as string) || '';
+        value = String(caseRec.extras?.[`field_${fieldName}`] || '');
       } else {
         value = context[mapping] || '';
       }
@@ -1007,45 +1329,109 @@ export const generateFilledPdf = async (
   });
 
   form.flatten();
-
   return pdfDoc.save();
 };
 
-// --- MIGRATION LOGIC (EMPLOYEES) ---
+// ============================================================================
+// MIGRATION LOGIC
+// ============================================================================
 
 const OFFICIAL_IDENTITY_KEYS = new Set([
-  'name', 'designation', 'bps', 'school_full_name', 'office_name', 'status', 'staff_type',
-  'mobile_no', 'personal_no', 'cnic_no', 'father_name', 'nationality', 'address', 
-  'dob', 'ddo_code', 'bank_ac_no', 'bank_branch', 'account_type', 'gpf_account_no',
-  'district', 'tehsil', 'bank_name', 'branch_name', 'branch_code',
-  'ntn_no', 'employment_category', 'designation_full', 'gender', 'ppo_no'
+  'name',
+  'designation',
+  'bps',
+  'school_full_name',
+  'office_name',
+  'status',
+  'staff_type',
+  'mobile_no',
+  'personal_no',
+  'cnic_no',
+  'father_name',
+  'nationality',
+  'address',
+  'dob',
+  'ddo_code',
+  'bank_ac_no',
+  'bank_branch',
+  'account_type',
+  'gpf_account_no',
+  'district',
+  'tehsil',
+  'bank_name',
+  'branch_name',
+  'branch_code',
+  'ntn_no',
+  'employment_category',
+  'designation_full',
+  'gender',
+  'ppo_no',
 ]);
 
 const OFFICIAL_SERVICE_KEYS = new Set([
-  'date_of_appointment', 'date_of_entry', 'date_of_retirement', 
-  'retirement_order_no', 'retirement_order_date', 'lwp_days', 'lpr_days', 
-  'leave_taken_days', 'qualifying_service', 'date_of_regularization', 'date_of_death'
+  'date_of_appointment',
+  'date_of_entry',
+  'date_of_retirement',
+  'retirement_order_no',
+  'retirement_order_date',
+  'lwp_days',
+  'lpr_days',
+  'leave_taken_days',
+  'qualifying_service',
+  'date_of_regularization',
+  'date_of_death',
 ]);
 
 const OFFICIAL_FIN_ALLOWANCE_KEYS = new Set([
-  'basic_pay', 'p_pay', 'hra', 'ca', 'ma', 'uaa', 
-  'spl_allow_2021', 'teaching_allow', 'spl_allow_female', 'spl_allow_disable', 
-  'integrated_allow', 'charge_allow', 'wa', 'dress_allow',
-  'computer_allow', 'mphil_allow', 'entertainment_allow',
-  'science_teaching_allow', 'weather_allow',
-  'adhoc_2013', 'adhoc_2015', 'dra_2022kp', 'adhoc_2022_ps17', 
-  'adhoc_2023_35', 'adhoc_2024_25', 'adhoc_2025_10', 'dra_2025_15'
+  'basic_pay',
+  'p_pay',
+  'hra',
+  'ca',
+  'ma',
+  'uaa',
+  'spl_allow_2021',
+  'teaching_allow',
+  'spl_allow_female',
+  'spl_allow_disable',
+  'integrated_allow',
+  'charge_allow',
+  'wa',
+  'dress_allow',
+  'computer_allow',
+  'mphil_allow',
+  'entertainment_allow',
+  'science_teaching_allow',
+  'weather_allow',
+  'adhoc_2013',
+  'adhoc_2015',
+  'dra_2022kp',
+  'adhoc_2022_ps17',
+  'adhoc_2023_35',
+  'adhoc_2024_25',
+  'adhoc_2025_10',
+  'dra_2025_15',
 ]);
 
 const OFFICIAL_FIN_DEDUCTION_KEYS = new Set([
-  'gpf', 'gpf_sub', 'gpf_advance', 'bf', 'eef', 
-  'rb_death', 'adl_g_insurance', 'group_insurance', 'income_tax', 'recovery',
-  'edu_rop', 'hba_loan_instal', 'gpf_loan_instal'
+  'gpf',
+  'gpf_sub',
+  'gpf_advance',
+  'bf',
+  'eef',
+  'rb_death',
+  'adl_g_insurance',
+  'group_insurance',
+  'income_tax',
+  'recovery',
+  'edu_rop',
+  'hba_loan_instal',
+  'gpf_loan_instal',
 ]);
 
 export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
-  return oldData.map(old => {
+  return oldData.map((old) => {
     let status = old.status || old.employees?.status || 'Active';
+
     if (typeof status === 'string') {
       if (status.startsWith('Retired - ')) {
         status = status.replace('Retired - ', '');
@@ -1054,7 +1440,7 @@ export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
 
     if (old.schemaVersion === CURRENT_SCHEMA_VERSION) {
       old.employees.status = status;
-      
+
       if (!old.employees.staff_type) {
         old.employees.staff_type = 'teaching';
       }
@@ -1072,17 +1458,14 @@ export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
       if (!old.employees.gender) old.employees.gender = 'Male';
       if (!old.employees.ppo_no) old.employees.ppo_no = '';
 
-      // Migrate old field names to new
       if (old.financials) {
-        // Migrate last_basic_pay to basic_pay
         if (old.financials.last_basic_pay && !old.financials.basic_pay) {
           old.financials.basic_pay = old.financials.last_basic_pay;
         }
-        // Migrate spl_allow to spl_allow_2021
-        if (old.financials.spl_allow_2021 && !old.financials.spl_allow_2021) {
-          old.financials.spl_allow_2021 = old.financials.spl_allow_2021;
+        if (old.financials.spl_allow && !old.financials.spl_allow_2021) {
+          old.financials.spl_allow_2021 = old.financials.spl_allow;
         }
-        // Clean up deprecated fields
+
         delete old.financials.last_basic_pay;
         delete old.financials.last_pay_with_increment;
         delete old.financials.spl_allow;
@@ -1092,140 +1475,118 @@ export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
         delete old.financials.adhoc_2022;
       }
 
-      // Fix SPST BPS-14 designation mismatches
-      try {
-        const bps = Number(old.employees?.bps) || 0;
-        const dShort = (old.employees?.designation || '').trim().toUpperCase();
-        const dFullRaw = (old.employees?.designation_full || old.employees?.designation || '').trim().toUpperCase();
-        const looksLikeSPST =
-          bps === 14 &&
-          (
-            dFullRaw === 'SENIOR PST' ||
-            dFullRaw.includes('SENIOR PST') ||
-            dFullRaw.startsWith('SENIOR PRIMARY SCHOOL TEA') ||
-            dShort === 'SENIOR PST'
-          );
-        if (looksLikeSPST) {
-          old.employees.designation_full = 'SENIOR PRIMARY SCHOOL TEACHER';
-          old.employees.designation = 'SPST';
-        } else {
-          if (dFullRaw === 'SENIOR PRIMARY SCHOOL TEACHER' && dShort !== 'SPST') {
-            old.employees.designation = 'SPST';
-          }
-          if (dShort === 'SPST' && dFullRaw.startsWith('SENIOR PRIMARY SCHOOL TEA')) {
-            old.employees.designation_full = 'SENIOR PRIMARY SCHOOL TEACHER';
-          }
-        }
-      } catch {}
-
+      normalizeDesignation(old);
       return old as EmployeeRecord;
     }
 
     const now = new Date().toISOString();
-    
+
     const record: EmployeeRecord = {
       id: old.id || Date.now().toString(),
       schemaVersion: CURRENT_SCHEMA_VERSION,
       employees: {
-        name: old.name || '', 
-        designation: old.designation || '', 
+        name: old.name || '',
+        designation: old.designation || '',
         bps: Number(old.bps) || 0,
-        school_full_name: old.school_full_name || '', 
+        school_full_name: old.school_full_name || '',
         office_name: old.office_name || '',
         staff_type: old.staff_type || 'teaching',
-        status: status, 
-        mobile_no: old.mobile_no || '', 
+        status: status,
+        mobile_no: old.mobile_no || '',
         personal_no: old.personal_no || '',
-        cnic_no: old.cnic_no || '', 
-        father_name: old.father_name || '', 
+        cnic_no: old.cnic_no || '',
+        father_name: old.father_name || '',
         nationality: old.nationality || 'Pakistani',
-        district: old.district || 'Battagram', 
+        district: old.district || 'Battagram',
         tehsil: old.tehsil || 'Allai',
-        address: old.address || '', 
-        dob: old.dob || '', 
+        address: old.address || '',
+        dob: old.dob || '',
         ddo_code: old.ddo_code || '',
-        bank_ac_no: old.bank_ac_no || '', 
+        bank_ac_no: old.bank_ac_no || '',
         bank_branch: old.bank_branch || '',
         bank_name: old.bank_name || '',
         branch_name: old.branch_name || old.bank_branch || '',
         branch_code: old.branch_code || '',
-        account_type: old.account_type || 'PLS', 
+        account_type: old.account_type || 'PLS',
         gpf_account_no: old.gpf_account_no || '',
         ntn_no: old.ntn_no || '',
         employment_category: old.employment_category || '',
         designation_full: old.designation_full || '',
         gender: old.gender || 'Male',
-        ppo_no: old.ppo_no || ''
+        ppo_no: old.ppo_no || '',
       },
       service_history: {
-        date_of_appointment: '', 
-        date_of_entry: '', 
+        date_of_appointment: '',
+        date_of_entry: '',
         date_of_retirement: '',
-        retirement_order_no: '', 
-        retirement_order_date: '', 
-        lwp_days: 0, 
-        lpr_days: 365, 
+        retirement_order_no: '',
+        retirement_order_date: '',
+        lwp_days: 0,
+        lpr_days: 365,
         leave_taken_days: 0,
         date_of_regularization: '',
-        date_of_death: ''
+        date_of_death: '',
       },
       financials: {
-        basic_pay: 0, 
-        p_pay: 0, 
-        hra: 0, 
-        ca: 0, 
-        ma: 0, 
+        basic_pay: 0,
+        p_pay: 0,
+        hra: 0,
+        ca: 0,
+        ma: 0,
         uaa: 0,
         spl_allow_2021: 0,
-        teaching_allow: 0, 
-        spl_allow_female: 0, 
+        teaching_allow: 0,
+        spl_allow_female: 0,
         spl_allow_disable: 0,
-        integrated_allow: 0, 
-        charge_allow: 0, 
-        wa: 0, 
-        dress_allow: 0, 
-        computer_allow: 0, 
-        mphil_allow: 0, 
+        integrated_allow: 0,
+        charge_allow: 0,
+        wa: 0,
+        dress_allow: 0,
+        computer_allow: 0,
+        mphil_allow: 0,
         entertainment_allow: 0,
-        science_teaching_allow: 0, 
+        science_teaching_allow: 0,
         weather_allow: 0,
-        adhoc_2013: 0, 
+        adhoc_2013: 0,
         adhoc_2015: 0,
-        dra_2022kp: 0, 
+        dra_2022kp: 0,
         adhoc_2022_ps17: 0,
-        adhoc_2023_35: 0, 
-        adhoc_2024_25: 0, 
-        adhoc_2025_10: 0, 
+        adhoc_2023_35: 0,
+        adhoc_2024_25: 0,
+        adhoc_2025_10: 0,
         dra_2025_15: 0,
         arrears: {},
-        gpf: 0, 
+        gpf: 0,
         gpf_sub: 0,
-        gpf_advance: 0, 
-        bf: 0, 
-        eef: 0, 
-        rb_death: 0, 
-        adl_g_insurance: 0, 
-        group_insurance: 0, 
-        income_tax: 0, 
-        recovery: 0, 
+        gpf_advance: 0,
+        bf: 0,
+        eef: 0,
+        rb_death: 0,
+        adl_g_insurance: 0,
+        group_insurance: 0,
+        income_tax: 0,
+        recovery: 0,
         edu_rop: 0,
-        hba_loan_instal: 0, 
+        hba_loan_instal: 0,
         gpf_loan_instal: 0,
-        allowances_extra: {}, 
-        deductions_extra: {}
+        allowances_extra: {},
+        deductions_extra: {},
       },
-      family_members: Array.isArray(old.familyMembers) ? old.familyMembers : 
-                      (Array.isArray(old.family_members) ? old.family_members : []),
+      family_members: Array.isArray(old.familyMembers)
+        ? old.familyMembers
+        : Array.isArray(old.family_members)
+        ? old.family_members
+        : [],
       extras: {},
       createdAt: old.createdAt || now,
-      updatedAt: now
+      updatedAt: now,
     };
 
-    // Migrate Service History
+    // Migrate service history
     const srcService = old.serviceHistory || old.service_history || {};
     if (old.date_of_appointment) srcService.date_of_appointment = old.date_of_appointment;
-    
-    Object.keys(srcService).forEach(key => {
+
+    Object.keys(srcService).forEach((key) => {
       const val = srcService[key];
       if (OFFICIAL_SERVICE_KEYS.has(key)) {
         (record.service_history as any)[key] = val;
@@ -1234,15 +1595,14 @@ export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
       }
     });
 
-    // Migrate Financials
+    // Migrate financials
     const srcFin = old.financials || {};
-    Object.keys(srcFin).forEach(key => {
+    Object.keys(srcFin).forEach((key) => {
       const val = Number(srcFin[key]) || 0;
-      
-      // Map legacy field names
+
       if (key === 'last_basic_pay' || key === 'basic_pay') {
         record.financials.basic_pay = val;
-      } else if (key === 'spl_allow_2021' || key === 'spl_allow_2021') {
+      } else if (key === 'spl_allow' || key === 'spl_allow_2021') {
         record.financials.spl_allow_2021 = val;
       } else if (key === 'gpf_deduction') {
         record.financials.gpf = val;
@@ -1250,34 +1610,42 @@ export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
         record.financials.gpf_advance = val;
       } else if (key === 'recovery_other') {
         record.financials.recovery = val;
-      }
-      // Skip deprecated fields
-      else if (['last_pay_with_increment', 'adhoc_10pct', 'adhoc_2016', 'adhoc_2022'].includes(key)) {
-        // Skip these deprecated fields
-      }
-      // Official Direct Match
-      else if (OFFICIAL_FIN_ALLOWANCE_KEYS.has(key)) {
+      } else if (
+        ['last_pay_with_increment', 'adhoc_10pct', 'adhoc_2016', 'adhoc_2022'].includes(
+          key
+        )
+      ) {
+        // Skip deprecated fields
+      } else if (OFFICIAL_FIN_ALLOWANCE_KEYS.has(key)) {
         (record.financials as any)[key] = val;
       } else if (OFFICIAL_FIN_DEDUCTION_KEYS.has(key)) {
         (record.financials as any)[key] = val;
-      }
-      // Arrears
-      else if (key.toLowerCase().startsWith('ar_') || key.toLowerCase().startsWith('dra_') || key.toLowerCase() === 'da') {
+      } else if (
+        key.toLowerCase().startsWith('ar_') ||
+        key.toLowerCase().startsWith('dra_') ||
+        key.toLowerCase() === 'da'
+      ) {
         record.financials.arrears[key] = val;
-      }
-      // Everything else -> Allowance Extra
-      else {
+      } else {
         record.financials.allowances_extra[key] = val;
       }
     });
 
-    // Migrate Root Extras
-    Object.keys(old).forEach(key => {
+    // Root extras
+    Object.keys(old).forEach((key) => {
       if (
-        key === 'id' || key === 'schemaVersion' || key === 'createdAt' || key === 'updatedAt' ||
-        key === 'financials' || key === 'serviceHistory' || key === 'service_history' || 
-        key === 'familyMembers' || key === 'family_members'
-      ) return;
+        key === 'id' ||
+        key === 'schemaVersion' ||
+        key === 'createdAt' ||
+        key === 'updatedAt' ||
+        key === 'financials' ||
+        key === 'serviceHistory' ||
+        key === 'service_history' ||
+        key === 'familyMembers' ||
+        key === 'family_members'
+      ) {
+        return;
+      }
 
       if (OFFICIAL_IDENTITY_KEYS.has(key)) return;
       if (OFFICIAL_SERVICE_KEYS.has(key)) return;
@@ -1285,40 +1653,53 @@ export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
       record.extras[key] = old[key];
     });
 
-    // Normalize SPST BPS-14
-    try {
-      const bps = Number(record.employees?.bps) || 0;
-      const dShort = (record.employees?.designation || '').trim().toUpperCase();
-      const dFullRaw = (record.employees?.designation_full || record.employees?.designation || '').trim().toUpperCase();
-      const looksLikeSPST =
-        bps === 14 &&
-        (
-          dFullRaw === 'SENIOR PST' ||
-          dFullRaw.includes('SENIOR PST') ||
-          dFullRaw.startsWith('SENIOR PRIMARY SCHOOL TEA') ||
-          dShort === 'SENIOR PST'
-        );
-      if (looksLikeSPST) {
-        record.employees.designation_full = 'SENIOR PRIMARY SCHOOL TEACHER';
-        record.employees.designation = 'SPST';
-      } else {
-        if (dFullRaw === 'SENIOR PRIMARY SCHOOL TEACHER' && dShort !== 'SPST') {
-          record.employees.designation = 'SPST';
-        }
-        if (dShort === 'SPST' && dFullRaw.startsWith('SENIOR PRIMARY SCHOOL TEA')) {
-          record.employees.designation_full = 'SENIOR PRIMARY SCHOOL TEACHER';
-        }
-      }
-    } catch {}
-
+    normalizeDesignation(record);
     return record;
   });
 };
 
+/**
+ * Normalizes SPST BPS-14 designation mismatches
+ */
+function normalizeDesignation(record: any): void {
+  try {
+    const bps = Number(record.employees?.bps) || 0;
+    const dShort = (record.employees?.designation || '').trim().toUpperCase();
+    const dFullRaw = (
+      record.employees?.designation_full ||
+      record.employees?.designation ||
+      ''
+    )
+      .trim()
+      .toUpperCase();
+
+    const looksLikeSPST =
+      bps === 14 &&
+      (dFullRaw === 'SENIOR PST' ||
+        dFullRaw.includes('SENIOR PST') ||
+        dFullRaw.startsWith('SENIOR PRIMARY SCHOOL TEA') ||
+        dShort === 'SENIOR PST');
+
+    if (looksLikeSPST) {
+      record.employees.designation_full = 'SENIOR PRIMARY SCHOOL TEACHER';
+      record.employees.designation = 'SPST';
+    } else {
+      if (dFullRaw === 'SENIOR PRIMARY SCHOOL TEACHER' && dShort !== 'SPST') {
+        record.employees.designation = 'SPST';
+      }
+      if (dShort === 'SPST' && dFullRaw.startsWith('SENIOR PRIMARY SCHOOL TEA')) {
+        record.employees.designation_full = 'SENIOR PRIMARY SCHOOL TEACHER';
+      }
+    }
+  } catch {
+    // ignore normalization errors
+  }
+}
+
 export const migrateCasesToV1 = (oldData: any[]): CaseRecord[] => {
-  return oldData.map(c => {
+  return oldData.map((c) => {
     if (c.schemaVersion === CURRENT_CASE_SCHEMA_VERSION) return c as CaseRecord;
-    
+
     return {
       id: c.id || Date.now().toString(),
       schemaVersion: CURRENT_CASE_SCHEMA_VERSION,
@@ -1333,12 +1714,14 @@ export const migrateCasesToV1 = (oldData: any[]): CaseRecord[] => {
       auditLog: Array.isArray(c.auditLog) ? c.auditLog : [],
       extras: c.extras || {},
       createdAt: c.createdAt || new Date().toISOString(),
-      updatedAt: c.updatedAt || new Date().toISOString()
+      updatedAt: c.updatedAt || new Date().toISOString(),
     };
   }) as CaseRecord[];
 };
 
-// --- DUPLICATE DETECTION ---
+// ============================================================================
+// DUPLICATE DETECTION
+// ============================================================================
 
 export interface DuplicateGroup {
   groupId: string;
@@ -1346,11 +1729,17 @@ export interface DuplicateGroup {
   reasons: string[];
 }
 
-export const detectDuplicateGroups = (employees: EmployeeRecord[]): DuplicateGroup[] => {
+export const detectDuplicateGroups = (
+  employees: EmployeeRecord[]
+): DuplicateGroup[] => {
   const groups: DuplicateGroup[] = [];
   const visited = new Set<string>();
 
-  const norm = (s: string | undefined) => (s || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const norm = (s: string | undefined) =>
+    (s || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
 
   for (let i = 0; i < employees.length; i++) {
     const a = employees[i];
@@ -1389,9 +1778,9 @@ export const detectDuplicateGroups = (employees: EmployeeRecord[]): DuplicateGro
       groups.push({
         groupId: `dup_${a.id}_${Date.now()}`,
         ids: currentGroupIds,
-        reasons: Array.from(reasons)
+        reasons: Array.from(reasons),
       });
-      visited.add(a.id); 
+      visited.add(a.id);
     }
   }
 

@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { EmployeeRecord, CaseRecord } from '../../types';
-import { CoverLetterLayout } from '../../components/CoverLetterLayout';
+import { CoverLetterLayout, useHonorific } from '../../components/CoverLetterLayout';
 import { formatDate } from '../../utils/dateUtils';
 
 interface Props {
@@ -9,27 +8,71 @@ interface Props {
   caseRecord: CaseRecord;
 }
 
-export const RBDCApplication: React.FC<Props> = ({ employee, caseRecord }) => {
+const RBDCBody: React.FC<{ employee: EmployeeRecord }> = ({ employee }) => {
+  const { honorific } = useHonorific();
   const { employees, service_history } = employee;
+
   const orderNo = service_history.retirement_order_no || '__________';
   const orderDate = formatDate(service_history.retirement_order_date) || '__________';
   const retirementDate = formatDate(service_history.date_of_retirement) || '__________';
 
+  const employeeName = employees.name || '__________';
+  const designation =
+    employees.designation_full || employees.designation || '__________';
+  const bps = employees.bps || '__';
+  const institution = employees.school_full_name || '__________';
+  const district = employees.district || '__________';
+  const personalNo = employees.personal_no || '__________';
+  const cnic = employees.cnic_no || '__________';
+
   return (
-    <CoverLetterLayout 
-      employee={employee} 
+    <div style={{ fontSize: '10.5pt', lineHeight: '1.6' }}>
+      <p className="mb-2" style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        The case regarding grant of Retirement Benefit and Death Compensation
+        (RBDC) in respect of{' '}
+        <strong className="uppercase">{honorific} {employeeName}</strong>,{' '}
+        <strong className="uppercase">{designation} (BPS-{bps})</strong>,{' '}
+        <strong className="uppercase">{institution}</strong>, District{' '}
+        <strong className="uppercase">{district}</strong>, having Personal
+        No. <strong>{personalNo}</strong> and CNIC No. <strong>{cnic}</strong>,
+        is forwarded herewith for favour of further necessary action.
+      </p>
+
+      <p className="mb-2" style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        2.&nbsp;&nbsp;The above named official retired from Government service
+        with effect from <strong>{retirementDate}</strong> vide Retirement Order /
+        Notification No. <strong>{orderNo}</strong>, dated{' '}
+        <strong>{orderDate}</strong>, issued by the competent authority.
+      </p>
+
+      <p className="mb-2" style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        3.&nbsp;&nbsp;It is certified that the particulars of the official have
+        been checked and found correct as per available record. The prescribed
+        application form along with the relevant supporting documents has been
+        completed and verified by this office.
+      </p>
+
+      <p className="mb-2" style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        4.&nbsp;&nbsp;It is requested that the case may kindly be countersigned
+        and forwarded to the competent authority for sanction and release of the
+        admissible RBDC benefit under the rules.
+      </p>
+
+      <p style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        5.&nbsp;&nbsp;Submitted for favour of necessary action, please.
+      </p>
+    </div>
+  );
+};
+
+export const RBDCApplication: React.FC<Props> = ({ employee, caseRecord }) => {
+  return (
+    <CoverLetterLayout
+      employee={employee}
       caseRecord={caseRecord}
-      subject="APPLICATION FOR THE GRANT OF RETIREMENT BENEFIT AND DEATH COMPENSATION (RBDC)"
+      subject="GRANT OF RETIREMENT BENEFIT AND DEATH COMPENSATION (RBDC)"
     >
-      <p>
-        I have the honor to submit herewith the complete case file regarding the grant of Retirement Benefit and Death Compensation (RBDC) in favor of <span className="font-bold uppercase">Mr./Ms. {employees.name}</span>, <span className="font-bold uppercase">{employees.designation} (BPS-{employees.bps})</span>, <span className="font-bold uppercase">{employees.school_full_name}</span>.
-      </p>
-      <p className="mt-4">
-        The official retired from government service on <span className="font-bold">{retirementDate}</span> vide DEO Battagram Endorsement No: <span className="font-bold">{orderNo}</span> Dated: <span className="font-bold">{orderDate}</span>.
-      </p>
-      <p className="mt-4">
-        It is requested that the case may kindly be countersigned and forwarded to the relevant authorities for the sanction and release of payment at your earliest convenience.
-      </p>
+      <RBDCBody employee={employee} />
     </CoverLetterLayout>
   );
 };

@@ -29,6 +29,7 @@ interface PensionBreakdown {
   monthlyPayablePension: number;
   commutationLumpSum: number;
   ageFactor: number;
+  medicalAllowanceRate: number; // 0.20 or 0.25
 }
 
 export const PensionCalculator: React.FC = () => {
@@ -49,6 +50,7 @@ export const PensionCalculator: React.FC = () => {
   const [serviceYears, setServiceYears] = useState(0);
   const [commutationPortion, setCommutationPortion] = useState(35);
   const [pensionType, setPensionType] = useState<'Regular' | 'Family'>('Regular');
+  const [bps, setBps] = useState(0);
 
   // Result State
   const [result, setResult] = useState<PensionBreakdown | null>(null);
@@ -85,29 +87,24 @@ export const PensionCalculator: React.FC = () => {
   const calculateAgeWithGovernmentRule = (dob: string, endDate: string): number => {
     const dobDate = parseISO(dob);
     const endDateObj = parseISO(endDate);
-    
-    // Calculate completed years
+
     const years = differenceInYears(endDateObj, dobDate);
-    
-    // Calculate the last birthday
+
     const lastBirthday = new Date(dobDate);
     lastBirthday.setFullYear(endDateObj.getFullYear());
-    
-    // If this year's birthday hasn't occurred yet, use last year's birthday
+
     if (lastBirthday > endDateObj) {
       lastBirthday.setFullYear(lastBirthday.getFullYear() - 1);
     }
-    
-    // Calculate months since last birthday
+
     const monthsSinceLastBirthday = differenceInMonths(endDateObj, lastBirthday);
-    
-    // Apply government rule: if months >= 6, round up the age
+
     let adjustedAge = years;
     if (monthsSinceLastBirthday >= 6) {
       adjustedAge = years + 1;
     }
-    
-    // Cap age at 60 for pension calculation (retirement age limit)
+
+    // Cap age at 60 for pension calculation
     return Math.min(adjustedAge, 60);
   };
 
@@ -115,7 +112,7 @@ export const PensionCalculator: React.FC = () => {
     setSelectedEmployee(emp);
     setSearchQuery(emp.employees.name);
     setIsDropdownOpen(false);
-    
+
     // Determine pension type based on status
     const isDeceased = isDeceasedStatus(emp.employees.status);
     setPensionType(isDeceased ? 'Family' : 'Regular');
@@ -123,32 +120,32 @@ export const PensionCalculator: React.FC = () => {
     // Populate fields
     setBasicPay(emp.financials?.basic_pay || 0);
     setPersonalPay(emp.financials?.p_pay || 0);
-    
-    // Calculate Service Duration logic matching Employees.tsx
+    setBps(emp.employees?.bps || 0);
+
+    // Calculate Service Duration
     const isActive = emp.employees.status === 'Active';
-    const calculationEndDate = isActive 
-      ? new Date().toISOString() 
+    const calculationEndDate = isActive
+      ? new Date().toISOString()
       : emp.service_history.date_of_retirement;
 
-    // Use utility for service calculation which handles the logic
     const service = calculateServiceDuration(
-      emp.service_history.date_of_appointment, 
-      calculationEndDate, 
+      emp.service_history.date_of_appointment,
+      calculationEndDate,
       emp.service_history.lwp_days
     );
-    
+
     // Qualifying Service Rule: Years + 1 if months >= 6
     let qService = service.years;
     if (service.months >= 6) qService += 1;
-    setServiceYears(Math.min(qService, 30)); // Cap at 30
+    setServiceYears(Math.min(qService, 30));
 
-    // Calculate Age with Government Rule (6-month rule and cap at 60)
+    // Calculate Age with Government Rule
     let calculatedAge = 60;
     if (emp.employees.dob && calculationEndDate) {
       calculatedAge = calculateAgeWithGovernmentRule(emp.employees.dob, calculationEndDate);
     }
     setAge(calculatedAge);
-    
+
     setCommutationPortion(emp.extras?.commutation_portion ?? 35);
     setResult(null);
     setShowReport(false);
@@ -162,6 +159,7 @@ export const PensionCalculator: React.FC = () => {
     setServiceYears(0);
     setAge(60);
     setCommutationPortion(35);
+    setBps(0);
     setResult(null);
     setShowReport(false);
   };
@@ -169,7 +167,8 @@ export const PensionCalculator: React.FC = () => {
   const calculatePensionBreakdown = (pensionAge: number): PensionBreakdown | null => {
     // Ensure age is capped at 60 for pension calculation
     const effectiveAge = Math.min(pensionAge, 60);
-    
+    const employeeBps = selectedEmployee?.employees?.bps ?? bps ?? 0;
+
     try {
       if (pensionType === 'Family') {
         const p = calculateFamilyPension(
@@ -178,9 +177,10 @@ export const PensionCalculator: React.FC = () => {
           personalPay,
           serviceYears,
           effectiveAge,
-          commutationPortion
+          commutationPortion,
+          employeeBps  // ← pass bps for medical allowance rate
         );
-        
+
         if (!p) {
           showToast('Unable to calculate Family Pension for this status', 'error');
           return null;
@@ -190,8 +190,7 @@ export const PensionCalculator: React.FC = () => {
         const inc2023 = p.increases.find(i => i.year === 2023)?.amount || 0;
         const inc2024 = p.increases.find(i => i.year === 2024)?.amount || 0;
         const inc2025 = p.increases.find(i => i.year === 2025)?.amount || 0;
-        
-        // Approximate running totals for display
+
         const runningAfter2022 = p.familyPensionBase + inc2022;
         const runningAfter2023 = runningAfter2022 + inc2023;
         const runningAfter2024 = runningAfter2023 + inc2024;
@@ -215,16 +214,19 @@ export const PensionCalculator: React.FC = () => {
           runningAfter2025,
           medicalAllowance2010: p.medicalAllowance2010,
           medicalAllowance2022: p.medicalAllowanceIncrease,
-          ageFactor: p.ageFactor
+          ageFactor: p.ageFactor,
+          medicalAllowanceRate: employeeBps >= 17 ? 0.20 : 0.25,
         };
       }
 
+      // Regular Pension
       const p = calculatePension({
         basicPay,
         personalPay,
         qualifyingServiceYears: serviceYears,
         commutationPortionPercent: commutationPortion,
-        ageAtRetirement: effectiveAge
+        ageAtRetirement: effectiveAge,
+        bps: employeeBps,  // ← pass bps for medical allowance rate
       });
 
       return {
@@ -245,7 +247,8 @@ export const PensionCalculator: React.FC = () => {
         medicalAllowance2022: p.medicalAllowance2022,
         monthlyPayablePension: p.monthlyPayablePension,
         commutationLumpSum: p.commutationLumpSum,
-        ageFactor: p.ageFactor
+        ageFactor: p.ageFactor,
+        medicalAllowanceRate: p.medicalAllowanceRate,
       };
     } catch (e: any) {
       console.error(e);
@@ -268,9 +271,7 @@ export const PensionCalculator: React.FC = () => {
       return;
     }
 
-    // Cap age at 60 for pension calculation even if manually entered higher
     const pensionAge = Math.min(age, 60);
-
     const breakdown = calculatePensionBreakdown(pensionAge);
     if (breakdown) {
       setResult(breakdown);
@@ -282,8 +283,12 @@ export const PensionCalculator: React.FC = () => {
   const currentDate = new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'long',
-    year: 'numeric'
+    year: 'numeric',
   });
+
+  // Derive display values
+  const effectiveBps = selectedEmployee?.employees?.bps ?? bps ?? 0;
+  const medicalRateLabel = effectiveBps >= 17 ? '20%' : '25%';
 
   return (
     <div className="max-w-6xl mx-auto pb-20">
@@ -301,6 +306,7 @@ export const PensionCalculator: React.FC = () => {
 
       {/* Input Section - Hidden on Print */}
       <Card variant="outlined" className="p-6 md:p-8 no-print bg-surface-container-low mb-6">
+
         {/* Pension Type Toggle */}
         <div className="flex gap-4 mb-6 justify-center">
           <div className="inline-flex bg-surface-variant rounded-full p-1">
@@ -328,6 +334,7 @@ export const PensionCalculator: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
           {/* Employee Search Box */}
           <div className="lg:col-span-2" ref={searchRef}>
             <label className="block text-xs font-bold text-on-surface-variant mb-2 uppercase tracking-wide">
@@ -379,6 +386,7 @@ export const PensionCalculator: React.FC = () => {
                           <div className="font-bold text-on-surface">{emp.employees.name}</div>
                           <div className="text-xs text-on-surface-variant flex gap-3">
                             <span>{emp.employees.designation || 'N/A'}</span>
+                            <span>BPS-{emp.employees.bps || 'N/A'}</span>
                             <span className="font-mono">{emp.employees.personal_no || emp.employees.cnic_no}</span>
                           </div>
                           {emp.employees.school_full_name && (
@@ -408,7 +416,7 @@ export const PensionCalculator: React.FC = () => {
               <div className="mt-3 p-3 bg-primary-container/30 rounded-lg border border-primary/20 flex items-center gap-3">
                 <AppIcon name="check_circle" className="text-primary" />
                 <span className="text-sm">
-                  <strong>{selectedEmployee.employees.name}</strong> selected - Fields auto-populated
+                  <strong>{selectedEmployee.employees.name}</strong> selected — BPS-{selectedEmployee.employees.bps} — Fields auto-populated
                 </span>
               </div>
             )}
@@ -458,10 +466,31 @@ export const PensionCalculator: React.FC = () => {
             onChange={e => setCommutationPortion(Number(e.target.value))}
             icon="percent"
           />
+          <TextField
+            label="BPS Grade"
+            type="number"
+            value={bps}
+            onChange={e => setBps(Number(e.target.value))}
+            icon="grade"
+          />
+
           <div className="flex items-end">
             <div className="p-4 bg-surface-variant/50 rounded-xl flex-1">
               <div className="text-xs text-on-surface-variant uppercase mb-1">Pensionable Pay</div>
               <div className="text-xl font-bold font-mono text-primary">{formatCurrency(basicPay + personalPay)}</div>
+            </div>
+          </div>
+
+          {/* Medical Allowance Rate Preview */}
+          <div className="flex items-end">
+            <div className={`p-4 rounded-xl flex-1 border-2 ${effectiveBps >= 17 ? 'bg-secondary-container/30 border-secondary/30' : 'bg-surface-variant/50 border-outline-variant'}`}>
+              <div className="text-xs text-on-surface-variant uppercase mb-1">Medical Allowance Rate</div>
+              <div className={`text-xl font-bold font-mono ${effectiveBps >= 17 ? 'text-secondary' : 'text-primary'}`}>
+                {medicalRateLabel} of Net Pension
+              </div>
+              <div className="text-xs text-on-surface-variant mt-1">
+                {effectiveBps >= 17 ? 'BPS-17 & above (Gazetted)' : 'BPS-16 & below (Non-Gazetted)'}
+              </div>
             </div>
           </div>
         </div>
@@ -487,7 +516,7 @@ export const PensionCalculator: React.FC = () => {
       {/* Report Section */}
       {result && showReport && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          
+
           {/* Report Header - For Print */}
           <div className="hidden print:block mb-2 text-center border-b border-black pb-2">
             <h1 className="text-xl font-bold uppercase">Government of Khyber Pakhtunkhwa</h1>
@@ -496,7 +525,8 @@ export const PensionCalculator: React.FC = () => {
           </div>
 
           <div className="print:grid print:grid-cols-2 print:gap-4 print:mb-4">
-            {/* Employee Info Card - For Print */}
+
+            {/* Employee Info Card */}
             {selectedEmployee && (
               <Card variant="outlined" className="p-6 bg-surface print:p-3 print:border print:border-black">
                 <div className="flex items-center gap-2 mb-4 text-primary print:text-black print:mb-2">
@@ -511,6 +541,10 @@ export const PensionCalculator: React.FC = () => {
                   <div>
                     <div className="text-on-surface-variant text-xs uppercase">Designation</div>
                     <div className="font-bold">{selectedEmployee.employees.designation || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div className="text-on-surface-variant text-xs uppercase">BPS</div>
+                    <div className="font-bold">BPS-{selectedEmployee.employees.bps || 'N/A'}</div>
                   </div>
                   <div>
                     <div className="text-on-surface-variant text-xs uppercase">Personnel No</div>
@@ -530,13 +564,14 @@ export const PensionCalculator: React.FC = () => {
                 <AppIcon name="tune" />
                 <h3 className="font-bold uppercase text-sm tracking-wide">Calculation Parameters</h3>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print:grid-cols-2 print:gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 print:grid-cols-2 print:gap-2">
                 {[
                   { label: 'Basic Pay', value: formatCurrency(basicPay) },
                   { label: 'Personal Pay', value: formatCurrency(personalPay) },
                   { label: 'Pensionable Pay', value: formatCurrency(basicPay + personalPay) },
                   { label: 'Qualifying Service', value: `${Math.min(serviceYears, 30)} Years` },
                   { label: 'Age at Retirement', value: `${Math.min(age, 60)} Years` },
+                  { label: 'BPS Grade', value: `BPS-${effectiveBps}` },
                 ].map((item, i) => (
                   <div key={i} className="p-3 bg-surface-variant/30 rounded-lg print:bg-gray-50 print:p-1 print:border print:border-gray-200">
                     <div className="text-xs text-on-surface-variant uppercase print:text-[10px]">{item.label}</div>
@@ -558,7 +593,8 @@ export const PensionCalculator: React.FC = () => {
             </div>
 
             <div className="divide-y divide-outline-variant print:divide-black">
-              {/* Section 1: Basic Pension */}
+
+              {/* Section 1: Gross Pension */}
               <div className="p-4 bg-surface-container-highest/30 print:p-1 print:bg-transparent">
                 <h4 className="text-xs font-bold text-primary uppercase mb-3 flex items-center gap-2 print:mb-1 print:text-black">
                   <span className="w-6 h-6 bg-primary text-on-primary rounded-full flex items-center justify-center text-xs print:w-4 print:h-4 print:bg-black print:text-white">1</span>
@@ -613,33 +649,47 @@ export const PensionCalculator: React.FC = () => {
                         <th className="text-left py-2 font-bold print:py-0">Description</th>
                         <th className="text-center py-2 font-bold print:py-0">Rate</th>
                         <th className="text-right py-2 font-bold print:py-0">Amount</th>
+                        <th className="text-right py-2 font-bold print:py-0">Running Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/30 print:divide-gray-300">
                       <tr>
                         <td className="py-3 print:py-0">{result.type === 'Family' ? 'Family Pension Base' : 'Base Net Pension'}</td>
-                        <td className="text-center print:py-0">-</td>
+                        <td className="text-center print:py-0">—</td>
                         <td className="text-right font-mono font-bold print:py-0">{formatCurrency(result.netPension)}</td>
+                        <td className="text-right font-mono print:py-0">{formatCurrency(result.netPension)}</td>
                       </tr>
                       <tr className="bg-surface-variant/20 print:bg-transparent">
                         <td className="py-3 print:py-0">Adhoc Relief 2022</td>
-                        <td className="text-center print:py-0"><span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">15%</span></td>
+                        <td className="text-center print:py-0">
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">15%</span>
+                        </td>
                         <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(result.adhocRelief2022)}</td>
+                        <td className="text-right font-mono print:py-0">{formatCurrency(result.runningAfter2022)}</td>
                       </tr>
                       <tr>
                         <td className="py-3 print:py-0">Adhoc Relief 2023</td>
-                        <td className="text-center print:py-0"><span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">17.5%</span></td>
+                        <td className="text-center print:py-0">
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">17.5%</span>
+                        </td>
                         <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(result.adhocRelief2023)}</td>
+                        <td className="text-right font-mono print:py-0">{formatCurrency(result.runningAfter2023)}</td>
                       </tr>
                       <tr className="bg-surface-variant/20 print:bg-transparent">
                         <td className="py-3 print:py-0">Adhoc Relief 2024</td>
-                        <td className="text-center print:py-0"><span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">15%</span></td>
+                        <td className="text-center print:py-0">
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">15%</span>
+                        </td>
                         <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(result.adhocRelief2024)}</td>
+                        <td className="text-right font-mono print:py-0">{formatCurrency(result.runningAfter2024)}</td>
                       </tr>
                       <tr>
                         <td className="py-3 print:py-0">Adhoc Relief 2025</td>
-                        <td className="text-center print:py-0"><span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">7%</span></td>
+                        <td className="text-center print:py-0">
+                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">7%</span>
+                        </td>
                         <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(result.adhocRelief2025)}</td>
+                        <td className="text-right font-mono print:py-0">{formatCurrency(result.runningAfter2025)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -653,9 +703,27 @@ export const PensionCalculator: React.FC = () => {
                   Medical Allowances
                 </h4>
                 <div className="space-y-2 ml-8 print:ml-4 print:space-y-0">
+                  {/* BPS badge */}
+                  <div className="mb-2">
+                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-bold ${
+                      result.medicalAllowanceRate === 0.20
+                        ? 'bg-secondary-container text-on-secondary-container'
+                        : 'bg-primary-container text-on-primary-container'
+                    }`}>
+                      <AppIcon name="info" size={12} />
+                      BPS-{effectiveBps} — {result.medicalAllowanceRate === 0.20 ? 'Gazetted (BPS-17+): 20%' : 'Non-Gazetted (BPS-16 & below): 25%'} rate applied
+                    </span>
+                  </div>
+
                   <div className="flex justify-between py-2 border-b border-outline-variant/30 print:py-0 print:border-none">
                     <span className="text-on-surface-variant print:text-black">
-                      Medical Allowance 2010 <span className="text-xs">({result.type === 'Family' ? '25% of Family Pension Base' : '25% of Net Pension'})</span>
+                      Medical Allowance 2010{' '}
+                      <span className="text-xs">
+                        ({result.type === 'Family'
+                          ? `${result.medicalAllowanceRate === 0.20 ? '20%' : '25%'} of Family Pension Base`
+                          : `${result.medicalAllowanceRate === 0.20 ? '20%' : '25%'} of Net Pension`
+                        })
+                      </span>
                     </span>
                     <span className="font-mono text-success print:text-black">+ {formatCurrency(result.medicalAllowance2010)}</span>
                   </div>
@@ -704,6 +772,7 @@ export const PensionCalculator: React.FC = () => {
                   </div>
                 </div>
               </div>
+
             </div>
           </Card>
 
@@ -733,15 +802,18 @@ export const PensionCalculator: React.FC = () => {
               <div>
                 <h4 className="font-bold text-on-tertiary-container text-sm">Age Calculation Rule Applied</h4>
                 <p className="text-xs text-on-tertiary-container/80 mt-1">
-                  As per KPK Government rules, if the age is 6 months or more past the last birthday, it is rounded up to the next year. 
+                  As per KPK Government rules, if the age is 6 months or more past the last birthday, it is rounded up to the next year.
                   The maximum age for pension calculation is capped at <strong>60 years</strong>.
                 </p>
-                <div className="flex gap-4 mt-2 text-xs">
+                <div className="flex flex-wrap gap-4 mt-2 text-xs">
                   <span className="bg-tertiary/20 px-2 py-1 rounded">
                     <strong>Age Factor Used:</strong> {result.ageFactor}
                   </span>
                   <span className="bg-tertiary/20 px-2 py-1 rounded">
                     <strong>Effective Age:</strong> {Math.min(age, 60)} years
+                  </span>
+                  <span className={`px-2 py-1 rounded ${result.medicalAllowanceRate === 0.20 ? 'bg-secondary/20 text-secondary' : 'bg-primary/20 text-primary'}`}>
+                    <strong>Medical Allowance Rate:</strong> {result.medicalAllowanceRate === 0.20 ? '20% (BPS-17+)' : '25% (BPS-16 & below)'}
                   </span>
                 </div>
               </div>
@@ -772,6 +844,7 @@ export const PensionCalculator: React.FC = () => {
               </div>
             </div>
           </div>
+
         </div>
       )}
 
@@ -782,7 +855,9 @@ export const PensionCalculator: React.FC = () => {
             <AppIcon name="calculate" size={48} className="opacity-50" />
           </div>
           <h3 className="text-lg font-bold mb-2">Ready to Calculate</h3>
-          <p className="max-w-md mx-auto">Search for an employee or enter the values manually, then click "Calculate Pension" to generate a detailed breakdown report.</p>
+          <p className="max-w-md mx-auto">
+            Search for an employee or enter the values manually, then click "Calculate Pension" to generate a detailed breakdown report.
+          </p>
         </div>
       )}
     </div>

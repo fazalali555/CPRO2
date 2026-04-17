@@ -1,9 +1,29 @@
-
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { EmployeeRecord, CaseRecord } from '../types';
 import { Letterhead } from './Letterhead';
-import { getCoverLetterInfo, getDEORecipientTitle } from '../utils';
+import { getCoverLetterInfo } from '../utils';
+import { getDepartmentInfo } from '../utils/departmentDetector';
 import { format, parseISO } from 'date-fns';
+
+// ============================================================================
+// HONORIFIC CONTEXT
+// ============================================================================
+
+interface HonorificContextType {
+  honorific: string; // Mr. | Mst.
+  gender: 'Male' | 'Female';
+}
+
+const HonorificContext = createContext<HonorificContextType>({
+  honorific: 'Mr.',
+  gender: 'Male',
+});
+
+export const useHonorific = () => useContext(HonorificContext);
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 interface Props {
   employee: EmployeeRecord;
@@ -12,14 +32,33 @@ interface Props {
   children: React.ReactNode;
 }
 
-export const CoverLetterLayout: React.FC<Props> = ({ employee, caseRecord, subject, children }) => {
-  const { signatureTitle, recipientTitle, signatureAlign } = getCoverLetterInfo(employee);
-  const recipientLine = getDEORecipientTitle(employee);
-  const recipientText = recipientTitle || recipientLine;
+export const CoverLetterLayout: React.FC<Props> = ({
+  employee,
+  caseRecord,
+  subject,
+  children,
+}) => {
+  const deptInfo = getDepartmentInfo(
+    employee.employees.school_full_name ?? '',
+    employee.employees.office_name ?? '',
+    employee.employees.tehsil ?? '',
+    employee.employees.district ?? '',
+    employee.employees.designation_full ?? employee.employees.designation ?? ''
+  );
+
+  const {
+    signatureTitle,
+    recipientTitle,
+    salutation,
+    gender,
+  } = getCoverLetterInfo(employee);
+
+  const recipientText = recipientTitle || deptInfo.authorityTitle;
   const recipientLines = recipientText.split('\n');
-  
-  const refNo = caseRecord.extras?.ref_no || '';
-  // Extract year from letter_date or default to current year
+
+  const honorific = gender === 'Female' ? 'Mst.' : 'Mr.';
+
+  const refNo = caseRecord.extras?.ref_no ?? '';
   let year = new Date().getFullYear().toString();
   if (caseRecord.extras?.letter_date) {
     try {
@@ -28,85 +67,152 @@ export const CoverLetterLayout: React.FC<Props> = ({ employee, caseRecord, subje
   }
 
   return (
-    <div 
-      className="bg-white text-black font-sans leading-relaxed relative print-page mx-auto"
-      style={{ 
-        width: '210mm', 
-        height: '297mm', 
-        padding: '12mm',
+    <div
+      className="bg-white text-black mx-auto print-page"
+      style={{
+        width: '210mm',
+        height: '287mm', // reduced a little to avoid 2nd/blank page in print
+        padding: '12mm 18mm 12mm 20mm',
         boxSizing: 'border-box',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        fontFamily: 'Times New Roman, serif',
       }}
     >
       <div className="flex flex-col h-full">
-        
         {/* Header */}
         <Letterhead employeeRecord={employee} />
-        <div className="w-full border-t-4 border-black border-double mt-1 mb-8"></div>
+        <div className="w-full border-t-4 border-black border-double mt-1 mb-5" />
 
-        {/* Ref No & Date - Matching RetirementCoverLetter Style */}
-        <div className="flex justify-between items-end mb-8 font-medium font-serif text-sm">
-          <div className="flex items-end">
+        {/* Ref No & Date */}
+        <div
+          className="flex justify-between items-end mb-5 font-bold"
+          style={{ fontSize: '10.5pt' }}
+        >
+          <div className="flex items-end gap-1">
             <span>No.</span>
-            <div className="w-40 border-b border-black mx-2 text-center font-bold">{refNo}</div>
+            <span
+              className="border-b border-black text-center"
+              style={{ minWidth: '145px', display: 'inline-block' }}
+            >
+              {refNo}
+            </span>
             <span>/</span>
           </div>
-          <div className="flex items-end">
+
+          <div className="flex items-end gap-1">
             <span>Dated:</span>
-            <div className="w-12 border-b border-black mx-2 text-center"></div>
+            <span
+              className="border-b border-black"
+              style={{ minWidth: '38px', display: 'inline-block' }}
+            />
             <span>/</span>
-            <div className="w-12 border-b border-black mx-2 text-center"></div>
+            <span
+              className="border-b border-black"
+              style={{ minWidth: '38px', display: 'inline-block' }}
+            />
             <span>/{year}</span>
           </div>
         </div>
 
         {/* Recipient */}
-        <div className="mb-8 font-bold font-serif text-[15px]">
-          <div className="mb-1">To</div>
-          <div className="pl-12 leading-snug">
+        <div className="mb-5" style={{ fontSize: '11pt' }}>
+          <div className="font-bold mb-1">To</div>
+          <div className="pl-10 font-bold leading-snug">
             {recipientLines.map((line, idx) => (
               <React.Fragment key={idx}>
                 {line}
-                {idx < recipientLines.length - 1 ? <br/> : null}
+                {idx < recipientLines.length - 1 && <br />}
               </React.Fragment>
             ))}
           </div>
         </div>
 
         {/* Subject */}
-        <div className="flex mb-8">
-          <span className="font-bold w-20 flex-shrink-0 font-serif text-[15px]">Subject:</span>
-          <span className="font-bold uppercase underline decoration-1 underline-offset-4 font-serif text-[15px] leading-snug">
+        <div className="flex mb-5" style={{ fontSize: '11pt' }}>
+          <span className="font-bold mr-3 flex-shrink-0">Subject:</span>
+          <span
+            className="font-bold uppercase"
+            style={{
+              textDecoration: 'underline',
+              textDecorationThickness: '1px',
+              textUnderlineOffset: '3px',
+              lineHeight: '1.4',
+            }}
+          >
             {subject}
           </span>
         </div>
 
         {/* Salutation */}
-        <div className="mb-4 font-bold font-serif text-[15px]">Respected Sir/Madam,</div>
-
-        {/* Body Content */}
-        <div className="mb-6 text-justify leading-[2] font-serif text-[15px]">
-          {children}
+        <div className="font-bold mb-3" style={{ fontSize: '11pt' }}>
+          Respected {salutation},
         </div>
+
+        {/* Body */}
+        <HonorificContext.Provider value={{ honorific, gender }}>
+          <div
+            style={{
+              textAlign: 'justify',
+              fontSize: '10.5pt',
+              lineHeight: '1.6',
+            }}
+          >
+            {children}
+          </div>
+        </HonorificContext.Provider>
 
         {/* Closing */}
-        <div className="mb-12 font-serif text-[15px]">
-          <p>Thank you for your kind attention to this matter.</p>
-        </div>
+        <p
+          style={{
+            fontSize: '10.5pt',
+            marginTop: '8px',
+            marginBottom: '0',
+            textAlign: 'justify',
+          }}
+        >
+          It is requested that necessary action may kindly be taken.
+        </p>
 
-        {/* Signature */}
-        <div className={`mt-auto pt-16 flex ${
-          signatureAlign === 'left' ? 'justify-start' : signatureAlign === 'center' ? 'justify-center' : 'justify-end'
-        }`}>
-          <div className="text-center w-64">
-            <div className="h-10"></div>
-            <div className="h-px bg-black w-full mb-2"></div>
-            <p className="font-bold text-sm leading-tight uppercase whitespace-pre-line font-serif">
+        {/* Signature Block - Fixed on same page */}
+        <div
+          className="mt-auto flex justify-end"
+          style={{
+            paddingTop: '14px',
+            breakInside: 'avoid',
+            pageBreakInside: 'avoid',
+          }}
+        >
+          <div
+            style={{
+              width: '235px',
+              textAlign: 'center',
+              fontSize: '10.5pt',
+            }}
+          >
+
+            {/* controlled signature gap */}
+            <div style={{ height: '18mm' }} />
+
+            <div
+              style={{
+                borderTop: '1px solid black',
+                width: '210px',
+                margin: '0 auto 4px auto',
+              }}
+            />
+
+            <p
+              className="font-bold uppercase whitespace-pre-line"
+              style={{
+                fontSize: '10pt',
+                lineHeight: '1.35',
+                margin: 0,
+              }}
+            >
               {signatureTitle}
             </p>
           </div>
         </div>
-
       </div>
     </div>
   );

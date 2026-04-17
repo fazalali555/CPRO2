@@ -1,14 +1,10 @@
 import { EmployeeRecord, CURRENT_SCHEMA_VERSION, OfficialFamilyMember } from '../types';
-import { calculateRetirementDate } from '../utils';
+import { calculateRetirementDate, KPK_DISTRICTS } from '../utils';
 
 // --- DATE HELPERS ---
 
-/**
- * Converts DB/ISO date (YYYY-MM-DD) to CSV format (DD/MM/YYYY), normalizing legacy DD-MM-YYYY to DD/MM/YYYY.
- */
 export const formatDateForCsv = (isoDate?: string): string => {
   if (!isoDate) return '';
-  // If already in DD-MM-YYYY or DD/MM/YYYY, normalize to slashes
   if (isoDate.match(/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/)) {
     const parts = isoDate.split(/[-/]/);
     const d = parts[0].padStart(2, '0');
@@ -24,14 +20,10 @@ export const formatDateForCsv = (isoDate?: string): string => {
   return isoDate;
 };
 
-/**
- * Parses CSV date (DD-MM-YYYY or YYYY-MM-DD) to DB/ISO format (YYYY-MM-DD)
- */
 export const parseDateFromCsv = (csvDate?: string): string => {
   if (!csvDate) return '';
   const clean = csvDate.trim();
   
-  // Try DD-MM-YYYY (Preferred)
   const ddmmyyyy = clean.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
   if (ddmmyyyy) {
     const d = ddmmyyyy[1].padStart(2, '0');
@@ -40,7 +32,6 @@ export const parseDateFromCsv = (csvDate?: string): string => {
     return `${y}-${m}-${d}`;
   }
 
-  // Fallback: Try YYYY-MM-DD
   const yyyymmdd = clean.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
   if (yyyymmdd) {
     const y = yyyymmdd[1];
@@ -52,63 +43,43 @@ export const parseDateFromCsv = (csvDate?: string): string => {
   return clean;
 };
 
-// Define the canonical column order for export
 export const CSV_HEADERS = [
-  // Identity
   'name', 'designation', 'bps', 'school_full_name', 'office_name', 'staff_type', 'status',
   'cnic_no', 'personal_no', 'mobile_no', 'father_name', 
   'dob', 'nationality', 'address', 'district', 'tehsil', 'ddo_code',
   'bank_ac_no', 'bank_name', 'branch_name', 'branch_code', 'account_type', 'gpf_account_no', 'ppo_no',
   'ntn_no', 'employment_category', 'designation_full',
   'gender',
-
-  // Service
   'date_of_appointment', 'date_of_entry', 'date_of_retirement', 
   'retirement_order_no', 'retirement_order_date', 
   'lwp_days', 'lpr_days', 'leave_taken_days',
   'date_of_regularization', 'date_of_death',
-
-  // Financials - Allowances
   'basic_pay', 'p_pay', 'hra', 'ca', 'ma', 'uaa',
   'spl_allow_2021', 'teaching_allow', 'spl_allow_female', 'spl_allow_disable', 
   'integrated_allow', 'charge_allow', 'wa', 'dress_allow',
   'computer_allow', 'mphil_allow', 'entertainment_allow', 'science_teaching_allow', 'weather_allow', 'special_allow_non_teaching',
-  
-  // Financials - Adhoc Reliefs
   'adhoc_2013', 'adhoc_2015', 'adhoc_2022_ps17', 'dra_2022kp', 'adhoc_2023_35', 'adhoc_2024_25', 'adhoc_2025_10', 'dra_2025_15',
-
-  // Financials - Deductions & Loans
   'gpf', 'gpf_sub', 'gpf_advance', 'bf', 'eef', 'rb_death', 'adl_g_insurance', 'group_insurance', 'income_tax', 'income_tax_ded', 'recovery',
   'edu_rop', 'hba_loan_instal', 'gpf_loan_instal',
-
-  // Family Members (1-6)
   'family_1_name', 'family_1_relation', 'family_1_age', 'family_1_cnic',
   'family_2_name', 'family_2_relation', 'family_2_age', 'family_2_cnic',
   'family_3_name', 'family_3_relation', 'family_3_age', 'family_3_cnic',
   'family_4_name', 'family_4_relation', 'family_4_age', 'family_4_cnic',
   'family_5_name', 'family_5_relation', 'family_5_age', 'family_5_cnic',
   'family_6_name', 'family_6_relation', 'family_6_age', 'family_6_cnic',
-
-  // Extras & Beneficiary
   'commutation_portion', 'retirement_date_source',
   'beneficiary_name', 'beneficiary_relation', 'beneficiary_age', 'beneficiary_cnic',
   'beneficiary_bank_name', 'beneficiary_branch_name', 'beneficiary_account_no',
-  
-  // Additional columns (kept blank by Python script)
   'bank_branch',
 ];
 
 export const flattenEmployee = (emp: EmployeeRecord): Record<string, any> => {
   const flat: Record<string, any> = {};
 
-  // 1. Identity
   Object.assign(flat, emp.employees);
-  // Format Identity Date
   if (emp.employees.dob) flat.dob = formatDateForCsv(emp.employees.dob);
 
-  // 2. Service
   Object.assign(flat, emp.service_history);
-  // Format Service Dates
   if (emp.service_history.date_of_appointment) flat.date_of_appointment = formatDateForCsv(emp.service_history.date_of_appointment);
   if (emp.service_history.date_of_entry) flat.date_of_entry = formatDateForCsv(emp.service_history.date_of_entry);
   if (emp.service_history.date_of_retirement) flat.date_of_retirement = formatDateForCsv(emp.service_history.date_of_retirement);
@@ -116,11 +87,8 @@ export const flattenEmployee = (emp: EmployeeRecord): Record<string, any> => {
   if (emp.service_history.date_of_regularization) flat.date_of_regularization = formatDateForCsv(emp.service_history.date_of_regularization);
   if ((emp.service_history as any).date_of_death) flat.date_of_death = formatDateForCsv((emp.service_history as any).date_of_death);
 
-  // 3. Financials
   Object.assign(flat, emp.financials);
-  // Serialize dynamic maps to JSON strings
 
-  // 4. Family Members
   (emp.family_members || []).slice(0, 6).forEach((fm, idx) => {
     const prefix = `family_${idx + 1}`;
     flat[`${prefix}_name`] = fm.relative_name;
@@ -129,7 +97,6 @@ export const flattenEmployee = (emp: EmployeeRecord): Record<string, any> => {
     flat[`${prefix}_cnic`] = fm.cnic;
   });
 
-  // 5. Extras / Beneficiary
   if (emp.extras) {
     if (typeof emp.extras.commutation_portion !== 'undefined') {
       flat.commutation_portion = emp.extras.commutation_portion;
@@ -149,19 +116,12 @@ export const flattenEmployee = (emp: EmployeeRecord): Record<string, any> => {
     }
   }
   
-  // Identity: gender
   if ((emp.employees as any).gender) flat.gender = (emp.employees as any).gender;
 
   return flat;
 };
 
-/**
- * Derives gender based on CNIC last digit.
- * Even digits (0, 2, 4, 6, 8) = Female
- * Odd digits (1, 3, 5, 7, 9) = Male
- */
 export const deriveGender = (cnic: string, existingGender?: string, csvGender?: string): 'Male' | 'Female' => {
-  // First: Trust CSV gender if provided
   const normalizeGender = (g?: string): 'Female' | 'Male' | undefined => {
     if (!g) return undefined;
     const v = g.toLowerCase().trim();
@@ -173,11 +133,9 @@ export const deriveGender = (cnic: string, existingGender?: string, csvGender?: 
   const gCsv = normalizeGender(csvGender);
   if (gCsv) return gCsv;
 
-  // Second: Check existing gender
   const gExist = normalizeGender(existingGender);
   if (gExist) return gExist;
 
-  // Third: Derive from CNIC
   const cnicDigits = cnic.replace(/[^0-9]/g, '');
   if (cnicDigits.length > 0) {
     const lastCnicDigit = cnicDigits[cnicDigits.length - 1];
@@ -185,16 +143,10 @@ export const deriveGender = (cnic: string, existingGender?: string, csvGender?: 
     return isEven ? 'Female' : 'Male';
   }
 
-  // Default to Male
   return 'Male';
 };
 
-/**
- * Derives staff type from CSV value or existing value.
- * Validation is done in Python script, so we just trust the CSV value.
- */
 export const deriveStaffType = (csvStaffType?: string, existingStaffType?: string): 'teaching' | 'non_teaching' => {
-  // Normalize function
   const normalize = (val?: string): 'teaching' | 'non_teaching' | undefined => {
     if (!val) return undefined;
     const v = val.toLowerCase().replace(/[-_\s]/g, '').trim();
@@ -203,16 +155,69 @@ export const deriveStaffType = (csvStaffType?: string, existingStaffType?: strin
     return undefined;
   };
 
-  // First: Trust CSV staff_type if provided
   const csvNorm = normalize(csvStaffType);
   if (csvNorm) return csvNorm;
 
-  // Second: Fall back to existing value
   const existNorm = normalize(existingStaffType);
   if (existNorm) return existNorm;
 
-  // Default to teaching
   return 'teaching';
+};
+
+/**
+ * Normalizes a district name to match KPK_DISTRICTS list.
+ * Handles case differences like "BATTAGRAM" → "Battagram",
+ * "D.I. KHAN" → "D.I. Khan", etc.
+ *
+ * @returns The matched district name from KPK_DISTRICTS, or the
+ *          original trimmed value if no match found, or empty string.
+ */
+const normalizeDistrict = (rawDistrict: string, districtsList: string[] = KPK_DISTRICTS): string => {
+  if (!rawDistrict) return '';
+  const trimmed = rawDistrict.trim();
+  if (!trimmed) return '';
+
+  // 1. Exact match
+  const exact = districtsList.find(d => d === trimmed);
+  if (exact) return exact;
+
+  // 2. Case-insensitive match
+  const lower = trimmed.toLowerCase();
+  const caseMatch = districtsList.find(d => d.toLowerCase() === lower);
+  if (caseMatch) return caseMatch;
+
+  // 3. Normalized match (remove dots, spaces, dashes)
+  const normalize = (s: string) => s.toLowerCase().replace(/[.\s-]/g, '');
+  const normalizedInput = normalize(trimmed);
+  const normalizedMatch = districtsList.find(d => normalize(d) === normalizedInput);
+  if (normalizedMatch) return normalizedMatch;
+
+  // 4. Partial / contains match (e.g., "Chitral" matches "Chitral Lower" or "Chitral Upper")
+  // Only use this if the input is long enough to avoid false positives
+  if (trimmed.length >= 4) {
+    const partialMatch = districtsList.find(d =>
+      d.toLowerCase().includes(lower) || lower.includes(d.toLowerCase())
+    );
+    if (partialMatch) return partialMatch;
+  }
+
+  // 5. No match found — return as-is (title case)
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+};
+
+/**
+ * Normalizes a tehsil name — title case conversion.
+ */
+const normalizeTehsil = (rawTehsil: string): string => {
+  if (!rawTehsil) return '';
+  const trimmed = rawTehsil.trim();
+  if (!trimmed) return '';
+
+  // Title case: "BATTAGRAM" → "Battagram", "allai" → "Allai"
+  return trimmed
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 };
 
 export const unflattenEmployee = (
@@ -221,7 +226,6 @@ export const unflattenEmployee = (
 ): EmployeeRecord => {
   const now = new Date().toISOString();
   
-  // Helper to parse number safely
   const num = (key: string) => {
     const val = row[key];
     if (val === undefined || val === null || val === '') return undefined;
@@ -229,39 +233,50 @@ export const unflattenEmployee = (
     return isNaN(Number(clean)) ? 0 : Number(clean);
   };
 
-  // Helper to get string
   const str = (key: string) => row[key] ? row[key].trim() : '';
 
-  // Helper for dates
   const date = (key: string) => parseDateFromCsv(row[key]);
 
-  // Derived Values Logic
   const dobVal = date('dob') || existing?.employees.dob || '';
   const doaVal = date('date_of_appointment') || existing?.service_history.date_of_appointment || '';
   const cnicSource = str('cnic_no') || existing?.employees.cnic_no || '';
 
-  // Staff type - trust CSV value (validation done in Python)
   const staffType = deriveStaffType(str('staff_type'), existing?.employees.staff_type);
 
-  // Gender - derive from CSV or CNIC
   const genderCsvRaw = str('gender') || undefined;
   const existingGenderRaw = (existing as any)?.employees?.gender as string | undefined;
   const genderVal = deriveGender(cnicSource, existingGenderRaw, genderCsvRaw);
   
-  // Auto-calculate Retirement Date if missing and DOB is present
   let dorVal = date('date_of_retirement') || existing?.service_history.date_of_retirement || '';
   if (!dorVal && dobVal) {
     dorVal = calculateRetirementDate(dobVal);
   }
 
-  // Base Structure - Merge if existing
+  // ── FIXED: District & Tehsil with proper normalization ──────────────
+  // Priority: CSV value → existing value → empty string (no hardcoded default)
+  // Normalize case: "BATTAGRAM" → "Battagram" to match KPK_DISTRICTS list
+  const rawDistrict = str('district');
+  const rawTehsil = str('tehsil');
+
+  const districtVal = rawDistrict
+    ? normalizeDistrict(rawDistrict)
+    : (existing?.employees.district || '');
+
+  const tehsilVal = rawTehsil
+    ? normalizeTehsil(rawTehsil)
+    : (existing?.employees.tehsil || '');
+
+  // DEBUG: Log district resolution (remove after confirming fix)
+  if (rawDistrict) {
+    console.log(`[District Import] Raw: "${rawDistrict}" → Normalized: "${districtVal}"`);
+  }
+
   const newRecord: EmployeeRecord = {
     id: existing?.id || Date.now().toString() + Math.floor(Math.random() * 1000),
     schemaVersion: CURRENT_SCHEMA_VERSION,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
     
-    // Preserve existing extras container
     extras: existing?.extras || {},
     
     employees: {
@@ -276,7 +291,6 @@ export const unflattenEmployee = (
       status: str('status') as any || existing?.employees.status || 'Active',
       gender: genderVal,
       
-      // Keys
       cnic_no: str('cnic_no') || existing?.employees.cnic_no || '',
       personal_no: str('personal_no') || existing?.employees.personal_no || '',
       ntn_no: str('ntn_no') || existing?.employees.ntn_no || '',
@@ -286,8 +300,11 @@ export const unflattenEmployee = (
       dob: dobVal,
       nationality: str('nationality') || existing?.employees.nationality || 'Pakistani',
       address: str('address') || existing?.employees.address || '',
-      district: str('district') || existing?.employees.district || 'Battagram',
-      tehsil: str('tehsil') || existing?.employees.tehsil || 'Allai',
+      
+      // ── FIXED: Uses normalized values, no hardcoded defaults ────────
+      district: districtVal,
+      tehsil: tehsilVal,
+      
       ddo_code: str('ddo_code') || existing?.employees.ddo_code || '',
       
       bank_ac_no: str('bank_ac_no') || existing?.employees.bank_ac_no || '',
@@ -341,7 +358,6 @@ export const unflattenEmployee = (
       weather_allow: num('weather_allow') ?? existing?.financials.weather_allow ?? 0,
       special_allow_non_teaching: num('special_allow_non_teaching') ?? existing?.financials.special_allow_non_teaching ?? 0,
       
-      // Adhoc Reliefs
       adhoc_2013: num('adhoc_2013') ?? existing?.financials.adhoc_2013 ?? 0,
       adhoc_2015: num('adhoc_2015') ?? existing?.financials.adhoc_2015 ?? 0,
       adhoc_2022_ps17: num('adhoc_2022_ps17') ?? existing?.financials.adhoc_2022_ps17 ?? 0,
@@ -377,8 +393,6 @@ export const unflattenEmployee = (
     family_members: existing?.family_members || [],
   };
 
-  // Dynamic maps 
-  
   try {
     const json = str('deductions_extra_json');
     if (json) {
@@ -388,10 +402,7 @@ export const unflattenEmployee = (
       }
     }
   } catch {}
-  
-  
 
-  // Extras / Beneficiary mapping
   if (!newRecord.extras) newRecord.extras = {};
   const comm = num('commutation_portion');
   if (comm !== undefined) newRecord.extras.commutation_portion = comm;
@@ -411,7 +422,6 @@ export const unflattenEmployee = (
     (newRecord.extras as any).beneficiary = ben;
   }
 
-  // Family members from CSV
   if (str('family_1_name')) {
     const family: OfficialFamilyMember[] = [];
     for (let i = 1; i <= 6; i++) {

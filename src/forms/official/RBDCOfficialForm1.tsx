@@ -122,7 +122,7 @@ export const RBDCOfficialForm1: React.FC<Props> = ({ employee, caseRecord }) => 
          </Overlay>
          
          {/* 2a. Name Line 2 */}
-         <Overlay top="47mm" left="58mm">
+         <Overlay top="47mm" left="65mm">
             <BoxedText text={nameLine2} width={SPACING.NAME} className="font-mono text-[12px]" />
          </Overlay>
 

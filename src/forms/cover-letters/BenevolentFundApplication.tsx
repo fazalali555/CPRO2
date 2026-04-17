@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { EmployeeRecord, CaseRecord } from '../../types';
-import { CoverLetterLayout } from '../../components/CoverLetterLayout';
+import { CoverLetterLayout, useHonorific } from '../../components/CoverLetterLayout';
 import { formatDate } from '../../utils/dateUtils';
 
 interface Props {
@@ -9,27 +8,72 @@ interface Props {
   caseRecord: CaseRecord;
 }
 
-export const BenevolentFundApplication: React.FC<Props> = ({ employee, caseRecord }) => {
+const BenevolentFundBody: React.FC<{ employee: EmployeeRecord }> = ({ employee }) => {
+  const { honorific } = useHonorific();
   const { employees, service_history } = employee;
+
   const orderNo = service_history.retirement_order_no || '__________';
   const orderDate = formatDate(service_history.retirement_order_date) || '__________';
   const retirementDate = formatDate(service_history.date_of_retirement) || '__________';
 
+  const employeeName = employees.name || '__________';
+  const designation = employees.designation_full || employees.designation || '__________';
+  const bps = employees.bps || '__';
+  const institution = employees.school_full_name || '__________';
+  const district = employees.district || '__________';
+  const personalNo = employees.personal_no || '__________';
+  const cnic = employees.cnic_no || '__________';
+
   return (
-    <CoverLetterLayout 
-      employee={employee} 
+    <div style={{ fontSize: '10.5pt', lineHeight: '1.6' }}>
+      <p className="mb-2" style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        The case regarding grant of Retirement Grant out of Provincial Benevolent Fund
+        in respect of <strong className="uppercase">{honorific} {employeeName}</strong>,{' '}
+        <strong className="uppercase">{designation} (BPS-{bps})</strong>,{' '}
+        <strong className="uppercase">{institution}</strong>, District{' '}
+        <strong className="uppercase">{district}</strong>, having Personal No.{' '}
+        <strong>{personalNo}</strong> and CNIC No. <strong>{cnic}</strong>, is
+        forwarded herewith for favour of further necessary action.
+      </p>
+
+      <p className="mb-2" style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        2.&nbsp;&nbsp;The above named official retired from Government service with
+        effect from <strong>{retirementDate}</strong> vide Retirement Order /
+        Notification No. <strong>{orderNo}</strong>, dated <strong>{orderDate}</strong>,
+        issued by the competent authority.
+      </p>
+
+      <p className="mb-2" style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        3.&nbsp;&nbsp;It is certified that the particulars of the official have been
+        checked and found correct as per available record. The prescribed application
+        form along with the relevant documents has been completed and verified by this office.
+      </p>
+
+      <p className="mb-2" style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        4.&nbsp;&nbsp;It is requested that the case may kindly be countersigned and
+        forwarded to the Provincial Benevolent Fund Cell, Finance Department,
+        Government of Khyber Pakhtunkhwa, for sanction and release of the admissible
+        grant under the rules.
+      </p>
+
+      <p style={{ textIndent: '3.2em', textAlign: 'justify' }}>
+        5.&nbsp;&nbsp;Submitted for favour of necessary action, please.
+      </p>
+    </div>
+  );
+};
+
+export const BenevolentFundApplication: React.FC<Props> = ({
+  employee,
+  caseRecord,
+}) => {
+  return (
+    <CoverLetterLayout
+      employee={employee}
       caseRecord={caseRecord}
-      subject="APPLICATION FOR THE RETIREMENT GRANT OUT OF BENEVOLENT FUND"
+      subject="GRANT OF RETIREMENT GRANT OUT OF PROVINCIAL BENEVOLENT FUND"
     >
-      <p>
-        Please find enclosed the complete case file regarding the grant of Benevolent Fund (Part-I & Part-II) in respect of <span className="font-bold uppercase">Mr./Ms. {employees.name}</span>, <span className="font-bold uppercase">{employees.designation} (BPS-{employees.bps})</span>, <span className="font-bold uppercase">{employees.school_full_name}</span>.
-      </p>
-      <p className="mt-4">
-        The official stood retired from service on <span className="font-bold">{retirementDate}</span> vide Notification No: <span className="font-bold">{orderNo}</span> Dated: <span className="font-bold">{orderDate}</span>.
-      </p>
-      <p className="mt-4">
-        You are requested to kindly countersign and forward the application to the Provincial Benevolent Fund Cell for necessary action and release of the grant.
-      </p>
+      <BenevolentFundBody employee={employee} />
     </CoverLetterLayout>
   );
 };

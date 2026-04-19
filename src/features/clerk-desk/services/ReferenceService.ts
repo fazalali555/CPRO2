@@ -10,7 +10,7 @@ interface ReferenceCounter {
 }
 
 class ReferenceServiceClass {
-  private readonly STORAGE_KEY = 'kpk_clerk_ref_counters';
+  private readonly STORAGE_KEY = 'clerk_pro_clerk_ref_counters';
 
   /**
    * Get all counters

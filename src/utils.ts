@@ -1,7 +1,7 @@
 /**
  * Core Utilities Module
  *
- * Comprehensive utility functions for the KPK RPMS application.
+ * Comprehensive utility functions for the KPK application.
  * Includes calculations, migrations, validations, storage, PDF helpers,
  * department-aware cover-letter helpers, and checklist generators.
  *
@@ -1078,7 +1078,7 @@ export const getGPFEligibilityWarnings = (
 // INDEXED DB STORAGE
 // ============================================================================
 
-const DB_NAME = 'kpk_rpms_files';
+const DB_NAME = 'clerk_pro_rpms_files';
 const STORE_NAME = 'files';
 
 const openDB = (): Promise<IDBDatabase> => {
@@ -1295,8 +1295,8 @@ export const generateFilledPdf = async (
     'letterhead.full': deptInfo.letterhead.full,
   };
 
-  const templateObj = localStorage.getItem('kpk_rpms_templates')
-    ? (JSON.parse(localStorage.getItem('kpk_rpms_templates')!).find(
+  const templateObj = localStorage.getItem('clerk_pro_rpms_templates')
+    ? (JSON.parse(localStorage.getItem('clerk_pro_rpms_templates')!).find(
         (t: PdfTemplate) =>
           t.document_type === caseRec.case_type || t.id === (caseRec as any).templateId
       ) as PdfTemplate | undefined)

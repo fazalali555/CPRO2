@@ -1,5 +1,13 @@
 {
-  "name": "Clerk Pro By Fazal Ali",
-  "description": "Retirement & Pension Management System for KPK Education Department. Features pension calculation, GP Fund management, LPR, and employee benefits tracking.",
-  "requestFramePermissions": []
+  "app": {
+    "name": "Clerk Pro by Fazal Ali",
+    "version": "0.0.1",
+    "description": "Professional Clerking System",
+    "author": "Fazal Ali",
+    "license": "MIT"
+  },
+  "build": {
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "environment": "development"
+  }
 }

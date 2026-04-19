@@ -164,7 +164,7 @@ export const VerifyDocument: React.FC = () => {
                  </div>
                  <h3 className="font-bold mb-2">Legal Notice</h3>
                  <p className="text-sm text-on-surface-variant leading-relaxed">
-                   This digital verification confirms that the physical document presented matches the records in the E&SE RPMS system as of the last update. 
+                   This digital verification confirms that the physical document presented matches the records in the E&SE system as of the last update. 
                  </p>
               </div>
             </Card>

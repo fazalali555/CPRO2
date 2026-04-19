@@ -127,7 +127,7 @@ export const TaBillTab: React.FC = () => {
   const validTaStep1 = taEmployeeName.trim() && taDesignation.trim() && taBps && taPersonalNo.trim();
   const validTaStep2 = taDepDate && taArrDate && taFrom && taTo && taPurpose.trim();
   const nextBillNo = () => {
-    const key = 'kpk_ta_bill_counter';
+    const key = 'clerk_pro_ta_bill_counter';
     const year = new Date().getFullYear();
     const raw = Number(localStorage.getItem(key) || '0') || 0;
     const next = raw + 1;

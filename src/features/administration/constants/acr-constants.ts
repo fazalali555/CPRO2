@@ -69,4 +69,4 @@ export const ACR_STATUS_COLORS = {
   'Adverse': 'error',
 } as const;
 
-export const STORAGE_KEY_ACR = 'kpk_acr_records';
+export const STORAGE_KEY_ACR = 'clerk_pro_acr_records';

@@ -12,23 +12,36 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
-    const saved = localStorage.getItem('app_language');
-    return (saved as Language) || 'en';
+    try {
+      const saved = localStorage.getItem('clerk_pro_language');
+      return (saved as Language) || 'en';
+    } catch (error) {
+      console.warn('Failed to load language preference:', error);
+      return 'en';
+    }
   });
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem('app_language', lang);
-    document.documentElement.dir = lang === 'ur' ? 'rtl' : 'ltr';
-    document.documentElement.lang = lang;
+    try {
+      setLanguageState(lang);
+      localStorage.setItem('clerk_pro_language', lang);
+      document.documentElement.dir = lang === 'ur' ? 'rtl' : 'ltr';
+      document.documentElement.lang = lang;
+    } catch (error) {
+      console.error('Failed to set language:', error);
+    }
   };
 
   useEffect(() => {
-    document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr';
-    document.documentElement.lang = language;
+    try {
+      document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr';
+      document.documentElement.lang = language;
+    } catch (error) {
+      console.error('Failed to update document language:', error);
+    }
   }, [language]);
 
-  const value = {
+  const value: LanguageContextType = {
     language,
     setLanguage,
     t: translations[language],

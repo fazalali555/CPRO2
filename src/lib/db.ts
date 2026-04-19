@@ -14,7 +14,7 @@ import { EmployeeRecord, CaseRecord } from '../types';
 // CONSTANTS
 // ============================================================================
 
-const DB_NAME = 'kpk_rpms';
+const DB_NAME = 'clerk_pro_rpms';
 const DB_VERSION = 2; // Increment when schema changes
 
 const STORES = {
@@ -440,9 +440,9 @@ export const settingsDB = {
 // ============================================================================
 
 const LS_KEYS = {
-  EMPLOYEES: 'kpk_rpms_employees',
-  CASES: 'kpk_rpms_cases',
-  MIGRATED: 'kpk_rpms_migrated_to_idb',
+  EMPLOYEES: 'clerk_pro_rpms_employees',
+  CASES: 'clerk_pro_rpms_cases',
+  MIGRATED: 'clerk_pro_rpms_migrated_to_idb',
 };
 
 /**

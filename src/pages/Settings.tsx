@@ -13,10 +13,10 @@ export const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [autoBackupEnabled, setAutoBackupEnabled] = useState(() => localStorage.getItem('kpk_auto_backup_enabled') === 'true');
-  const [lastAutoBackup, setLastAutoBackup] = useState(() => localStorage.getItem('kpk_auto_backup_at') || '');
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(() => localStorage.getItem('clerk_pro_auto_backup_enabled') === 'true');
+  const [lastAutoBackup, setLastAutoBackup] = useState(() => localStorage.getItem('clerk_pro_auto_backup_at') || '');
   const [integrations, setIntegrations] = useState(() => {
-    const raw = localStorage.getItem('kpk_integration_config');
+    const raw = localStorage.getItem('clerk_pro_integration_config');
     return raw ? JSON.parse(raw) : {
       emis: { endpoint: '', lastSync: '' },
       hrmis: { endpoint: '', lastSync: '' },
@@ -25,11 +25,11 @@ export const Settings: React.FC = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('kpk_auto_backup_enabled', autoBackupEnabled ? 'true' : 'false');
+    localStorage.setItem('clerk_pro_auto_backup_enabled', autoBackupEnabled ? 'true' : 'false');
   }, [autoBackupEnabled]);
 
   useEffect(() => {
-    localStorage.setItem('kpk_integration_config', JSON.stringify(integrations));
+    localStorage.setItem('clerk_pro_integration_config', JSON.stringify(integrations));
   }, [integrations]);
 
   const handleBackup = async () => {
@@ -64,7 +64,7 @@ export const Settings: React.FC = () => {
   const runAutoSnapshot = async () => {
     const success = await BackupService.createAutoSnapshot();
     if (success) {
-      const ts = localStorage.getItem('kpk_auto_backup_at') || '';
+      const ts = localStorage.getItem('clerk_pro_auto_backup_at') || '';
       setLastAutoBackup(ts);
       showToast('Auto snapshot saved locally', 'success');
       auditService.log('AUTO_BACKUP', 'Auto backup snapshot created');

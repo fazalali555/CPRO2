@@ -3,16 +3,16 @@
 import { LetterTemplate, OfficeProfile, TabConfig } from '../types';
 
 export const STORAGE_KEYS = {
-  LETTERS: 'kpk_clerk_letters',
-  DOCUMENTS: 'kpk_clerk_documents',
-  CORRESPONDENCE: 'kpk_clerk_correspondence',
-  APPOINTMENTS: 'kpk_clerk_appointments',
-  RECORDS: 'kpk_clerk_records',
-  CONTACTS: 'kpk_clerk_contacts',
-  TASKS: 'kpk_clerk_tasks',
-  TEMPLATES: 'kpk_clerk_templates',
-  OFFICE_PROFILES: 'kpk_clerk_office_profiles',
-  PREFERENCES: 'kpk_clerk_preferences',
+  LETTERS: 'clerk_pro_clerk_letters',
+  DOCUMENTS: 'clerk_pro_clerk_documents',
+  CORRESPONDENCE: 'clerk_pro_clerk_correspondence',
+  APPOINTMENTS: 'clerk_pro_clerk_appointments',
+  RECORDS: 'clerk_pro_clerk_records',
+  CONTACTS: 'clerk_pro_clerk_contacts',
+  TASKS: 'clerk_pro_clerk_tasks',
+  TEMPLATES: 'clerk_pro_clerk_templates',
+  OFFICE_PROFILES: 'clerk_pro_clerk_office_profiles',
+  PREFERENCES: 'clerk_pro_clerk_preferences',
 } as const;
 
 export const DEFAULT_TEMPLATES: LetterTemplate[] = [

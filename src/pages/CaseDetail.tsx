@@ -140,7 +140,7 @@ export const CaseDetail: React.FC = () => {
 
   // Load templates
   useEffect(() => {
-    const saved = localStorage.getItem('kpk_rpms_templates');
+    const saved = localStorage.getItem('clerk_pro_rpms_templates');
     if (saved && caseRec) {
       const allTemplates: PdfTemplate[] = JSON.parse(saved);
       // Filter templates by case type

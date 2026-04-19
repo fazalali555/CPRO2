@@ -59,8 +59,8 @@ interface ParseResult {
 
 const CURRENT_VERSION = '2.0';
 const STORAGE_KEYS = {
-  EXPORT_CSV: 'kpk_rpms_last_export_csv',
-  EXPORT_META: 'kpk_rpms_last_export_meta',
+  EXPORT_CSV: 'clerk_pro_rpms_last_export_csv',
+  EXPORT_META: 'clerk_pro_rpms_last_export_meta',
 };
 
 const STATUS_CONFIG: Record<ImportStatus, { 

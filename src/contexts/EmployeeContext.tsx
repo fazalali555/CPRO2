@@ -123,7 +123,7 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (dbEmployees.length === 0) {
           console.log('[Context] IndexedDB empty, checking localStorage...');
 
-          const lsEmployees = localStorage.getItem('kpk_rpms_employees');
+          const lsEmployees = localStorage.getItem('clerk_pro_rpms_employees');
           if (lsEmployees) {
             try {
               const parsed = JSON.parse(lsEmployees);
@@ -144,7 +144,7 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
 
         if (dbCases.length === 0) {
-          const lsCases = localStorage.getItem('kpk_rpms_cases');
+          const lsCases = localStorage.getItem('clerk_pro_rpms_cases');
           if (lsCases) {
             try {
               const parsed = JSON.parse(lsCases);
@@ -182,8 +182,8 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
         // Emergency fallback: try localStorage directly
         try {
-          const lsEmp = localStorage.getItem('kpk_rpms_employees');
-          const lsCases = localStorage.getItem('kpk_rpms_cases');
+          const lsEmp = localStorage.getItem('clerk_pro_rpms_employees');
+          const lsCases = localStorage.getItem('clerk_pro_rpms_cases');
 
           const empData = lsEmp ? JSON.parse(lsEmp) : INITIAL_EMPLOYEES;
           const caseData = lsCases ? JSON.parse(lsCases) : [];
@@ -219,7 +219,7 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
       await employeeDB.replaceAll(data);
       // Also keep localStorage as backup (optional — remove if too large)
       try {
-        localStorage.setItem('kpk_rpms_employees', JSON.stringify(data));
+        localStorage.setItem('clerk_pro_rpms_employees', JSON.stringify(data));
       } catch {
         // localStorage full — that's fine, IndexedDB is primary now
       }
@@ -232,7 +232,7 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
     try {
       await caseDB.replaceAll(data);
       try {
-        localStorage.setItem('kpk_rpms_cases', JSON.stringify(data));
+        localStorage.setItem('clerk_pro_rpms_cases', JSON.stringify(data));
       } catch {
         // localStorage full — fine
       }

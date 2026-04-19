@@ -7,7 +7,7 @@
  *
  * @module departmentDetector
  * @version 3.4.0 - Fixed education forwarding authority chain (HM/SDEO → DEO, DEO → DDE)
- * @author KPK RPMS Team
+ * @author KPK Team
  */
 
 // ============================================================================

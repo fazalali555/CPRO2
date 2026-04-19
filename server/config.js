@@ -1,29 +1,23 @@
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
 dotenv.config();
 
-const parseJson = (value, fallback) => {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-};
-
 export const config = {
-  port: Number(process.env.PORT || 8787),
-  geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
-  geminiBaseUrl: process.env.GEMINI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta',
-  geminiSafetySettings: parseJson(process.env.GEMINI_SAFETY_SETTINGS, [
-    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
-  ]),
-  rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60000),
-  rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 30),
-  auditLogPath: process.env.AI_AUDIT_LOG_PATH || 'logs/ai_audit.log'
+  port: process.env.PORT || 3000,
+  nodeEnv: process.env.NODE_ENV || 'development',
+  
+  app: {
+    name: 'Clerk Pro by Fazal Ali',
+    version: '0.0.1',
+  },
+  
+  cors: {
+    origin: process.env.CORS_ORIGIN || ['http://localhost:3003', 'http://localhost:5173'\],
+    credentials: true,
+  },
+  
+  security: {
+    rateLimitWindowMs: 15 * 60 * 1000, // 15 minutes
+    rateLimitMaxRequests: 100,
+  },
 };

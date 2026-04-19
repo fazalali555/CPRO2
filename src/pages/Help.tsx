@@ -6,7 +6,7 @@ import { AppIcon } from '../components/AppIcon';
 
 export const Help: React.FC = () => {
   const [tickets, setTickets] = useState(() => {
-    const raw = localStorage.getItem('kpk_helpdesk_tickets');
+    const raw = localStorage.getItem('clerk_pro_helpdesk_tickets');
     return raw ? JSON.parse(raw) : [];
   });
   const [subject, setSubject] = useState('');
@@ -14,7 +14,7 @@ export const Help: React.FC = () => {
   const [priority, setPriority] = useState('Normal');
 
   useEffect(() => {
-    localStorage.setItem('kpk_helpdesk_tickets', JSON.stringify(tickets));
+    localStorage.setItem('clerk_pro_helpdesk_tickets', JSON.stringify(tickets));
   }, [tickets]);
 
   const handleSubmit = () => {

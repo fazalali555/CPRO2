@@ -24,7 +24,7 @@ export const Letterhead: React.FC<LetterheadProps> = ({ employeeRecord }) => {
   const [office, setOffice] = useState<OfficeProfile>(DEFAULT_OFFICE_PROFILE);
 
   useEffect(() => {
-    const saved = localStorage.getItem('kpk_rpms_office_profile');
+    const saved = localStorage.getItem('clerk_pro_rpms_office_profile');
     if (saved) {
       try {
         setOffice(JSON.parse(saved));

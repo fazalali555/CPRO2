@@ -38,7 +38,7 @@ export const BackupService = {
     const localStorageData: Record<string, string> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('kpk_') || key === 'app_language' || key.startsWith('budgeting/'))) {
+      if (key && (key.startsWith('clerk_pro_') || key === 'clerk_pro_language' || key.startsWith('budgeting/'))) {
         localStorageData[key] = localStorage.getItem(key) || '';
       }
     }
@@ -99,8 +99,8 @@ export const BackupService = {
   async createAutoSnapshot() {
     try {
       const payload = await BackupService.createSnapshotPayload();
-      localStorage.setItem('kpk_auto_backup_snapshot', payload);
-      localStorage.setItem('kpk_auto_backup_at', new Date().toISOString());
+      localStorage.setItem('clerk_pro_auto_backup_snapshot', payload);
+      localStorage.setItem('clerk_pro_auto_backup_at', new Date().toISOString());
       return true;
     } catch (e) {
       console.error('Auto snapshot failed:', e);

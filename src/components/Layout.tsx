@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import clsx from 'clsx';
 import { AppIcon } from './AppIcon';
@@ -17,10 +16,21 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
   const { t, language, setLanguage, isUrdu } = useLanguage();
+  const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const location = useLocation();
+
+  const currentUser = securityService.getCurrentUser();
+  const userName = currentUser?.name || 'User';
+  const userRole = currentUser?.role || 'viewer';
+  const userInitials = userName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   const navItems = [
     { icon: 'dashboard', label: t.common.dashboard, path: '/' },
@@ -41,6 +51,7 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
     clerk: ['/', '/clerk-desk', '/employees', '/cases', '/pension', '/budgeting', '/legal-audit', '/admin', '/calendar', '/sharing'],
     viewer: ['/', '/cases', '/calendar', '/sharing', '/about']
   };
+
   const isAllowed = (path: string) => (roleAccess[role] || []).some(p => path === p || (p !== '/' && path.startsWith(p)));
   const filteredNavItems = navItems.filter(i => isAllowed(i.path));
   const mobileNavItems = filteredNavItems.slice(0, 5);
@@ -68,13 +79,22 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
     setMobileMenuOpen(false);
   };
 
+  const handleLogout = () => {
+    try {
+      securityService.logout();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   const toggleDrawer = () => setDrawerOpen(!drawerOpen);
 
   return (
     <div className={clsx("min-h-screen bg-background text-on-background font-sans flex transition-colors duration-500", darkMode ? "dark" : "")}>
-      
+
       {/* --- DESKTOP NAVIGATION RAIL --- */}
-      <nav 
+      <nav
         className={clsx(
           "hidden lg:flex flex-col fixed inset-y-0 z-50 bg-surface-container-low/80 backdrop-blur-xl border-outline-variant transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)]",
           isUrdu ? "right-0 border-l" : "left-0 border-r",
@@ -82,28 +102,45 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
         )}
       >
         <div className="h-16 flex items-center px-4 gap-3">
-          <button onClick={toggleDrawer} className="p-2 rounded-full hover:bg-on-surface/10 text-on-surface-variant transition-colors">
+          <button 
+            onClick={toggleDrawer} 
+            className="p-2 rounded-full hover:bg-on-surface/10 text-on-surface-variant transition-colors"
+            title="Toggle Sidebar"
+          >
             <AppIcon name="menu" />
           </button>
           {drawerOpen && (
-             <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col overflow-hidden whitespace-nowrap">
-               <span className="font-bold text-lg leading-tight text-primary font-official">{APP_NAME}</span>
-               <span className="text-[10px] text-outline uppercase tracking-wider">Education Dept</span>
-             </motion.div>
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              className="flex flex-col overflow-hidden whitespace-nowrap"
+            >
+              <span className="font-bold text-lg leading-tight text-primary font-official">
+                {APP_NAME}
+              </span>
+              <span className="text-[10px] text-outline uppercase tracking-wider">Professional System</span>
+            </motion.div>
           )}
         </div>
 
         <div className="px-3 py-4">
-           {drawerOpen ? (
-             <Link to="/cases/new" className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-primary-container text-on-primary-container hover:shadow-elevation-1 transition-all">
-               <AppIcon name="edit_document" />
-               <span className="font-medium">New Case</span>
-             </Link>
-           ) : (
-             <Link to="/cases/new" className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary-container text-on-primary-container hover:shadow-elevation-1 transition-all mx-auto" title="New Case">
-               <AppIcon name="edit_document" />
-             </Link>
-           )}
+          {drawerOpen ? (
+            <Link 
+              to="/cases/new" 
+              className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-primary-container text-on-primary-container hover:shadow-elevation-1 transition-all"
+            >
+              <AppIcon name="edit_document" />
+              <span className="font-medium">New Case</span>
+            </Link>
+          ) : (
+            <Link 
+              to="/cases/new" 
+              className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary-container text-on-primary-container hover:shadow-elevation-1 transition-all mx-auto" 
+              title="New Case"
+            >
+              <AppIcon name="edit_document" />
+            </Link>
+          )}
         </div>
 
         <div className="flex-1 px-3 space-y-1 overflow-y-auto overflow-x-hidden">
@@ -116,14 +153,18 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
                 title={!drawerOpen ? item.label : ''}
                 className={clsx(
                   "flex items-center gap-4 px-4 py-3 rounded-full transition-all group relative",
-                  isActive 
-                    ? "bg-secondary-container text-on-secondary-container font-bold" 
+                  isActive
+                    ? "bg-secondary-container text-on-secondary-container font-bold"
                     : "text-on-surface-variant hover:bg-on-surface/10 hover:text-on-surface"
                 )}
               >
                 <AppIcon name={item.icon} filled={isActive} />
                 {drawerOpen && (
-                  <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm">
+                  <motion.span 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    className="text-sm"
+                  >
                     {item.label}
                   </motion.span>
                 )}
@@ -132,37 +173,62 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
           })}
         </div>
 
-        <div className="p-4 mt-auto border-t border-outline-variant/30">
+        <div className="p-4 mt-auto border-t border-outline-variant/30 space-y-2">
           {deferredPrompt && (
-             <button onClick={handleInstall} className={clsx("flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-primary/10 mb-2 text-primary font-bold w-full", !drawerOpen && "justify-center")}>
-                <AppIcon name="download" size={20} />
-                {drawerOpen && <span className="text-sm">Install App</span>}
-             </button>
+            <button 
+              onClick={handleInstall} 
+              className={clsx(
+                "flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-primary/10 text-primary font-bold w-full transition-colors",
+                !drawerOpen && "justify-center"
+              )}
+            >
+              <AppIcon name="download" size={20} />
+              {drawerOpen && <span className="text-sm">Install App</span>}
+            </button>
           )}
-          
-          <Link to="/settings" className={clsx("flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-on-surface/5 mb-2 text-on-surface-variant", !drawerOpen && "justify-center")}>
-             <AppIcon name="settings" size={20} />
-             {drawerOpen && <span className="text-sm font-medium">Settings</span>}
+
+          <Link 
+            to="/settings" 
+            className={clsx(
+              "flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-on-surface/5 text-on-surface-variant transition-colors",
+              !drawerOpen && "justify-center"
+            )}
+          >
+            <AppIcon name="settings" size={20} />
+            {drawerOpen && <span className="text-sm font-medium">Settings</span>}
           </Link>
-          <div className={clsx("flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-on-surface/5", !drawerOpen && "justify-center")}>
-            <div className="w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center font-bold text-xs">
-              FA
+
+          {/* User Profile Card */}
+          <div className={clsx("flex items-center gap-3 p-2 rounded-lg", !drawerOpen && "justify-center")}>
+            <div className="w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center font-bold text-xs flex-shrink-0">
+              {userInitials}
             </div>
             {drawerOpen && (
-              <div className="overflow-hidden">
-                <p className="font-bold text-sm text-on-surface truncate">Fazal Ali</p>
-                <p className="text-xs text-on-surface-variant truncate">Junior Clerk</p>
+              <div className="overflow-hidden flex-1">
+                <p className="font-bold text-sm text-on-surface truncate">{userName}</p>
+                <p className="text-xs text-on-surface-variant truncate capitalize">{userRole}</p>
               </div>
             )}
           </div>
+
+          <button
+            onClick={handleLogout}
+            className={clsx(
+              "flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-error/10 text-error font-medium w-full transition-colors",
+              !drawerOpen && "justify-center"
+            )}
+          >
+            <AppIcon name="logout" size={20} />
+            {drawerOpen && <span className="text-sm">Logout</span>}
+          </button>
         </div>
       </nav>
 
       {/* --- MAIN CONTENT --- */}
       <div className={clsx(
-        "flex-1 flex flex-col min-w-0 transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)]", 
-        drawerOpen 
-          ? (isUrdu ? "lg:mr-[300px]" : "lg:ml-[300px]") 
+        "flex-1 flex flex-col min-w-0 transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)]",
+        drawerOpen
+          ? (isUrdu ? "lg:mr-[300px]" : "lg:ml-[300px]")
           : (isUrdu ? "lg:mr-[88px]" : "lg:ml-[88px]")
       )}>
         <header className="h-16 px-4 lg:px-8 flex items-center justify-between sticky top-0 bg-surface/80 backdrop-blur-md z-40 border-b border-outline-variant/30 no-print">
@@ -171,43 +237,55 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
             <span className="font-bold text-on-surface font-official text-sm">{APP_NAME}</span>
           </div>
 
-          <div className="hidden lg:block">
-            <span className="text-title-medium font-medium text-on-surface font-official">Government of Khyber Pakhtunkhwa</span>
+          <div className="hidden lg:block flex-1">
+            <h1 className="text-title-medium font-medium text-on-surface font-official">
+              Clerk Pro by Fazal Ali
+            </h1>
           </div>
 
           <div className="flex items-center gap-1">
-            <button 
+            <button
               onClick={() => setLanguage(language === 'en' ? 'ur' : 'en')}
               className="px-3 py-1.5 rounded-full hover:bg-surface-variant text-on-surface-variant transition-all font-bold text-sm flex items-center gap-2"
               title="Switch Language"
             >
               <AppIcon name="language" size={20} />
-              <span>{language === 'en' ? 'اردو' : 'English'}</span>
+              <span className="hidden sm:inline">{language === 'en' ? 'اردو' : 'English'}</span>
             </button>
-            <button 
+            <button
               onClick={() => setDarkMode(!darkMode)}
               className="p-2 rounded-full hover:bg-surface-variant text-on-surface-variant transition-transform active:rotate-90"
               title="Toggle Theme"
             >
               <AppIcon name={darkMode ? 'light_mode' : 'dark_mode'} />
             </button>
-            <Link to="/about" className="hidden lg:block p-2 rounded-full hover:bg-surface-variant text-on-surface-variant" title="About">
+            <Link 
+              to="/about" 
+              className="hidden lg:block p-2 rounded-full hover:bg-surface-variant text-on-surface-variant" 
+              title="About"
+            >
               <AppIcon name="info" />
             </Link>
           </div>
         </header>
 
         <main className="flex-1 p-4 lg:p-8 overflow-x-hidden pb-28 lg:pb-8">
-           {isAllowed(location.pathname) ? children : (
-             <div className="max-w-xl mx-auto p-8 bg-surface rounded-2xl border border-outline-variant text-center">
-               <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-error-container text-on-error-container flex items-center justify-center">
-                 <AppIcon name="lock" />
-               </div>
-               <h2 className="text-xl font-bold text-on-surface">Access Restricted</h2>
-               <p className="text-sm text-on-surface-variant mt-2">Your role does not have permission to access this module.</p>
-               <div className="mt-4 text-xs text-on-surface-variant uppercase">Role: {role}</div>
-             </div>
-           )}
+          {isAllowed(location.pathname) ? (
+            children
+          ) : (
+            <div className="max-w-xl mx-auto p-8 bg-surface rounded-2xl border border-outline-variant text-center">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-error-container text-on-error-container flex items-center justify-center">
+                <AppIcon name="lock" />
+              </div>
+              <h2 className="text-xl font-bold text-on-surface">Access Restricted</h2>
+              <p className="text-sm text-on-surface-variant mt-2">
+                Your role does not have permission to access this module.
+              </p>
+              <div className="mt-4 text-xs text-on-surface-variant uppercase">
+                Role: <span className="font-bold capitalize">{role}</span>
+              </div>
+            </div>
+          )}
         </main>
       </div>
 
@@ -215,7 +293,7 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
       <nav className="lg:hidden fixed bottom-0 inset-x-0 h-20 bg-surface-container border-t border-outline-variant/30 z-50 pb-safe no-print">
         <div className="flex items-center justify-around h-full px-2">
           {mobileNavItems.map((item) => {
-             const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+            const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.label}
@@ -234,7 +312,7 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
               </Link>
             );
           })}
-          
+
           {/* More Button */}
           <button
             onClick={() => setMobileMenuOpen(true)}
@@ -252,12 +330,12 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm" 
+              className="fixed inset-0 bg-black/50 z-[60] lg:hidden backdrop-blur-sm"
             />
             <motion.div
               initial={{ y: "100%" }}
@@ -270,35 +348,48 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
                 <div className="w-12 h-1 bg-outline-variant/50 rounded-full" />
               </div>
               <div className="p-4 grid grid-cols-3 gap-4 pb-8">
-                 {/* Install Button if available */}
-                 {deferredPrompt && (
-                   <button 
-                     onClick={handleInstall}
-                     className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-surface-variant/30 active:bg-surface-variant/50 transition-colors"
-                   >
-                     <div className="p-3 bg-primary text-on-primary rounded-full shadow-lg">
-                       <AppIcon name="download" size={24} />
-                     </div>
-                     <span className="text-xs font-bold text-primary">Install App</span>
-                   </button>
-                 )}
+                {/* Install Button if available */}
+                {deferredPrompt && (
+                  <button
+                    onClick={handleInstall}
+                    className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-surface-variant/30 active:bg-surface-variant/50 transition-colors"
+                  >
+                    <div className="p-3 bg-primary text-on-primary rounded-full shadow-lg">
+                      <AppIcon name="download" size={24} />
+                    </div>
+                    <span className="text-xs font-bold text-primary">Install App</span>
+                  </button>
+                )}
 
-                 {filteredNavItems.slice(4).concat([
-                   { icon: 'settings', label: 'Settings', path: '/settings' },
-                   { icon: 'info', label: 'About', path: '/about' },
-                   { icon: 'logout', label: 'Logout', path: '/login' },
-                 ]).map((item) => (
-                   <Link 
-                     key={item.label} 
-                     to={item.path} 
-                     className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-surface-variant/30 active:bg-surface-variant/50 transition-colors"
-                   >
-                     <div className="p-3 bg-secondary-container text-on-secondary-container rounded-full">
-                       <AppIcon name={item.icon} size={24} />
-                     </div>
-                     <span className="text-xs font-medium text-on-surface">{item.label}</span>
-                   </Link>
-                 ))}
+                {filteredNavItems.slice(4).concat([
+                  { icon: 'settings', label: 'Settings', path: '/settings' },
+                  { icon: 'info', label: 'About', path: '/about' },
+                ]).map((item) => (
+                  <Link
+                    key={item.label}
+                    to={item.path}
+                    className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-surface-variant/30 active:bg-surface-variant/50 transition-colors"
+                  >
+                    <div className="p-3 bg-secondary-container text-on-secondary-container rounded-full">
+                      <AppIcon name={item.icon} size={24} />
+                    </div>
+                    <span className="text-xs font-medium text-on-surface">{item.label}</span>
+                  </Link>
+                ))}
+
+                {/* Logout Button in Mobile Menu */}
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-error/10 active:bg-error/20 transition-colors"
+                >
+                  <div className="p-3 bg-error text-on-error rounded-full">
+                    <AppIcon name="logout" size={24} />
+                  </div>
+                  <span className="text-xs font-medium text-error">Logout</span>
+                </button>
               </div>
             </motion.div>
           </>

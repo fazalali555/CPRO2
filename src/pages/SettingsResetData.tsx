@@ -23,10 +23,10 @@ export const SettingsResetData: React.FC = () => {
 
     try {
       // 1. Clear LocalStorage
-      localStorage.removeItem('kpk_rpms_employees');
-      localStorage.removeItem('kpk_rpms_cases');
-      localStorage.removeItem('kpk_rpms_last_export_csv');
-      localStorage.removeItem('kpk_rpms_last_export_meta');
+      localStorage.removeItem('clerk_pro_rpms_employees');
+      localStorage.removeItem('clerk_pro_rpms_cases');
+      localStorage.removeItem('clerk_pro_rpms_last_export_csv');
+      localStorage.removeItem('clerk_pro_rpms_last_export_meta');
       
       // 2. Clear IDB Docs (Selective wipe of case documents)
       await clearCaseDocuments();

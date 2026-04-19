@@ -106,37 +106,37 @@ const Dashboard: React.FC = () => {
         results.push({ type: 'Case', title: c.title, subtitle: c.case_type, route: `/cases/${c.id}` });
       }
     });
-    load('kpk_transfer_requests').forEach((r: any) => {
+    load('clerk_pro_transfer_requests').forEach((r: any) => {
       if ((r.employeeName || '').toLowerCase().includes(q) || (r.toSchool || '').toLowerCase().includes(q)) {
         results.push({ type: 'Transfer', title: r.employeeName, subtitle: `${r.fromSchool} → ${r.toSchool}`, route: '/admin' });
       }
     });
-    load('kpk_school_inspections').forEach((r: any) => {
+    load('clerk_pro_school_inspections').forEach((r: any) => {
       if ((r.schoolName || '').toLowerCase().includes(q)) {
         results.push({ type: 'Inspection', title: r.schoolName, subtitle: r.inspectionDate, route: '/admin' });
       }
     });
-    load('kpk_emis_reports').forEach((r: any) => {
+    load('clerk_pro_emis_reports').forEach((r: any) => {
       if ((r.schoolName || '').toLowerCase().includes(q) || (r.month || '').toLowerCase().includes(q)) {
         results.push({ type: 'EMIS', title: r.schoolName, subtitle: r.month, route: '/admin' });
       }
     });
-    load('kpk_inventory_items').forEach((r: any) => {
+    load('clerk_pro_inventory_items').forEach((r: any) => {
       if ((r.name || '').toLowerCase().includes(q) || (r.category || '').toLowerCase().includes(q)) {
         results.push({ type: 'Inventory', title: r.name, subtitle: `${r.qty} ${r.unit}`, route: '/admin' });
       }
     });
-    load('kpk_meetings').forEach((r: any) => {
+    load('clerk_pro_meetings').forEach((r: any) => {
       if ((r.title || '').toLowerCase().includes(q) || (r.date || '').toLowerCase().includes(q)) {
         results.push({ type: 'Meeting', title: r.title, subtitle: r.date, route: '/admin' });
       }
     });
-    load('kpk_medical_claims').forEach((r: any) => {
+    load('clerk_pro_medical_claims').forEach((r: any) => {
       if ((r.employeeName || '').toLowerCase().includes(q)) {
         results.push({ type: 'Claim', title: r.employeeName, subtitle: `PKR ${r.amount}`, route: '/admin' });
       }
     });
-    load('kpk_loan_applications').forEach((r: any) => {
+    load('clerk_pro_loan_applications').forEach((r: any) => {
       if ((r.employeeName || '').toLowerCase().includes(q)) {
         results.push({ type: 'Loan', title: r.employeeName, subtitle: `${r.loanType} • PKR ${r.amount}`, route: '/admin' });
       }

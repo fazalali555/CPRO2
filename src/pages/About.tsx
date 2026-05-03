@@ -66,10 +66,20 @@ interface BeforeInstallPromptEvent extends Event {
 
 const SOCIAL_PLATFORMS: SocialPlatform[] = [
   {
+    id: 'credly',
+    name: 'Certificates',
+    icon: 'workspace_premium',
+    url: 'https://www.credly.com/users/fazal-ali.e42cff73',
+    color: '#FF6B00',
+    gradient: 'from-orange-500 to-red-600',
+    hoverGradient: 'from-orange-600 to-red-700',
+    username: 'Fazal Ali',
+  },
+  {
     id: 'whatsapp',
     name: 'WhatsApp',
     icon: 'chat',
-    url: `https://wa.me/${DEVELOPER.contact?.replace(/[^0-9]/g, '')}`,
+    url: `https://wa.me/${DEVELOPER.whatsapp || DEVELOPER.contact?.replace(/[^0-9]/g, '')}`,
     color: '#25D366',
     gradient: 'from-green-400 to-green-600',
     hoverGradient: 'from-green-500 to-green-700',
@@ -79,47 +89,17 @@ const SOCIAL_PLATFORMS: SocialPlatform[] = [
     id: 'facebook',
     name: 'Facebook',
     icon: 'facebook',
-    url: 'https://facebook.com/fazalali555', // Update with actual link
+    url: 'https://facebook.com/fazalali555',
     color: '#1877F2',
     gradient: 'from-blue-500 to-blue-700',
     hoverGradient: 'from-blue-600 to-blue-800',
     username: '@fazalali555',
   },
   {
-    id: 'tiktok',
-    name: 'TikTok',
-    icon: 'music_note',
-    url: 'https://tiktok.com/@fazalaliallai', // Update with actual link
-    color: '#000000',
-    gradient: 'from-gray-800 via-pink-500 to-cyan-400',
-    hoverGradient: 'from-gray-900 via-pink-600 to-cyan-500',
-    username: '@fazalaliallai',
-  },
-  {
-    id: 'twitter',
-    name: 'X (Twitter)',
-    icon: 'tag',
-    url: 'https://x.com/fazalali555', // Update with actual link
-    color: '#000000',
-    gradient: 'from-gray-800 to-gray-900',
-    hoverGradient: 'from-black to-gray-800',
-    username: '@fazalali555',
-  },
-  {
-    id: 'instagram',
-    name: 'Instagram',
-    icon: 'photo_camera',
-    url: 'https://instagram.com/fazalali555', // Update with actual link
-    color: '#E4405F',
-    gradient: 'from-purple-500 via-pink-500 to-orange-400',
-    hoverGradient: 'from-purple-600 via-pink-600 to-orange-500',
-    username: '@fazalali555',
-  },
-  {
     id: 'linkedin',
     name: 'LinkedIn',
     icon: 'work',
-    url: 'https://linkedin.com/in/fazalali555', // Update with actual link
+    url: 'https://linkedin.com/in/fazalali555',
     color: '#0A66C2',
     gradient: 'from-blue-600 to-blue-800',
     hoverGradient: 'from-blue-700 to-blue-900',
@@ -129,7 +109,7 @@ const SOCIAL_PLATFORMS: SocialPlatform[] = [
     id: 'github',
     name: 'GitHub',
     icon: 'code',
-    url: 'https://github.com/fazalali555', // Update with actual link
+    url: 'https://github.com/fazalali555',
     color: '#181717',
     gradient: 'from-gray-700 to-gray-900',
     hoverGradient: 'from-gray-800 to-black',
@@ -139,20 +119,10 @@ const SOCIAL_PLATFORMS: SocialPlatform[] = [
     id: 'youtube',
     name: 'YouTube',
     icon: 'play_circle',
-    url: 'https://youtube.com/@fazalali555', // Update with actual link
+    url: 'https://youtube.com/@fazalali555',
     color: '#FF0000',
     gradient: 'from-red-500 to-red-700',
     hoverGradient: 'from-red-600 to-red-800',
-    username: '@fazalali555',
-  },
-  {
-    id: 'telegram',
-    name: 'Telegram',
-    icon: 'send',
-    url: 'https://t.me/fazalali555', // Update with actual link
-    color: '#26A5E4',
-    gradient: 'from-sky-400 to-blue-500',
-    hoverGradient: 'from-sky-500 to-blue-600',
     username: '@fazalali555',
   },
   {
@@ -643,9 +613,9 @@ const DeveloperSection = memo(() => {
             variants={fadeInUp}
             className="text-on-surface-variant max-w-2xl mx-auto leading-relaxed mb-8 text-base md:text-lg"
           >
-            Passionate Full-Stack Developer with expertise in building modern, scalable applications. 
-            Dedicated to crafting exceptional digital experiences that combine beautiful design with 
-            powerful functionality. Let's turn your ideas into reality.
+            Master in Computer Science (MCS) with a specialized focus on administrative and data-driven systems. 
+            Highly certified IT professional with over 10+ Microsoft and Google certifications. 
+            Dedicated to transforming traditional clerical workflows into modern, high-efficiency digital experiences.
           </motion.p>
 
           {/* Quick Contact Buttons */}
@@ -775,6 +745,120 @@ const SocialMediaSection = memo(() => {
   );
 });
 SocialMediaSection.displayName = 'SocialMediaSection';
+
+// ============================================================================
+// CERTIFICATIONS SECTION
+// ============================================================================
+
+const CERTIFICATIONS = [
+  {
+    category: 'Microsoft Certifications',
+    icon: 'workspace_premium',
+    color: 'from-blue-600 to-blue-400',
+    items: [
+      { title: 'MOS: Word 2013 Expert', date: '26 Dec 2016', issuer: 'Microsoft' },
+      { title: 'MOS: PowerPoint 2013', date: '27 Dec 2016', issuer: 'Microsoft' },
+      { title: 'MOS: Excel 2013', date: '29 Dec 2016', issuer: 'Microsoft' },
+      { title: 'MOS: Access 2013', date: '28 Dec 2016', issuer: 'Microsoft' },
+      { title: 'MOS: OneNote 2013', date: '28 Dec 2016', issuer: 'Microsoft' },
+      { title: 'Microsoft Advertising Search', date: '28 Apr 2022', issuer: 'Microsoft' },
+    ]
+  },
+  {
+    category: 'Google Professional Certs',
+    icon: 'school',
+    color: 'from-green-600 to-green-400',
+    items: [
+      { title: 'Google IT Support Professional', date: '19 Nov 2021', issuer: 'Coursera / Google' },
+      { title: 'Google Data Analytics Professional', date: '06 Aug 2022', issuer: 'Coursera / Google' },
+    ]
+  },
+  {
+    category: 'IBM & Meta Specialties',
+    icon: 'military_tech',
+    color: 'from-purple-600 to-indigo-400',
+    items: [
+      { title: 'IBM: Data Analytics Essentials', date: '06 Oct 2021', issuer: 'IBM' },
+      { title: 'IBM: Data Visualization Essentials', date: '30 Oct 2021', issuer: 'IBM' },
+      { title: 'IBM: Python for Data Science & AI', date: '08 July 2022', issuer: 'IBM' },
+      { title: 'Meta Social Media Marketing', date: '27 Aug 2022', issuer: 'Meta' },
+    ]
+  },
+  {
+    category: 'Foundation & Security',
+    icon: 'security',
+    color: 'from-red-600 to-orange-400',
+    items: [
+      { title: 'Cyber Security Foundation (CSFPC)', date: '04 Apr 2021', issuer: 'Certiprof' },
+      { title: 'Master in Computer Science (MCS)', date: 'Official', issuer: 'Higher Education' },
+    ]
+  }
+];
+
+const CertificationsSection = memo(() => {
+  const [ref, isVisible] = useIntersectionObserver<HTMLDivElement>({ threshold: 0.1 });
+  const reducedMotion = useReducedMotion();
+
+  return (
+    <SectionCard delay={0.22} className="p-8 md:p-12">
+      <motion.div
+        ref={ref}
+        variants={staggerContainer}
+        initial="hidden"
+        animate={isVisible ? 'visible' : 'hidden'}
+      >
+        <motion.div variants={fadeInUp} className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 mb-6">
+            <Icon name="verified" size={32} className="text-amber-600" />
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black text-on-surface mb-3">Professional Credentials</h2>
+          <p className="text-on-surface-variant max-w-lg mx-auto">
+            Official certifications and academic achievements from world-class institutions
+          </p>
+        </motion.div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {CERTIFICATIONS.map((cat, idx) => (
+            <motion.div
+              key={cat.category}
+              variants={fadeInUp}
+              className="flex flex-col gap-4 p-6 rounded-3xl bg-surface-container/30 border border-outline-variant/10"
+            >
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cat.color} flex items-center justify-center shadow-lg`}>
+                <Icon name={cat.icon} size={24} className="text-white" />
+              </div>
+              <h4 className="font-bold text-on-surface text-sm uppercase tracking-wider">{cat.category}</h4>
+              <div className="space-y-3">
+                {cat.items.map((item, i) => (
+                  <div key={i} className="text-xs">
+                    <div className="font-bold text-on-surface leading-tight">{item.title}</div>
+                    <div className="text-on-surface-variant/70 mt-0.5">{item.issuer} • {item.date}</div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Verification Link */}
+        <motion.div variants={fadeInUp} className="text-center mt-12">
+          <motion.a
+            href={SOCIAL_PLATFORMS.find(p => p.id === 'credly')?.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold text-lg shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/40 transition-all"
+          >
+            <Icon name="workspace_premium" size={24} />
+            <span>Verify All Credentials on Credly</span>
+          </motion.a>
+        </motion.div>
+      </motion.div>
+    </SectionCard>
+  );
+});
+CertificationsSection.displayName = 'CertificationsSection';
 
 // ============================================================================
 // SKILLS SECTION
@@ -1095,6 +1179,7 @@ export const About: React.FC = () => {
         <HeroSection />
         <DeveloperSection />
         <SocialMediaSection />
+        <CertificationsSection />
         <SkillsSection />
         <ServicesSection />
         <ContactCTASection />

@@ -44,8 +44,15 @@ export function formatLetterToText(letter: Letter): string {
   parts.push(`Respected ${letter.salutation},`);
   parts.push('');
   
-  // Body
-  parts.push(letter.body);
+  // Body - STRIP HTML for plain text version
+  const stripHtml = (html: string) => {
+    if (typeof document === 'undefined') return html; // SSR safety
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
+  parts.push(stripHtml(letter.body));
   parts.push('');
   
   // Closing

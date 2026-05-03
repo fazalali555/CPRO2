@@ -47,6 +47,7 @@ export interface EmployeeRecord {
     gpf_account_no: string;
     ppo_no?: string;
     gender?: 'Male' | 'Female';
+    department?: string; // Explicit department override (e.g. "Health", "Police")
   };
   service_history: {
     date_of_appointment: string;
@@ -151,6 +152,7 @@ export type CaseType =
   | 'payroll'
   | 'token_bill'
   | 'sanctioned_post'
+  | 'full_pension'
   | 'other';
 
 export interface BudgetHead {
@@ -271,7 +273,14 @@ export interface CaseRecord {
   updatedAt: string;
 }
 
-// Note: Removed redundant PensionCalculationResult
+export interface PensionCalculationResult {
+  grossPension: number;
+  netPensionBase: number;
+  commutationLumpSum: number;
+  reliefs: { label: string; amount: number }[];
+  totalMonthlyPension: number;
+  proposedNetPension: number;
+}
 
 export interface PdfTemplate {
   id: string;

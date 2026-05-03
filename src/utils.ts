@@ -165,8 +165,48 @@ const getEmployeeDeptInfo = (employee: EmployeeRecord): DepartmentInfo => {
     employee?.employees?.district || '',
     employee?.employees?.designation_full ||
       employee?.employees?.designation ||
-      ''
+      '',
+    employee?.employees?.department
   );
+};
+
+/**
+ * Detects department type from a name string
+ */
+export const detectDepartment = (schoolName: string, officeName: string = ''): string => {
+  const info = getDepartmentInfo(schoolName, officeName);
+  return info.departmentType;
+};
+
+/**
+ * Gets the path to the department's official logo
+ */
+export const getDepartmentLogoPath = (deptType: string, absolute: boolean = false): string => {
+  const type = (deptType || 'education').toLowerCase();
+  const logos: Record<string, string> = {
+    education: '/assets/ese_logo.png',
+    health: '/assets/health.png',
+    higher_education: '/assets/Higher_edu.jpeg',
+    police: '/assets/police.png',
+    revenue: '/assets/revenue.png',
+    local_government: '/assets/local_gov.jpeg',
+    agriculture: '/assets/agriculture.png',
+    livestock: '/assets/live_stock.jpeg',
+    forest: '/assets/forest.png',
+    transport: '/assets/transport.png',
+    technical_education: '/assets/it_logo.png',
+  };
+  
+  // Try exact match or fallback to KPK logo, but if 'unknown' or empty, prefer 'education' for this app context
+  let path = logos[type];
+  if (!path && (type === 'unknown' || type === 'default' || !type)) {
+    path = logos['education'];
+  }
+  if (!path) {
+    path = '/assets/KP_logo.png';
+  }
+  
+  return absolute ? window.location.origin + path : path;
 };
 
 /**
@@ -253,7 +293,8 @@ export const getCoverLetterInfo = (
   };
   department: string;
   departmentShort: string;
-} => {
+  departmentType: string;
+  } => {
   if (!employee || !employee.employees) {
     return {
       headerTitle: 'OFFICE',
@@ -270,6 +311,7 @@ export const getCoverLetterInfo = (
       },
       department: 'GOVERNMENT OF KHYBER PAKHTUNKHWA',
       departmentShort: 'Government Office',
+      departmentType: 'unknown',
     };
   }
 
@@ -285,9 +327,9 @@ export const getCoverLetterInfo = (
     letterhead: info.letterhead,
     department: info.department,
     departmentShort: info.departmentShort,
+    departmentType: info.departmentType,
   };
-};
-
+  };
 // ============================================================================
 // BENEFICIARY & FAMILY HELPERS
 // ============================================================================
@@ -665,18 +707,42 @@ export const calculatePension = (
 // CHECKLISTS
 // ============================================================================
 
-export const getDefaultChecklist = (caseType: CaseType): CaseChecklistItem[] => {
-  if (caseType === 'retirement') return getOfficialRetirementChecklist({} as any);
-  if (caseType === 'pension') return getOfficialPensionChecklist({} as any);
-  if (caseType.startsWith('gpf')) return getOfficialGPFChecklist(caseType, {} as any);
-  if (caseType === 'rbdc') return getRBDCChecklist();
-  if (caseType === 'benevolent_fund') return getBenevolentFundChecklist(false);
-  if (caseType === 'eef') return getEEFChecklist();
+export const getDefaultChecklist = (
+  caseType: CaseType,
+  employee?: EmployeeRecord,
+  caseRec?: CaseRecord
+): CaseChecklistItem[] => {
+  const status = employee?.employees?.status || '';
+  const extras = caseRec?.extras || {};
+  const retirementNature = String(extras.nature_of_retirement || '').toLowerCase();
+  const isDeath = isDeceasedStatus(status) || retirementNature.includes('death');
+
+  if (caseType === 'retirement') return getOfficialRetirementChecklist(employee as any, caseRec);
+  if (caseType === 'pension') return getOfficialPensionChecklist(employee as any, caseRec);
+  if (caseType.startsWith('gpf')) return getOfficialGPFChecklist(caseType, employee as any);
+  if (caseType === 'rbdc') return getRBDCChecklist(isDeath);
+  if (caseType === 'benevolent_fund') return getBenevolentFundChecklist(isDeath);
+  if (caseType === 'eef') return getEEFChecklist(isDeath);
   if (caseType === 'lpr') return getLPRChecklist();
-  if (caseType === 'financial_assistance') return getFinancialAssistanceChecklist();
+  if (caseType === 'financial_assistance') return getFinancialAssistanceChecklist(isDeath);
   if (caseType === 'audit_para') return getAuditParaChecklist();
   if (caseType === 'court_case') return getCourtCaseChecklist();
   if (caseType === 'token_bill') return getTokenBillChecklist();
+
+  if (caseType === 'full_pension') {
+    const pCheck = getOfficialPensionChecklist(employee as any, caseRec);
+    const gCheck = getOfficialGPFChecklist('gpf_final', employee as any);
+    const lCheck = getLPRChecklist();
+    const bCheck = getBenevolentFundChecklist(isDeath);
+    const rCheck = getRBDCChecklist(isDeath);
+    const eCheck = getEEFChecklist(isDeath);
+    
+    // Merge and re-index
+    return [...pCheck, ...gCheck, ...lCheck, ...bCheck, ...rCheck, ...eCheck].map((item, idx) => ({
+      ...item,
+      id: String(idx + 1)
+    }));
+  }
 
   return [
     { id: 'app', label: 'Application', done: false, required: true },
@@ -781,7 +847,7 @@ export const getOfficialPensionChecklist = (
   const isDeath = isDeceasedStatus(status) || retirementNature.includes('death');
 
   const items: CaseChecklistItem[] = [
-    { id: '1', label: 'Pension Applicationp', done: false, required: true },
+    { id: '1', label: 'Pension Application', done: false, required: true },
     { id: '2', label: 'Pension Papers in Triplicate, recent Photos & CNIC', done: false, required: true },
     { id: '3', label: 'Notification/ Sanction of Retirement', done: false, required: true },
     { id: '4', label: 'Last Pay slip', done: false, required: true },
@@ -887,26 +953,35 @@ export const getFamilyPensionChecklist = (): CaseChecklistItem[] => [
   { id: '17', label: 'Department Cover Letter', done: false, required: true },
 ];
 
-export const getRBDCChecklist = (): CaseChecklistItem[] => [
-  { id: '1', label: '1st Appointment Order', done: false, required: true },
-  { id: '2', label: 'Attested Copy of Retirement Order', done: false, required: true },
-  { id: '3', label: 'One Photograph of the beneficiary', done: false, required: true },
-  { id: '4', label: 'Attested Copy of CNIC Deceased/Widow', done: false, required: true },
-  { id: '5', label: 'Leave Account', done: false, required: true },
-  { id: '6', label: 'Pay Print/LPC', done: false, required: true },
-  { id: '7', label: 'Pay Stoppage Certificate', done: false, required: true },
-  { id: '8', label: '1 & 2 pages of service book photocopy', done: false, required: true },
-  { id: '9', label: 'History of Service', done: false, required: true },
-  { id: '10', label: 'Cheque Copy', done: false, required: true },
-  { id: '11', label: 'Application Form', done: false, required: true },
-  { id: '12', label: 'List of Family Members', done: false, required: true },
-  { id: '13', label: 'Specimen Signature', done: false, required: true },
-  { id: '14', label: 'Single Widow Certificate', done: false, required: true },
-  { id: '15', label: 'Non-Marriage Certificate', done: false, required: true },
-  { id: '16', label: 'Non-Separation Certificate', done: false, required: true },
-  { id: '17', label: 'Death Certificate', done: false, required: true },
-  { id: '18', label: 'Copy of Family Registration Certificate (NADRA)', done: false, required: true },
-];
+export const getRBDCChecklist = (isDeath: boolean): CaseChecklistItem[] => {
+  const list: CaseChecklistItem[] = [
+    { id: '1', label: '1st Appointment Order', done: false, required: true },
+    { id: '2', label: 'Attested Copy of Retirement Order', done: false, required: true },
+    { id: '3', label: 'One Photograph of the beneficiary', done: false, required: true },
+    { id: '4', label: 'Attested Copy of CNIC Deceased/Widow', done: false, required: true },
+    { id: '5', label: 'Leave Account', done: false, required: true },
+    { id: '6', label: 'Pay Print/LPC', done: false, required: true },
+    { id: '7', label: 'Pay Stoppage Certificate', done: false, required: true },
+    { id: '8', label: '1 & 2 pages of service book photocopy', done: false, required: true },
+    { id: '9', label: 'History of Service', done: false, required: true },
+    { id: '10', label: 'Cheque Copy', done: false, required: true },
+    { id: '11', label: 'Application Form', done: false, required: true },
+    { id: '12', label: 'List of Family Members', done: false, required: true },
+    { id: '13', label: 'Specimen Signature', done: false, required: true },
+    { id: '18', label: 'Copy of Family Registration Certificate (NADRA)', done: false, required: true },
+  ];
+
+  if (isDeath) {
+    list.push(
+      { id: '14', label: 'Single Widow Certificate', done: false, required: true },
+      { id: '15', label: 'Non-Marriage Certificate', done: false, required: true },
+      { id: '16', label: 'Non-Separation Certificate', done: false, required: true },
+      { id: '17', label: 'Death Certificate', done: false, required: true }
+    );
+  }
+
+  return list;
+};
 
 export const getBenevolentFundChecklist = (
   isDeath: boolean
@@ -919,13 +994,13 @@ export const getBenevolentFundChecklist = (
     { id: '5', label: 'BF Contribution Certificate', done: false, required: true },
     { id: '6', label: 'Details Of Bank Account', done: false, required: true },
     { id: '7', label: 'Copy of Family Registration Certificate (NADRA)', done: false, required: true },
-    { id: '8', label: 'Attested Copy of Death Certificate', done: false, required: false },
     { id: '9', label: 'Attested Copy of Pension Payment Order', done: false, required: true },
     { id: '10', label: 'C.N.I.C. OF Guarantor', done: false, required: true },
   ];
 
   if (isDeath) {
     list.push(
+      { id: '8', label: 'Attested Copy of Death Certificate', done: false, required: true },
       { id: '11', label: 'Single Widow', done: false, required: true },
       { id: '12', label: 'Non-marriage/non-Separation certificate', done: false, required: true },
       { id: '13', label: 'Succession Certificate', done: false, required: true },
@@ -939,26 +1014,35 @@ export const getBenevolentFundChecklist = (
   return list;
 };
 
-export const getEEFChecklist = (): CaseChecklistItem[] => [
-  { id: '1', label: '1st Appointment Order', done: false, required: true },
-  { id: '2', label: 'Attested Copy Retirement Order', done: false, required: true },
-  { id: '3', label: 'Attested Copy CNIC Deceased/Widow', done: false, required: true },
-  { id: '4', label: 'Attested List of Family Members', done: false, required: true },
-  { id: '5', label: 'Pay Print/LPC', done: false, required: true },
-  { id: '6', label: 'E.E.F Registration slip', done: false, required: true },
-  { id: '7', label: 'Undertaking on Stamp paper', done: false, required: true },
-  { id: '8', label: 'Prescribed Retirement Grant Application Form', done: false, required: true },
-  { id: '9', label: 'Attested Copy of Family Registration Cert (NADRA)', done: false, required: true },
-  { id: '10', label: 'Detail of Bank Account', done: false, required: true },
-  { id: '11', label: 'Attested Copy of Death Certificate', done: false, required: false },
-  { id: '12', label: 'During Service Death Certificate', done: false, required: false },
-  { id: '13', label: 'Single Widow Certificate', done: false, required: false },
-  { id: '14', label: 'Non-Marriage/Non-Separation Certificate', done: false, required: false },
-  { id: '15', label: 'Succession Certificate', done: false, required: false },
-  { id: '16', label: 'Service Certificate', done: false, required: true },
-  { id: '17', label: 'Fresh Photos', done: false, required: true },
-  { id: '18', label: 'Attested Copy of Pension Slip', done: false, required: true },
-];
+export const getEEFChecklist = (isDeath: boolean): CaseChecklistItem[] => {
+  const list: CaseChecklistItem[] = [
+    { id: '1', label: '1st Appointment Order', done: false, required: true },
+    { id: '2', label: 'Attested Copy Retirement Order', done: false, required: true },
+    { id: '3', label: 'Attested Copy CNIC Deceased/Widow', done: false, required: true },
+    { id: '4', label: 'Attested List of Family Members', done: false, required: true },
+    { id: '5', label: 'Pay Print/LPC', done: false, required: true },
+    { id: '6', label: 'E.E.F Registration slip', done: false, required: true },
+    { id: '7', label: 'Undertaking on Stamp paper', done: false, required: true },
+    { id: '8', label: 'Prescribed Retirement Grant Application Form', done: false, required: true },
+    { id: '9', label: 'Attested Copy of Family Registration Cert (NADRA)', done: false, required: true },
+    { id: '10', label: 'Detail of Bank Account', done: false, required: true },
+    { id: '16', label: 'Service Certificate', done: false, required: true },
+    { id: '17', label: 'Fresh Photos', done: false, required: true },
+    { id: '18', label: 'Attested Copy of Pension Slip', done: false, required: true },
+  ];
+
+  if (isDeath) {
+    list.push(
+      { id: '11', label: 'Attested Copy of Death Certificate', done: false, required: true },
+      { id: '12', label: 'During Service Death Certificate', done: false, required: true },
+      { id: '13', label: 'Single Widow Certificate', done: false, required: true },
+      { id: '14', label: 'Non-Marriage/Non-Separation Certificate', done: false, required: true },
+      { id: '15', label: 'Succession Certificate', done: false, required: true }
+    );
+  }
+
+  return list;
+};
 
 export const getLPRChecklist = (): CaseChecklistItem[] => [
   { id: '1', label: 'Cover Letter/Demand Letter in the Name of ADC (F&P)', done: false, required: true },
@@ -970,27 +1054,36 @@ export const getLPRChecklist = (): CaseChecklistItem[] => [
   { id: '7', label: 'Affidavit duly attested by Oath commissioner', done: false, required: true },
 ];
 
-export const getFinancialAssistanceChecklist = (): CaseChecklistItem[] => [
-  { id: '1', label: 'Cover Letter/Demand Letter in the Name of ADC (F&P)', done: false, required: true },
-  { id: '2', label: 'Application form Duly signed', done: false, required: true },
-  { id: '3', label: 'Attested copy of Retirement Order/Sanction', done: false, required: true },
-  { id: '4', label: 'Attested copy of CNIC of deceased', done: false, required: true },
-  { id: '5', label: 'Attested copy of LPC of deceased', done: false, required: true },
-  { id: '6', label: 'Attested copy of Last Pay Slip', done: false, required: true },
-  { id: '7', label: 'Attested copy of Pension Slip', done: false, required: true },
-  { id: '8', label: 'Attested copy of Death Certificate (NADRA)', done: false, required: true },
-  { id: '9', label: 'Attested copy of Death Certificate (Village Council)', done: false, required: true },
-  { id: '10', label: 'Attested copy of Death in Service certificate', done: false, required: true },
-  { id: '11', label: 'Attested copy of CNIC of the applicant', done: false, required: true },
-  { id: '12', label: 'Attested copy of Single Widow certificate', done: false, required: true },
-  { id: '13', label: 'Attested copy of Non-Marriage Certificate', done: false, required: true },
-  { id: '14', label: 'List of family members/legal Heirs', done: false, required: true },
-  { id: '15', label: 'Attested copy of succession certificate', done: false, required: true },
-  { id: '16', label: 'Attested copy of guardian certificate', done: false, required: true },
-  { id: '17', label: 'Bank account and bank code of the applicant', done: false, required: true },
-  { id: '18', label: 'Non-Payment Certificate from DAO', done: false, required: true },
-  { id: '19', label: 'Affidavit duly attested by Oath commissioner', done: false, required: true },
-];
+export const getFinancialAssistanceChecklist = (isDeath: boolean): CaseChecklistItem[] => {
+  const list: CaseChecklistItem[] = [
+    { id: '1', label: 'Cover Letter/Demand Letter in the Name of ADC (F&P)', done: false, required: true },
+    { id: '2', label: 'Application form Duly signed', done: false, required: true },
+    { id: '3', label: 'Attested copy of Retirement Order/Sanction', done: false, required: true },
+    { id: '4', label: 'Attested copy of CNIC of deceased', done: false, required: true },
+    { id: '5', label: 'Attested copy of LPC of deceased', done: false, required: true },
+    { id: '6', label: 'Attested copy of Last Pay Slip', done: false, required: true },
+    { id: '7', label: 'Attested copy of Pension Slip', done: false, required: true },
+    { id: '11', label: 'Attested copy of the applicant CNIC', done: false, required: true },
+    { id: '14', label: 'List of family members/legal Heirs', done: false, required: true },
+    { id: '17', label: 'Bank account and bank code of the applicant', done: false, required: true },
+    { id: '18', label: 'Non-Payment Certificate from DAO', done: false, required: true },
+    { id: '19', label: 'Affidavit duly attested by Oath commissioner', done: false, required: true },
+  ];
+
+  if (isDeath) {
+    list.push(
+      { id: '8', label: 'Attested copy of Death Certificate (NADRA)', done: false, required: true },
+      { id: '9', label: 'Attested copy of Death Certificate (Village Council)', done: false, required: true },
+      { id: '10', label: 'Attested copy of Death in Service certificate', done: false, required: true },
+      { id: '12', label: 'Attested copy of Single Widow certificate', done: false, required: true },
+      { id: '13', label: 'Attested copy of Non-Marriage Certificate', done: false, required: true },
+      { id: '15', label: 'Attested copy of succession certificate', done: false, required: true },
+      { id: '16', label: 'Attested copy of guardian certificate', done: false, required: true }
+    );
+  }
+
+  return list;
+};
 
 // ============================================================================
 // GPF ELIGIBILITY

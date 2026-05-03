@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/* ── Global resets ── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+/* ── Custom scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+
+/* ── Letter preview base ── */
+.letter-preview {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12pt;
+  line-height: 1.6;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.letter-preview p { margin: 0 0 10pt 0; }
+.letter-preview ul, .letter-preview ol { margin: 0 0 10pt 24px; }
+.letter-preview h1, .letter-preview h2, .letter-preview h3 { margin: 8pt 0; }
+
+/* ── Rich editor contenteditable ── */
+[contenteditable] { outline: none; }
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+/* ── Print styles ── */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body > * { display: none !important; }
+  .letter-preview {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 21cm !important;
+    min-height: 29.7cm !important;
+    padding: 2.5cm 2.5cm 2.5cm 3cm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .letter-preview * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+/* ── Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.3s ease forwards; }
+
+/* ── Transition ── */
+.transition { transition: all 0.15s ease; }
+
+/* ── Line clamp util ── */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

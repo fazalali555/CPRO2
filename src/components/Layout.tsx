@@ -6,6 +6,7 @@ import { AppIcon } from './AppIcon';
 import { ProjectLogo } from './ProjectLogo';
 import { APP_NAME } from '../config/branding';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useEmployeeContext } from '../contexts/EmployeeContext';
 import { securityService } from '../services/SecurityService';
 
 interface LayoutProps {
@@ -16,6 +17,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
   const { t, language, setLanguage, isUrdu } = useLanguage();
+  const { canSave, isLoading, dbError } = useEmployeeContext();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -231,6 +233,27 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
           ? (isUrdu ? "lg:mr-[300px]" : "lg:ml-[300px]")
           : (isUrdu ? "lg:mr-[88px]" : "lg:ml-[88px]")
       )}>
+        {/* Protected Mode Banner */}
+        <AnimatePresence>
+          {!canSave && !isLoading && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-error text-on-error px-4 py-2 flex items-center justify-center gap-3 text-xs font-bold no-print sticky top-0 z-[45]"
+            >
+              <AppIcon name="warning" size={18} />
+              <span>PROTECTED MODE (READ-ONLY): Database error detected. Your changes will not be saved. {dbError && `(${dbError})`}</span>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="ml-4 underline hover:no-underline"
+              >
+                Try Reconnecting
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <header className="h-16 px-4 lg:px-8 flex items-center justify-between sticky top-0 bg-surface/80 backdrop-blur-md z-40 border-b border-outline-variant/30 no-print">
           <div className="lg:hidden flex items-center gap-3">
             <ProjectLogo className="w-10 h-10" />

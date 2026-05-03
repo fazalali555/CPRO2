@@ -12,15 +12,6 @@ const formatDate = (dateStr?: string) => {
   try { return format(parseISO(dateStr), 'dd/MM/yyyy'); } catch { return dateStr; }
 };
 
-const FieldRow = ({ label, value }: { label: string, value: string }) => (
-  <div className="flex items-end mb-8">
-    <div className="font-bold text-lg w-48 shrink-0 uppercase">{label}</div>
-    <div className="flex-grow border-b-2 border-black text-center font-bold text-xl pb-1 uppercase relative top-[2px]">
-      {value || ''}
-    </div>
-  </div>
-);
-
 export const FamilyPensionTitlePage: React.FC<Props> = ({ employee }) => {
   const { employees, service_history } = employee;
   const isDeceased = employees.status === 'Deceased';
@@ -29,52 +20,73 @@ export const FamilyPensionTitlePage: React.FC<Props> = ({ employee }) => {
     : formatDate(service_history.date_of_retirement);
 
   return (
-    <div className="bg-white text-black font-serif print-page fit-page mx-auto relative p-[9mm]" 
+    <div className="bg-white text-black font-serif print-page fit-page mx-auto relative p-0" 
       style={{ width: '210mm', height: '297mm', boxSizing: 'border-box', overflow: 'hidden' }}>
       
-      {/* Heavy Border Container */}
-      <div className="w-full h-full border-[5px] border-black p-6 flex flex-col justify-between relative">
+      {/* Container with minimal margins for maximum page usage */}
+      <div className="w-full h-full p-[8mm] pl-[12mm] flex flex-col">
         
-        {/* Title */}
-        <div className="text-center mt-2">
-          <h1 className="text-4xl font-bold text-black tracking-wide scale-y-110">
-            Pension Papers Of
-          </h1>
-        </div>
-
-        {/* Fields Content */}
-        <div className="flex flex-col justify-center mb-8 px-4">
+        {/* Heavy Border Container */}
+        <div className="w-full h-full border-[5px] border-black p-4 flex flex-col justify-between relative">
           
-          <div className="flex items-end mb-8">
-            <div className="font-bold text-lg w-24 shrink-0 uppercase">Mr.</div>
-            <div className="flex-grow border-b-2 border-black text-center font-bold text-xl pb-1 uppercase relative top-[2px]">
-              {employees.name}
-            </div>
+          {/* Table Content - Filling the page with integrated Header */}
+          <div className="flex-grow flex items-center px-2">
+            <table className="w-full border-collapse border-[3px] border-black">
+              <tbody>
+                {/* Integrated PENSION PAPERS OF Header Row */}
+                <tr>
+                  <td colSpan={2} className="border-b-[3px] border-black p-8 bg-black text-white">
+                    <div className="text-center">
+                      <h1 className="text-5xl font-black tracking-[0.15em] uppercase leading-tight scale-y-110">
+                        Pension Papers Of
+                      </h1>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr className="border-b-2 border-black">
+                  <td className="border-r-2 border-black p-5 w-1/3 font-bold uppercase text-xl bg-gray-100">Name of Official</td>
+                  <td className="p-5 text-3xl font-black uppercase text-center">{employees.name}</td>
+                </tr>
+                <tr className="border-b-2 border-black">
+                  <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">S/O, D/O, W/O</td>
+                  <td className="p-5 text-2xl font-bold uppercase text-center">{employees.father_name}</td>
+                </tr>
+                <tr className="border-b-2 border-black">
+                  <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">CNIC Number</td>
+                  <td className="p-5 text-2xl font-bold uppercase text-center font-mono tracking-wider">{employees.cnic_no}</td>
+                </tr>
+                <tr className="border-b-2 border-black">
+                  <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">Designation (BPS)</td>
+                  <td className="p-5 text-2xl font-bold uppercase text-center">{employees.designation} (BPS-{employees.bps})</td>
+                </tr>
+                <tr className="border-b-2 border-black">
+                  <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">Department</td>
+                  <td className="p-5 text-2xl font-bold uppercase text-center">EDUCATION</td>
+                </tr>
+                <tr className="border-b-2 border-black">
+                  <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">Place of Posting</td>
+                  <td className="p-5 text-xl font-bold uppercase text-center leading-tight px-8">{employees.school_full_name}</td>
+                </tr>
+                <tr className="border-b-2 border-black">
+                  <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">Personal Number</td>
+                  <td className="p-5 text-2xl font-bold uppercase text-center tracking-widest font-mono">{employees.personal_no}</td>
+                </tr>
+                <tr>
+                  <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">Date of Death/Retirement</td>
+                  <td className="p-5 text-2xl font-bold uppercase text-center">{dateValue}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <FieldRow label="S/O" value={employees.father_name} />
-          
-          <FieldRow label="CNIC NO" value={employees.cnic_no} />
-          
-          <FieldRow label="DESIGNATION" value={employees.designation} />
-          
-          <FieldRow label="PLACE OF POSTING" value={employees.school_full_name} />
-          
-          <FieldRow label="DEPARTMENT" value="Education" />
-          
-          <FieldRow label="PERSONAL NO" value={employees.personal_no} />
-          
-          <FieldRow label="DATE OF RETIREMENT/DEATH" value={dateValue} />
+          {/* Footer Box */}
+          <div className="border-t-[3px] border-b-[3px] border-black py-8 text-center mx-2 mb-2 bg-gray-50">
+             <p className="text-2xl font-black uppercase tracking-[0.2em] mb-2">SUBMITTED BY: FAZAL ALI JUNIOR CLERK ALLAI BATTAGRAM</p>
+             <p className="text-3xl font-black tracking-widest font-mono">0343-2900419</p>
+          </div>
 
         </div>
-
-        {/* Footer Box */}
-        <div className="border-[3px] border-black p-3 text-center mb-4 mx-4">
-           <h3 className="text-xl font-bold mb-2">Prepared by:</h3>
-           <p className="text-lg font-bold uppercase mb-1">FAZAL ALI JUNIOR CLERK ALLAI BATTAGRAM</p>
-           <p className="text-lg font-bold">CONTACT NO: 0302-5625439</p>
-        </div>
-
       </div>
     </div>
   );

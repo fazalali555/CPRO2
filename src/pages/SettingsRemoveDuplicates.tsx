@@ -10,7 +10,7 @@ import { detectDuplicateGroups, DuplicateGroup } from '../utils';
 import { useEmployeeContext } from '../contexts/EmployeeContext';
 
 export const SettingsRemoveDuplicates: React.FC = () => {
-  const { employees, cases, setEmployees, setCases } = useEmployeeContext();
+  const { employees, cases, setEmployees, setCases, canSave } = useEmployeeContext();
   const { showToast } = useToast();
   const [groups, setGroups] = useState<DuplicateGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<DuplicateGroup | null>(null);
@@ -73,6 +73,13 @@ export const SettingsRemoveDuplicates: React.FC = () => {
          </Card>
       </div>
 
+      {!canSave && (
+        <div className="mb-6 p-4 bg-error-container/10 border border-error/20 rounded-xl flex items-center gap-3 text-error font-medium">
+          <AppIcon name="warning" />
+          <span>Protected Mode: Duplicate resolution is disabled due to a database error.</span>
+        </div>
+      )}
+
       {loading ? (
         <div className="p-8 text-center text-on-surface-variant animate-pulse">Analyzing records...</div>
       ) : (
@@ -103,6 +110,7 @@ export const SettingsRemoveDuplicates: React.FC = () => {
                    label="Review & Resolve" 
                    icon="content_copy" 
                    onClick={() => handleResolve(group.groupId)} 
+                   disabled={!canSave}
                 />
              </Card>
            ))}

@@ -30,10 +30,10 @@ interface Particle {
 // ============================================================================
 
 const LOADING_STEPS: LoadingStep[] = [
-  { id: 'init', label: 'Initializing Core', icon: 'memory', duration: 600 },
-  { id: 'data', label: 'Loading Database', icon: 'database', duration: 800 },
-  { id: 'ui', label: 'Preparing Interface', icon: 'dashboard', duration: 500 },
-  { id: 'ready', label: 'Almost Ready', icon: 'rocket_launch', duration: 400 },
+  { id: 'init', label: 'Booting Secure Core', icon: 'security', duration: 600 },
+  { id: 'data', label: 'Synchronizing Assets', icon: 'sync', duration: 800 },
+  { id: 'ui', label: 'Optimizing Interface', icon: 'auto_fix_high', duration: 500 },
+  { id: 'ready', label: 'Finalizing Deployment', icon: 'verified', duration: 400 },
 ];
 
 const TOTAL_DURATION = LOADING_STEPS.reduce((sum, step) => sum + step.duration, 0) + 800;
@@ -564,11 +564,17 @@ const DeveloperCard = memo<{ show: boolean }>(({ show }) => {
             transition={{ delay: 1.3 }}
             className="mt-4 space-y-2"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-variant/30 text-xs font-medium text-on-surface-variant">
-              <span className="material-symbols-rounded text-sm text-primary">call</span>
-              {DEVELOPER.contact}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                <span className="material-symbols-rounded text-sm">call</span>
+                {DEVELOPER.contact}
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-500/10 text-[11px] font-bold text-green-600">
+                <span className="material-symbols-rounded text-sm">chat</span>
+                +{DEVELOPER.whatsapp}
+              </div>
             </div>
-            <div className="block text-xs text-on-surface-variant/70">
+            <div className="block text-[10px] text-on-surface-variant/60 font-mono mt-2">
               {DEVELOPER.email}
             </div>
           </motion.div>

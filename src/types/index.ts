@@ -233,7 +233,7 @@ export interface DashboardStats {
   };
   documents: {
     total: number;
-    byCategory: Record<string, number>;
+    byCategory: { [key: string]: number };
   };
   tasks: {
     pending: number;

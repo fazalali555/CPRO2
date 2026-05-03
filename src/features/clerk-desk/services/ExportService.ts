@@ -2,6 +2,7 @@
 
 import { Letter, Document, ExportOptions } from '../types';
 import { formatLetterToText } from '../utils/formatters';
+import { getDepartmentLogoPath, detectDepartment } from '../../../utils';
 
 class ExportServiceClass {
   /**
@@ -34,121 +35,106 @@ class ExportServiceClass {
    * Export to HTML
    */
   private exportToHTML(letter: Letter, options: ExportOptions): Blob {
-    const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${letter.subject}</title>
-  <style>
-    @page {
-      size: ${options.paperSize} ${options.orientation};
-      margin: 2cm;
+    const year = letter.letterDate ? new Date(letter.letterDate).getFullYear() : new Date().getFullYear();
+    const lhLines = (letter.letterheadLines || '').split('\n').filter(Boolean);
+    const lhTitle = lhLines[0] || 'OFFICE';
+    const lhDept = lhLines[1] || '';
+    const lhGovt = lhLines[2] || 'Govt. of Khyber Pakhtunkhwa.';
+
+    // Dynamic Logo
+    const deptType = detectDepartment(letter.letterheadLines || letter.fromOffice || 'education');
+    const logoSrc = getDepartmentLogoPath(deptType, true);
+
+    // Determine opening statement
+    const sigTitle = letter.signatureTitle || '';
+    const isHigherOffice = sigTitle.toLowerCase().includes('director') || sigTitle.toLowerCase().includes('deo');
+    const openingStatement = isHigherOffice 
+      ? "I am directed to refer to the subject noted above and to state that"
+      : "I have the honor to refer to the subject cited above and to state that";
+
+    // Process body: handle existing HTML or plain text
+    let bodyHtml = letter.body;
+    if (!bodyHtml.includes('<p>')) {
+      bodyHtml = bodyHtml.split('\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('');
     }
-    body {
-      font-family: 'Times New Roman', serif;
-      font-size: 12pt;
-      line-height: 1.6;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 2cm;
-    }
-    .letterhead {
-      text-align: center;
-      font-weight: bold;
-      margin-bottom: 2em;
-      font-size: 14pt;
-      text-transform: uppercase;
-    }
-    .reference-line {
-      display: flex;
-      justify-content: space-between;
-      margin: 1em 0;
-    }
-    .recipient {
-      margin: 1.5em 0;
-    }
-    .subject {
-      font-weight: bold;
-      text-decoration: underline;
-      margin: 1em 0;
-    }
-    .salutation {
-      margin: 1em 0;
-    }
-    .body {
-      margin: 1.5em 0;
-      text-align: justify;
-    }
-    .signature {
-      margin-top: 3em;
-      text-align: right;
-    }
-    .signature-name {
-      font-weight: bold;
-    }
-    .forwarded {
-      margin-top: 2em;
-      font-size: 10pt;
-    }
-    ${options.includeWatermark ? `
-    .watermark {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) rotate(-45deg);
-      font-size: 72pt;
-      color: rgba(0, 0, 0, 0.1);
-      z-index: -1;
-      white-space: nowrap;
-    }` : ''}
-  </style>
-</head>
-<body>
-  ${options.includeWatermark ? `<div class="watermark">${options.watermarkText || 'CONFIDENTIAL'}</div>` : ''}
-  
+
+    // Inject opening statement and numbering (simplified for HTML export)
+    const processedBody = bodyHtml.replace(/<p>/i, `<p style="text-indent: 4em;">${openingStatement} `);
+
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${letter.subject}</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Times New Roman', serif; color: #000; background: #fff; }
+  .page { width: 210mm; min-height: 287mm; padding: 12mm 18mm 12mm 20mm; margin: 0 auto; display: flex; flex-direction: column; }
+  .lh { text-align: center; margin-bottom: 4px; }
+  .lh-title { font-size: 15pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; line-height: 1.25; }
+  .lh-sub { font-size: 11pt; font-weight: 700; margin-top: 3px; }
+  .divider { border-top: 4px double #000; margin: 4px 0 18px 0; }
+  .ref-row { display: flex; justify-content: space-between; align-items: flex-end; font-size: 10.5pt; font-weight: 700; margin-bottom: 18px; }
+  .ref-blank { border-bottom: 1px solid #000; min-width: 145px; display: inline-block; text-align: center; }
+  .date-blank { border-bottom: 1px solid #000; min-width: 38px; display: inline-block; }
+  .recip { margin-bottom: 18px; font-size: 11pt; }
+  .recip-to { font-weight: 700; margin-bottom: 3px; }
+  .recip-lines { padding-left: 40px; font-weight: 700; line-height: 1.35; }
+  .subj-row { display: flex; margin-bottom: 18px; font-size: 11pt; }
+  .subj-label { font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .subj-text { font-weight: 700; text-transform: uppercase; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; line-height: 1.4; }
+  .salut { font-weight: 700; font-size: 11pt; margin-bottom: 10px; }
+  .body { text-align: justify; font-size: 10.5pt; line-height: 1.6; }
+  .body p { margin-bottom: 8px; }
+  .closing { font-size: 10.5pt; margin-top: 8px; text-align: justify; }
+  .sig-wrap { margin-top: auto; display: flex; justify-content: flex-end; padding-top: 14px; page-break-inside: avoid; }
+  .sig-box { width: 235px; text-align: center; font-size: 10.5pt; }
+  .sig-gap { height: 18mm; }
+  .sig-line { border-top: 1px solid #000; width: 210px; margin: 0 auto 4px auto; }
+  .sig-title { font-weight: 700; text-transform: uppercase; font-size: 10pt; line-height: 1.35; white-space: pre-line; }
+  .fwd { margin-top: 24px; padding-top: 12px; border-top: 1px solid #999; font-size: 10.5pt; }
+  .fwd-label { font-weight: 700; margin-bottom: 6px; }
+  .fwd-item { margin-left: 20px; margin-bottom: 4px; }
+  ${options.includeWatermark ? `.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-45deg); font-size: 80pt; color: rgba(0,0,0,0.05); z-index: -1; white-space: nowrap; text-transform: uppercase; font-weight: 700; }` : ''}
+  @media print { body { margin: 0; } }
+</style></head><body>
+${options.includeWatermark ? `<div class="watermark">${options.watermarkText || 'DRAFT'}</div>` : ''}
+<div class="page">
   ${options.includeLetterhead ? `
-  <div class="letterhead">
-    ${letter.letterheadLines.split('\n').map(line => `<div>${line}</div>`).join('')}
-    ${letter.fromOffice ? `<div style="font-size: 11pt; margin-top: 0.5em;">${letter.fromOffice}</div>` : ''}
-  </div>` : ''}
-  
-  <div class="reference-line">
-    <span>No. ${letter.reference || '____________'}</span>
-    <span>Dated: ${letter.letterDate ? new Date(letter.letterDate).toLocaleDateString('en-GB') : '____/____/______'}</span>
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; width: 100%;">
+    <div style="width: 70px; flex-shrink: 0; padding-top: 4px;">
+      <img src="${logoSrc}" style="width: 60px; height: 60px; object-fit: contain;" alt="Logo" onerror="this.src='${window.location.origin}/assets/KP_logo.png'" />
+    </div>
+    <div class="lh" style="flex-grow: 1; text-align: center; padding: 8px 4px 0 4px;">
+      <div class="lh-title">${lhTitle}</div>
+      ${lhDept ? `<div class="lh-sub">${lhDept}</div>` : ''}
+      <div class="lh-sub">${lhGovt}</div>
+      ${letter.fromOffice ? `<div class="lh-sub" style="font-size:10pt;margin-top:4px;">${letter.fromOffice}</div>` : ''}
+    </div>
+    <div style="width: auto; min-width: 120px; padding-top: 8px; font-family: serif; font-size: 9.5pt; text-align: right;">
+      <!-- Contact block placeholder for symmetry -->
+    </div>
+  </div><div class="divider"></div>` : ''}
+  <div class="ref-row">
+    <div>No. <span class="ref-blank">${letter.reference || ''}</span> /</div>
+    <div>Dated: <span class="date-blank"></span> / <span class="date-blank"></span> /${year}</div>
   </div>
-  
-  <div class="recipient">
-    <div>To,</div>
-    ${letter.to.split('\n').map(line => `<div style="margin-left: 2em;">${line}</div>`).join('')}
+  <div class="recip">
+    <div class="recip-to">To</div>
+    <div class="recip-lines">${letter.to.split('\n').map(l => l.trim()).filter(Boolean).join('<br>')}</div>
   </div>
-  
-  <div class="subject">Subject: ${letter.subject.toUpperCase()}</div>
-  
-  <div class="salutation">Respected ${letter.salutation},</div>
-  
-  <div class="body">
-    ${letter.body.split('\n').map(para => `<p>${para}</p>`).join('')}
+  <div class="subj-row">
+    <span class="subj-label">Subject:</span>
+    <span class="subj-text">${letter.subject.toUpperCase()}</span>
   </div>
-  
-  <div class="signature">
-    <div>Yours faithfully,</div>
-    <br><br>
-    <div class="signature-name">${letter.signatureName}</div>
-    <div>${letter.signatureTitle}</div>
-  </div>
-  
-  ${letter.forwardedTo.length > 0 ? `
-  <div class="forwarded">
-    <div><strong>Copy Forwarded To:</strong></div>
-    <ol>
-      ${letter.forwardedTo.map(item => `<li>${item}</li>`).join('')}
-    </ol>
-  </div>` : ''}
-</body>
-</html>`;
-    
+  <div class="salut">Respected ${letter.salutation},</div>
+  <div class="body">${processedBody}</div>
+  <p class="closing">It is requested that necessary action may kindly be taken.</p>
+  <div class="sig-wrap"><div class="sig-box">
+    <div class="sig-gap"></div>
+    <div class="sig-line"></div>
+    <div class="sig-title">${letter.signatureName || 'Clerk'}\n${letter.signatureTitle || 'Education Office'}</div>
+  </div></div>
+  ${letter.forwardedTo.length > 0 ? `<div class="fwd"><div class="fwd-label">Copy Forwarded To:</div>${letter.forwardedTo.map((f, i) => `<div class="fwd-item">${i + 1}. ${f}</div>`).join('')}</div>` : ''}
+</div></body></html>`;
+
     return new Blob([html], { type: 'text/html;charset=utf-8' });
   }
 

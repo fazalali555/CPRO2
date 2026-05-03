@@ -218,7 +218,7 @@ const excelDateToISO = (value: any): string => {
 // ============================================
 
 export const SettingsImportExport: React.FC = () => {
-  const { employees, setEmployees: onImport } = useEmployeeContext();
+  const { employees, setEmployees: onImport, canSave } = useEmployeeContext();
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -951,6 +951,8 @@ export const SettingsImportExport: React.FC = () => {
     e.stopPropagation();
     setIsDragOver(false);
 
+    if (!canSave) return;
+
     const file = e.dataTransfer.files?.[0];
     if (file) {
       const ext = file.name.toLowerCase().split('.').pop();
@@ -1142,7 +1144,9 @@ export const SettingsImportExport: React.FC = () => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (canSave) fileInputRef.current?.click();
+            }}
             className={`
               relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
               transition-all duration-200
@@ -1150,10 +1154,20 @@ export const SettingsImportExport: React.FC = () => {
                 ? 'border-primary bg-primary/5 scale-[1.02]' 
                 : 'border-outline-variant hover:border-primary hover:bg-surface-container'
               }
-              ${isAnalyzing ? 'pointer-events-none opacity-60' : ''}
+              ${isAnalyzing || !canSave ? 'pointer-events-none opacity-60' : ''}
+              ${!canSave ? 'cursor-not-allowed border-error/50 bg-error/5' : ''}
             `}
           >
-            {isAnalyzing ? (
+            {!canSave ? (
+              <div className="flex flex-col items-center gap-3">
+                <AppIcon name="lock" size={48} className="text-error" />
+                <p className="text-lg font-bold text-error">Protected Mode: Import Disabled</p>
+                <p className="text-sm text-on-surface-variant max-w-md mx-auto">
+                  The system is currently in read-only mode because a database error was detected. 
+                  Data cannot be imported until the connection is restored.
+                </p>
+              </div>
+            ) : isAnalyzing ? (
               <div className="flex flex-col items-center gap-3">
                 <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary border-t-transparent" />
                 <span className="text-on-surface-variant">Analyzing file...</span>

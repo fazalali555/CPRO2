@@ -11,14 +11,14 @@ import { EmployeeRecord, CaseRecord } from '../types';
 import { useEmployeeContext } from '../contexts/EmployeeContext';
 
 export const SettingsResetData: React.FC = () => {
-  const { setEmployees, setCases } = useEmployeeContext();
+  const { setEmployees, setCases, canSave } = useEmployeeContext();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [confirmText, setConfirmText] = useState('');
   const [isResetting, setIsResetting] = useState(false);
 
   const handleReset = async () => {
-    if (confirmText !== 'RESET') return;
+    if (confirmText !== 'RESET' || !canSave) return;
     setIsResetting(true);
 
     try {
@@ -94,10 +94,19 @@ export const SettingsResetData: React.FC = () => {
               label={isResetting ? "Resetting..." : "Reset Data Now"} 
               icon="delete_forever" 
               className="bg-error text-white hover:bg-red-700" 
-              disabled={confirmText !== 'RESET' || isResetting}
+              disabled={confirmText !== 'RESET' || isResetting || !canSave}
               onClick={handleReset}
             />
           </div>
+
+          {!canSave && (
+            <div className="p-4 bg-error-container/20 rounded-xl text-error text-sm font-medium border border-error/20 mt-4">
+              <div className="flex gap-2">
+                <AppIcon name="warning" size={18} />
+                <span>Cannot reset data in Protected Mode. Please check database connection first.</span>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     </div>

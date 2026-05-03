@@ -37,7 +37,11 @@ import {
   RegularPensionPacketPrintWrapper,
   NonDrawalPrintWrapper,
   LPRPayFormPrintWrapper,
-  OfficialApplicationsPrintWrapper
+  OfficialApplicationsPrintWrapper,
+  RetirementSuitePortraitPrintWrapper,
+  RetirementSuiteLandscapePrintWrapper,
+  RetirementSuiteAffidavitsPrintWrapper,
+  LetterPrintWrapper
 } from './components/PrintWrappers';
 
 // Lazy Loaded Pages
@@ -179,6 +183,7 @@ const App: React.FC = () => {
             <Routes>
               {/* PRINT ROUTES */}
               <Route path="/print/:fileId" element={<PrintWrapper />} />
+              <Route path="/print/letter/:id" element={<LetterPrintWrapper />} />
               <Route path="/print/retirement-checklist/:caseId" element={<UniversalChecklistPrintWrapper type="retirement" />} />
               <Route path="/print/retirement-cover-letter/:caseId" element={<UniversalCoverPrintWrapper type="retirement" />} />
               <Route path="/print/leave-account/:caseId" element={<LeaveAccountProformaPrintWrapper />} />
@@ -224,6 +229,10 @@ const App: React.FC = () => {
               <Route path="/print/cert-nondrawal-eef/:caseId" element={<NonDrawalPrintWrapper type="Employees Education Foundation" />} />
               <Route path="/print/cert-nondrawal-lpr/:caseId" element={<NonDrawalPrintWrapper type="LPR" />} />
               <Route path="/print/cert-nondrawal-financial-assistance/:caseId" element={<NonDrawalPrintWrapper type="Financial Assistance" />} />
+
+              <Route path="/print/pension-suite-portrait/:caseId" element={<RetirementSuitePortraitPrintWrapper />} />
+              <Route path="/print/pension-suite-landscape/:caseId" element={<RetirementSuiteLandscapePrintWrapper />} />
+              <Route path="/print/pension-suite-legal/:caseId" element={<RetirementSuiteAffidavitsPrintWrapper />} />
 
               <Route path="/verify/:caseId" element={<VerifyDocument />} />
 

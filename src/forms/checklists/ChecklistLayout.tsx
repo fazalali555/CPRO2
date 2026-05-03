@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { EmployeeRecord, CaseRecord, CaseChecklistItem } from '../../types';
-import { calculateServiceDuration, getRetirementType } from '../../utils';
+import { calculateServiceDuration, getRetirementType, getDepartmentInfo, detectDepartment } from '../../utils';
 import { OfficialLogo } from '../../components/OfficialLogo';
+import { Letterhead } from '../../components/Letterhead';
 import { format } from 'date-fns';
 
 interface ChecklistLayoutProps {
@@ -19,11 +20,11 @@ const formatDate = (dateStr?: string) => {
 };
 
 const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="flex items-end">
+  <div className="flex items-end leading-none py-0.5">
     <span className="whitespace-nowrap mr-2 font-medium">{label}:</span>
     <div 
-      className="flex-grow border-b border-black text-left pl-2 pb-0.5 font-bold uppercase truncate" 
-      style={{ minHeight: '1.2em' }}
+      className="flex-grow border-b border-black text-left pl-2 pb-0 font-bold uppercase truncate" 
+      style={{ minHeight: '1.1em' }}
     >
       {value || '________________'}
     </div>
@@ -57,59 +58,51 @@ export const ChecklistLayout: React.FC<ChecklistLayoutProps> = ({ employee, case
 
   const natureOfRetirement = (caseRecord.extras?.nature_of_retirement as string) || getRetirementType(employee, caseRecord);
   const lprDays = employee.service_history.lpr_days ?? 0;
-
+  
   // Calculate available height for table
-  // Page: 297mm, Padding: 20mm (10mm*2), Header: ~25mm, Info: ~35mm, Footer: 45mm, Margins: ~15mm
-  // Remaining for table: ~157mm
-  const tableAreaHeight = 157; // mm
-  const headerRowHeight = 12; // mm
-  const availableForRows = tableAreaHeight - headerRowHeight;
-  const rowHeight = items.length > 0 ? `${availableForRows / items.length}mm` : '10mm';
+  const tableAreaHeight = items.length > 20 ? 175 : 157; // mm - Increase table area if many items
+  const headerRowHeight = 10; // mm
+  const rowHeight = items.length > 20 ? '6.5mm' : (items.length > 15 ? '8.5mm' : '10mm');
 
   return (
     <div 
-      className="bg-white text-black font-sans leading-tight relative print-page mx-auto"
-      style={{ 
-        width: '210mm', 
-        height: '297mm', 
-        padding: '10mm',
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        fontSize: '11pt',
+      className="bg-white text-black font-sans relative print-page mx-auto"
+      style={{
+        width: '210mm',
+        height: '297mm',
+        padding: '5mm 10mm',
         boxSizing: 'border-box',
         overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
+        fontSize: '10pt'
       }}
     >
       <div className="flex flex-col h-full">
         
-        {/* ========== HEADER SECTION ========== */}
-        <div className="flex items-start gap-4 mb-2" style={{ minHeight: '18mm' }}>
-          <div className="w-[15mm] flex-shrink-0 flex flex-col items-center">
-            <OfficialLogo className="w-full h-auto" />
-          </div>
-          <div className="flex-grow text-center pt-2">
-            <h1 className="font-bold uppercase" style={{ fontSize: '13pt', lineHeight: 1.3 }}>
-              {title}
-            </h1>
-          </div>
+        {/* Dynamic Letterhead Header */}
+        <div className="scale-90 origin-top">
+          <Letterhead employeeRecord={employee} />
         </div>
-
-        <div className="w-full border-b-2 border-black mb-1"></div>
-        <div className="w-full border-b border-black mb-3"></div>
+        
+        <div className="w-full border-b-4 border-double border-black mb-1 mt-0"></div>
+        
+        <div className="text-center mb-2">
+          <h1 className="text-[12pt] font-bold uppercase tracking-tight border-b-2 border-black inline-block pb-0.5 leading-none">
+            {title}
+          </h1>
+        </div>
 
         {/* ========== EMPLOYEE DETAILS SECTION ========== */}
         <div 
-          className="grid grid-cols-2 gap-x-8 gap-y-2 mb-4" 
-          style={{ fontSize: '10pt' }}
+          className="grid grid-cols-2 gap-x-6 gap-y-1 mb-2" 
+          style={{ fontSize: '9pt' }}
         >
-          <div className="space-y-2">
+          <div className="space-y-1">
             <InfoRow label="Name of Employee" value={employee.employees.name} />
             <InfoRow label="Designation (BPS)" value={`${employee.employees.designation} (BPS-${employee.employees.bps})`} />
             <InfoRow label="Date of Retirement" value={formatDate(employee.service_history.date_of_retirement)} />
             <InfoRow label="Total Service" value={service.text} />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <InfoRow label="Father Name" value={employee.employees.father_name} />
             <InfoRow label="Date of 1st Appointment" value={formatDate(employee.service_history.date_of_appointment)} />
             <InfoRow label="Nature of Retirement" value={natureOfRetirement} />
@@ -119,19 +112,17 @@ export const ChecklistLayout: React.FC<ChecklistLayoutProps> = ({ employee, case
 
         {/* ========== MAIN TABLE SECTION ========== */}
         <div 
-          className="w-full border border-black"
+          className="w-full overflow-hidden"
           style={{ 
-            flex: 1,
+            flex: '1 1 auto',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: `${tableAreaHeight}mm`,
           }}
         >
           <table 
             className="w-full border-collapse" 
             style={{ 
-              fontSize: '9pt',
-              height: '100%',
+              fontSize: '8.5pt',
               tableLayout: 'fixed',
             }}
           >
@@ -187,10 +178,10 @@ export const ChecklistLayout: React.FC<ChecklistLayoutProps> = ({ employee, case
         <div 
           className="flex justify-between items-end px-4 font-bold"
           style={{ 
-            minHeight: '45mm',
-            paddingTop: '15mm',
+            minHeight: '25mm',
+            paddingTop: '5mm',
             marginTop: 'auto',
-            fontSize: '10pt',
+            fontSize: '9pt',
           }}
         >
           {/* Left Signature */}
@@ -199,7 +190,7 @@ export const ChecklistLayout: React.FC<ChecklistLayoutProps> = ({ employee, case
               className="border-t border-black mb-1" 
               style={{ 
                 width: '100%',
-                marginTop: '20mm', // Space for actual signature
+                marginTop: '12mm', // Reduced space for actual signature
               }}
             ></div>
             <div>Dealing Assistant</div>
@@ -211,7 +202,7 @@ export const ChecklistLayout: React.FC<ChecklistLayoutProps> = ({ employee, case
               className="border-t border-black mb-1" 
               style={{ 
                 width: '100%',
-                marginTop: '20mm', // Space for actual signature
+                marginTop: '12mm', // Reduced space for actual signature
               }}
             ></div>
             <div>{employee.employees.office_name || 'Sub Divisional Education Officer'}</div>

@@ -80,12 +80,12 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
   const empCat = employees.employment_category || 'Regular';
 
   return (
-    <div className="bg-white text-black font-serif text-[10.5pt] leading-[1.5] relative print-page fit-page mx-auto flex flex-col"
-      style={{ width: '210mm', height: '297mm', padding: '12mm 12mm 12mm 20mm', boxSizing: 'border-box', overflow: 'hidden' }}>
+    <div className="bg-white text-black font-serif text-[10.5pt] leading-[1.4] relative print-page fit-page mx-auto flex flex-col"
+      style={{ width: '210mm', height: '297mm', padding: '8mm 12mm 8mm 16mm', boxSizing: 'border-box', overflow: 'hidden' }}>
       
       {/* Header */}
-      <div className="text-center font-bold mb-3">
-        <div className="text-lg border-2 border-black rounded-full w-9 h-9 flex items-center justify-center mx-auto mb-1.5">4</div>
+      <div className="text-center font-bold mb-2">
+        <div className="text-lg border-2 border-black rounded-full w-9 h-9 flex items-center justify-center mx-auto mb-1">4</div>
         <div className="text-base leading-tight uppercase underline underline-offset-4 mb-1">
           PENSION SANCTION ORDER
         </div>
@@ -93,19 +93,19 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
           TO BE USED IN CASE OF SUPERANNUATION/RETIRING/INVALID/<br/>
           COMPENSATION/COMPULSORY RETIREMENT.
         </div>
-        <div className="text-[9.5px] font-normal mt-1 italic leading-tight">
+        <div className="text-[9.5px] font-normal mt-0.5 italic leading-tight">
           (To be issued by the Pension Sanctioning Authority)
         </div>
       </div>
 
       {/* Subject */}
-      <div className="mb-3">
+      <div className="mb-2">
          <span className="font-bold mr-2">Subject:</span>
          <span className="font-bold uppercase underline">SANCTION OF PENSION OF MR./MS. {name}</span>
       </div>
 
       {/* Main Paragraph */}
-      <div className="text-justify leading-[1.7] mb-3 text-[10.5pt]">
+      <div className="text-justify leading-[1.6] mb-2 text-[10.5pt]">
          On attaining the age of superannuation/having applied for retiring/invalid/compensatory pension vide application dated <span className="font-bold border-b border-black px-2">{appDate}</span> Or has been retired compulsorily vide Notification/Order No. <span className="font-bold border-b border-black px-2">{orderNo}</span> Dated <span className="font-bold border-b border-black px-2">{orderDate}</span> issued by <span className="font-bold border-b border-black px-2">Competent Authority</span>.
          <br/>
          Mr./Miss/Ms: <span className="font-bold uppercase border-b border-black px-2">{name}</span> S/O, W/O, D/O <span className="font-bold uppercase border-b border-black px-2">{fatherName}</span> Designation <span className="font-bold uppercase border-b border-black px-2">{designation}</span> drawing pay / emoluments Rs. <span className="font-bold border-b border-black px-2">{formatCurrency(totalReckonable)}</span> PM (reckonable towards pension), in BPS <span className="font-bold border-b border-black px-2">{bps}</span> on <span className="font-bold border-b border-black px-2">{dor}</span> (please indicate nature of appointment i.e. <span className="font-bold border-b border-black px-2">{empCat}</span> basis, w.e.f. <span className="font-bold border-b border-black px-2">{doa}</span>.
@@ -114,9 +114,9 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
       </div>
 
       {/* Pension Calculation */}
-      <div className="mb-3">
-         <div className="font-bold underline mb-1.5 uppercase">Pension Calculation</div>
-         <div className="ml-3 grid grid-cols-1 gap-y-1 w-3/4">
+      <div className="mb-2">
+         <div className="font-bold underline mb-1 uppercase">Pension Calculation</div>
+         <div className="ml-3 grid grid-cols-1 gap-y-0.5 w-3/4">
             <div className="flex justify-between border-b border-dotted border-black">
                <span>Gross Pension</span>
                <span className="font-bold">{formatCurrency(calc.grossPension)}</span>
@@ -133,9 +133,9 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
       </div>
 
       {/* Other Benefits */}
-      <div className="mb-3">
-         <div className="font-bold underline mb-1.5 uppercase">Other Benefits:</div>
-         <div className="ml-3 space-y-1">
+      <div className="mb-2">
+         <div className="font-bold underline mb-1 uppercase">Other Benefits:</div>
+         <div className="ml-3 space-y-0.5">
             <div className="flex gap-3">
                <span className="w-4">1.</span>
                <span>Benevolent Fund (B.F)</span>
@@ -155,7 +155,7 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
       </div>
 
       {/* Numbered Points */}
-      <div className="space-y-3 text-justify leading-[1.6]">
+      <div className="space-y-2 text-justify leading-[1.5]">
          <div className="flex gap-1.5">
             <span className="font-bold">1).</span>
             <p>
@@ -186,12 +186,14 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
       <div className="flex-grow"></div>
 
       {/* Signature Section */}
-      <div className="mt-6 flex justify-end" style={{ pageBreakInside: 'avoid' }}>
-        <div className="text-center w-64">
-          <div className="border-t border-black w-full pt-2">
-            <p className="font-bold text-sm uppercase whitespace-pre-line">{finalSignature}</p>
+      <div className="mt-8 flex justify-end" style={{ pageBreakInside: 'avoid' }}>
+        <div className="text-center w-72">
+          <div className="h-16 border-b-2 border-dotted border-gray-400 w-full mb-2"></div>
+          <div className="pt-2">
+            <p className="font-bold text-sm uppercase whitespace-pre-line leading-tight">{finalSignature}</p>
           </div>
-          <p className="text-xs mt-1 text-gray-600">Date: {formatDate(new Date().toISOString())}</p>
+          <p className="text-[10px] mt-1 text-gray-600 font-sans italic">(Signature, Stamp & Official Seal)</p>
+          <p className="text-[10px] mt-0.5 text-gray-500 font-sans">Date: {formatDate(new Date().toISOString())}</p>
         </div>
       </div>
 

@@ -46,6 +46,7 @@ const typeLabels: Record<string, string> = {
   benevolent_fund: 'Benevolent Fund',
   rbdc: 'RBDC',
   payroll: 'Payroll',
+  full_pension: 'Full Pension Case',
   other: 'General'
 };
 

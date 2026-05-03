@@ -33,19 +33,30 @@ export function useLocalStorage<T>(
     setStoredValue(value);
   }, [key]);
 
-  // Save to storage with debouncing
+  // Save to storage
   useEffect(() => {
+    if (debounceMs === 0) {
+      try {
+        if (validate && !validate(storedValue)) return;
+        StorageService.save(key, storedValue);
+        setError(null);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error('Failed to save');
+        setError(error);
+        onError?.(error);
+      }
+      return;
+    }
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
     timeoutRef.current = setTimeout(() => {
       try {
-        // Validate before saving
         if (validate && !validate(storedValue)) {
           throw new Error('Validation failed');
         }
-        
         StorageService.save(key, storedValue);
         setError(null);
       } catch (err) {
@@ -88,7 +99,7 @@ export function useLocalStorageCollection<T extends { id: string }>(
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       createdAt: now,
       updatedAt: now,
-    } as T;
+    } as unknown as T;
     
     setItems(prev => [newItem, ...prev]);
     return newItem;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { EmployeeRecord } from '../../types';
 import { splitToChars } from '../../utils';
 import { CombInput } from '../../components/PrintInputs';
+import { OfficialLogo } from '../../components/OfficialLogo';
 import { format } from 'date-fns';
 
 export interface AmendmentRow {
@@ -151,8 +152,8 @@ export const PayrollAmendmentSingleForm: React.FC<Props> = ({
       <div className="flex justify-between items-start mb-4">
         {/* Logo & Title */}
         <div className="flex gap-4">
-          <div className="w-[16mm] h-[16mm] pt-1">
-             <img src="/assets/KP_logo.png" alt="KP Govt Logo" className="w-full h-full object-contain" />
+          <div className="w-[16mm] h-[16mm] pt-1 flex justify-center">
+             <OfficialLogo className="w-full h-full" departmentType={officeName} />
           </div>
           <div className="flex flex-col justify-center">
             <h1 className="font-bold text-[11px] leading-tight">PAYROLL SYSTEM</h1>

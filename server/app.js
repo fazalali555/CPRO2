@@ -28,8 +28,8 @@ export const createApp = () => {
   app.use(cors({ origin: true }));
 
   const limiter = rateLimit({
-    windowMs: config.rateLimitWindowMs,
-    max: config.rateLimitMax,
+    windowMs: config.security?.rateLimitWindowMs || 15 * 60 * 1000,
+    max: config.security?.rateLimitMaxRequests || 100,
   });
   app.use('/api/', limiter);
 

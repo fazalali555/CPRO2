@@ -6,13 +6,13 @@ import { useLocalStorageCollection } from './useLocalStorage';
 import { STORAGE_KEYS, DEFAULT_TEMPLATES, DEFAULT_OFFICE_PROFILES, SCHOOL_TYPES } from '../constants';
 import { formatLetterToText } from '../utils/formatters';
 import { securityService, auditService } from '../../../services/SecurityService';
+import { getDepartmentInfo } from '../../../utils/departmentDetector';
 
 // State shape
 interface LetterFormState {
   templateId: string;
   officeProfileId: string;
-  schoolType: string;
-  schoolName: string;
+  institutionName: string;
   recipientGender: 'Male' | 'Female';
   salutation: string;
   letterheadLines: string;
@@ -27,8 +27,10 @@ interface LetterFormState {
   signatureName: string;
   signatureTitle: string;
   forwardedTo: string;
+  enclosures: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   // UI state
+  viewMode: 'form' | 'split' | 'preview';
   editingId: string | null;
   isDirty: boolean;
   lastSaved: string | null;
@@ -37,28 +39,31 @@ interface LetterFormState {
 // Actions
 type LetterFormAction =
   | { type: 'SET_FIELD'; field: keyof LetterFormState; value: any }
+  | { type: 'SET_VIEW_MODE'; mode: 'form' | 'split' | 'preview' }
   | { type: 'SET_MULTIPLE'; fields: Partial<LetterFormState> }
   | { type: 'LOAD_LETTER'; letter: Letter }
   | { type: 'APPLY_TEMPLATE'; template: LetterTemplate }
   | { type: 'APPLY_PROFILE'; profile: OfficeProfile }
-  | { type: 'APPLY_SCHOOL_RULES'; rules: SchoolRules }
+  | { type: 'APPLY_DEPT_RULES'; rules: DepartmentRules }
   | { type: 'RESET' }
   | { type: 'MARK_SAVED' }
   | { type: 'MARK_DIRTY' };
 
-interface SchoolRules {
+interface DepartmentRules {
   gender: 'Male' | 'Female';
   salutation: string;
   title: string;
-  schoolLine: string;
+  fromLine: string;
   letterhead: string;
+  lhLine1: string;
+  lhLine2: string;
+  lhLine3: string;
 }
 
 const initialFormState: LetterFormState = {
   templateId: DEFAULT_TEMPLATES[0]?.id || '',
   officeProfileId: '',
-  schoolType: 'GPS',
-  schoolName: '',
+  institutionName: '',
   recipientGender: 'Male',
   salutation: 'Sir',
   letterheadLines: '',
@@ -70,10 +75,12 @@ const initialFormState: LetterFormState = {
   letterDate: new Date().toISOString().slice(0, 10),
   body: '',
   tags: '',
-  signatureName: securityService.getCurrentUser()?.name || 'Clerk',
-  signatureTitle: 'Education Office',
+  signatureName: '',
+  signatureTitle: '',
   forwardedTo: '',
+  enclosures: '',
   priority: 'normal',
+  viewMode: 'split',
   editingId: null,
   isDirty: false,
   lastSaved: null,
@@ -88,6 +95,12 @@ function letterFormReducer(state: LetterFormState, action: LetterFormAction): Le
         isDirty: true 
       };
     
+    case 'SET_VIEW_MODE':
+      return {
+        ...state,
+        viewMode: action.mode
+      };
+    
     case 'SET_MULTIPLE':
       return { 
         ...state, 
@@ -100,8 +113,7 @@ function letterFormReducer(state: LetterFormState, action: LetterFormAction): Le
         ...state,
         templateId: action.letter.templateId,
         officeProfileId: action.letter.officeProfileId || '',
-        schoolType: action.letter.schoolType,
-        schoolName: action.letter.schoolName,
+        institutionName: action.letter.institutionName || action.letter.schoolName || '',
         recipientGender: action.letter.recipientGender,
         salutation: action.letter.salutation,
         letterheadLines: action.letter.letterheadLines,
@@ -116,6 +128,7 @@ function letterFormReducer(state: LetterFormState, action: LetterFormAction): Le
         signatureName: action.letter.signatureName,
         signatureTitle: action.letter.signatureTitle,
         forwardedTo: action.letter.forwardedTo.join('\n'),
+        enclosures: action.letter.enclosures || '',
         priority: action.letter.priority,
         editingId: action.letter.id,
         isDirty: false,
@@ -139,14 +152,14 @@ function letterFormReducer(state: LetterFormState, action: LetterFormAction): Le
         isDirty: true,
       };
     
-    case 'APPLY_SCHOOL_RULES':
+    case 'APPLY_DEPT_RULES':
       return {
         ...state,
         recipientGender: action.rules.gender,
         salutation: action.rules.salutation,
-        letterheadLines: state.letterheadLines || action.rules.letterhead,
-        fromOffice: state.fromOffice || action.rules.schoolLine,
-        signatureTitle: state.signatureTitle || action.rules.title,
+        letterheadLines: action.rules.letterhead,
+        fromOffice: action.rules.fromLine,
+        signatureTitle: action.rules.title,
         isDirty: true,
       };
     
@@ -171,8 +184,8 @@ function letterFormReducer(state: LetterFormState, action: LetterFormAction): Le
 export function useLetterComposer() {
   const [formState, dispatch] = useReducer(letterFormReducer, initialFormState);
   
-  // Collections
-  const lettersCollection = useLocalStorageCollection<Letter>(STORAGE_KEYS.LETTERS);
+  // Collections — Use debounceMs: 0 for letters to ensure instant save for printing
+  const lettersCollection = useLocalStorageCollection<Letter>(STORAGE_KEYS.LETTERS, { debounceMs: 0 });
   const templatesCollection = useLocalStorageCollection<LetterTemplate>(STORAGE_KEYS.TEMPLATES);
   const profilesCollection = useLocalStorageCollection<OfficeProfile>(STORAGE_KEYS.OFFICE_PROFILES);
 
@@ -186,33 +199,51 @@ export function useLetterComposer() {
     }
   }, []);
 
-  // Computed school rules
-  const schoolRules = useMemo((): SchoolRules => {
-    const info = SCHOOL_TYPES.find(s => s.code === formState.schoolType);
-    const isGirls = formState.schoolType.startsWith('GG');
-    const gender = isGirls ? 'Female' : formState.recipientGender;
-    const sal = formState.salutation.trim() || (gender === 'Female' ? 'Madam' : 'Sir');
-    const isHigherSecondary = formState.schoolType.endsWith('HSS');
-    const title = isHigherSecondary 
-      ? 'Principal' 
-      : gender === 'Female' ? 'Headmistress' : 'Headmaster';
-    const schoolLine = [info?.name, formState.schoolName].filter(Boolean).join(' ').trim();
-    const letterhead = [
-      title ? `OFFICE OF THE ${title.toUpperCase()}` : '',
-      schoolLine.toUpperCase()
-    ].filter(Boolean).join('\n');
-    
-    return { gender, salutation: sal, title, schoolLine, letterhead };
-  }, [formState.schoolType, formState.schoolName, formState.recipientGender, formState.salutation]);
+  // Computed department rules — reactive to institutionName
+  const departmentRules = useMemo((): DepartmentRules => {
+    const name = formState.institutionName || 'Office';
+    const info = getDepartmentInfo(name);
+    return {
+      gender: info.gender,
+      salutation: info.salutation,
+      title: info.signatureTitle,
+      fromLine: info.letterhead.line2,
+      letterhead: info.letterhead.line1,
+      lhLine1: info.letterhead.line1,
+      lhLine2: info.letterhead.line2,
+      lhLine3: info.letterhead.line3,
+    };
+  }, [formState.institutionName]);
 
-  // Resolved values (with fallbacks)
-  const resolvedValues = useMemo(() => ({
-    letterhead: formState.letterheadLines.trim() || schoolRules.letterhead,
-    fromOffice: formState.fromOffice.trim() || schoolRules.schoolLine,
-    signatureTitle: formState.signatureTitle.trim() || schoolRules.title || 'Education Office',
-    recipientGender: schoolRules.gender,
-    salutation: formState.salutation.trim() || schoolRules.salutation,
-  }), [formState, schoolRules]);
+  // Resolved values — prefer formState if user has edited or loaded a profile
+  const resolvedValues = useMemo(() => {
+    const info = getDepartmentInfo(formState.institutionName || 'Office');
+    return {
+      departmentType: info.departmentType,
+      // Use formState if present, otherwise fallback to department rules
+      lhLine1: formState.letterheadLines?.trim() || departmentRules.lhLine1,
+      lhLine2: formState.fromOffice?.trim() || departmentRules.lhLine2,
+      lhLine3: departmentRules.lhLine3,
+      // Legacy compat
+      letterhead: formState.letterheadLines?.trim() || departmentRules.lhLine1,
+      fromOffice: formState.fromOffice?.trim() || departmentRules.lhLine2,
+      // Signature: user override takes priority, else always use auto-detected
+      signatureTitle: formState.signatureTitle?.trim() || departmentRules.title,
+      recipientGender: departmentRules.gender,
+      // Salutation: detect (F) in recipient as Madam, otherwise default to Sir
+      salutation: (() => {
+        const toUpper = (formState.to || '').toUpperCase();
+        if (/\(F\)|\(FEMALE\)|\(GIRLS\)/.test(toUpper)) return 'Madam';
+        
+        // If the user has manually entered something that isn't the standard Sir/Madam, keep it
+        if (formState.salutation && formState.salutation !== 'Sir' && formState.salutation !== 'Madam') {
+          return formState.salutation;
+        }
+        
+        return 'Sir';
+      })(),
+    };
+  }, [formState, departmentRules]);
 
   // Format letter preview
   const formattedLetter = useMemo(() => {
@@ -251,14 +282,22 @@ export function useLetterComposer() {
       : '';
     
     const headerBlock = [
-      resolvedValues.letterhead,
-      resolvedValues.fromOffice
+      resolvedValues.lhLine1,
+      resolvedValues.lhLine2,
+      resolvedValues.lhLine3
     ].map(x => x?.trim()).filter(Boolean).join('\n');
     
-    // Process template body
+    // Process template body - STRIP HTML for text version
+    const stripHtml = (html: string) => {
+      if (typeof document === 'undefined') return html; // SSR safety
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || '';
+    };
+
     let bodyContent = template?.body || '{{body}}';
     bodyContent = bodyContent
-      .replace(/\{\{body\}\}/g, formState.body || '________________')
+      .replace(/\{\{body\}\}/g, stripHtml(formState.body) || '________________')
       .trim()
       .replace(/\n{3,}/g, '\n\n');
     
@@ -301,6 +340,10 @@ export function useLetterComposer() {
     dispatch({ type: 'SET_MULTIPLE', fields });
   }, []);
 
+  const setViewMode = useCallback((mode: 'form' | 'split' | 'preview') => {
+    dispatch({ type: 'SET_VIEW_MODE', mode });
+  }, []);
+
   const applyTemplate = useCallback((templateId: string) => {
     const template = templatesCollection.items.find(t => t.id === templateId);
     if (template) {
@@ -315,9 +358,9 @@ export function useLetterComposer() {
     }
   }, [profilesCollection.items]);
 
-  const applySchoolRules = useCallback(() => {
-    dispatch({ type: 'APPLY_SCHOOL_RULES', rules: schoolRules });
-  }, [schoolRules]);
+  const applyDepartmentRules = useCallback(() => {
+    dispatch({ type: 'APPLY_DEPT_RULES', rules: departmentRules });
+  }, [departmentRules]);
 
   const loadLetter = useCallback((letterId: string) => {
     const letter = lettersCollection.getItem(letterId);
@@ -330,7 +373,7 @@ export function useLetterComposer() {
     dispatch({ type: 'RESET' });
   }, []);
 
-  const saveLetter = useCallback((status: 'draft' | 'final'): Letter | null => {
+  const saveLetter = useCallback((status: 'draft' | 'final', shouldReset: boolean = true): Letter | null => {
     // Validation
     if (!formState.to.trim() || !formState.subject.trim() || !formState.body.trim()) {
       return null;
@@ -343,12 +386,11 @@ export function useLetterComposer() {
     const letterData: Omit<Letter, 'id' | 'createdAt' | 'updatedAt'> = {
       templateId: formState.templateId,
       officeProfileId: formState.officeProfileId || undefined,
-      schoolType: formState.schoolType,
-      schoolName: formState.schoolName.trim(),
+      institutionName: formState.institutionName.trim(),
       recipientGender: resolvedValues.recipientGender as 'Male' | 'Female',
       salutation: resolvedValues.salutation,
-      letterheadLines: resolvedValues.letterhead,
-      fromOffice: resolvedValues.fromOffice,
+      letterheadLines: resolvedValues.lhLine1,
+      fromOffice: resolvedValues.lhLine2,
       to: formState.to.trim(),
       toEmail: formState.toEmail.trim() || undefined,
       subject: formState.subject.trim(),
@@ -359,17 +401,34 @@ export function useLetterComposer() {
       signatureName: formState.signatureName.trim(),
       signatureTitle: resolvedValues.signatureTitle,
       forwardedTo,
+      enclosures: formState.enclosures,
       status,
       priority: formState.priority,
       versions: [],
       attachments: [],
     };
 
+    let currentEditingId = formState.editingId;
+
+    // PROFESSIONAL DEDUPLICATION:
+    // If not currently editing a specific letter, check if an identical one already exists 
+    if (!currentEditingId) {
+      const existingMatch = lettersCollection.items.find(l => 
+        l.subject.trim().toLowerCase() === letterData.subject.trim().toLowerCase() &&
+        l.to.trim().toLowerCase() === letterData.to.trim().toLowerCase() &&
+        l.body.trim() === letterData.body.trim()
+      );
+      
+      if (existingMatch) {
+        currentEditingId = existingMatch.id;
+      }
+    }
+
     let savedLetter: Letter;
 
-    if (formState.editingId) {
+    if (currentEditingId) {
       // Update existing
-      const existing = lettersCollection.getItem(formState.editingId);
+      const existing = lettersCollection.getItem(currentEditingId);
       if (existing) {
         // Create version history
         const newVersion: LetterVersion = {
@@ -387,13 +446,13 @@ export function useLetterComposer() {
 
         const updatedVersions = [...(existing.versions || []), newVersion].slice(-10); // Keep last 10
 
-        lettersCollection.updateItem(formState.editingId, {
+        lettersCollection.updateItem(currentEditingId, {
           ...letterData,
           versions: updatedVersions,
         });
 
-        savedLetter = { ...existing, ...letterData, versions: updatedVersions, updatedAt: now };
-        auditService.log('LETTER_UPDATED', `Updated letter: ${letterData.subject}`, formState.editingId);
+        savedLetter = { ...existing, ...letterData, id: existing.id, versions: updatedVersions, updatedAt: now };
+        auditService.log('LETTER_UPDATED', `Updated letter: ${letterData.subject}`, currentEditingId);
       } else {
         return null;
       }
@@ -408,7 +467,12 @@ export function useLetterComposer() {
     }
 
     dispatch({ type: 'MARK_SAVED' });
-    dispatch({ type: 'RESET' });
+    if (shouldReset) {
+      dispatch({ type: 'RESET' });
+    } else {
+      // If not resetting, update the editing ID via dispatch
+      dispatch({ type: 'LOAD_LETTER', letter: savedLetter });
+    }
 
     return savedLetter;
   }, [formState, resolvedValues, lettersCollection]);
@@ -457,22 +521,26 @@ export function useLetterComposer() {
     officeProfiles: profilesCollection.items,
     
     // Computed
-    schoolRules,
+    departmentRules,
     resolvedValues,
     formattedLetter,
     
     // Actions
     setField,
     setMultipleFields,
+    setViewMode,
     applyTemplate,
     applyOfficeProfile,
-    applySchoolRules,
+    applyDepartmentRules,
     loadLetter,
     resetForm,
     saveLetter,
     deleteLetter,
     duplicateLetter,
     saveOfficeProfile,
+    
+    // Utils
+    getDepartmentInfo,
     
     // Collection actions
     addTemplate: templatesCollection.addItem,

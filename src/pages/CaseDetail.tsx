@@ -12,6 +12,7 @@ import {
   generateFilledPdf,
   getRetirementType, 
   getOfficialRetirementChecklist, 
+  getOfficialPensionChecklist,
   getOfficialGPFChecklist, 
   getFamilyPensionChecklist,
   getRBDCChecklist,
@@ -58,6 +59,7 @@ import { SuccessionCertificate } from '../forms/family-pension/SuccessionCertifi
 import { BankAccountLetter } from '../forms/family-pension/BankAccountLetter';
 
 // New Checklists
+import { PensionChecklist } from '../forms/checklists/PensionChecklist';
 import { FamilyPensionChecklist } from '../forms/checklists/FamilyPensionChecklist';
 import { RBDCChecklist } from '../forms/checklists/RBDCChecklist';
 import { BenevolentFundChecklist } from '../forms/checklists/BenevolentFundChecklist';
@@ -290,13 +292,7 @@ export const CaseDetail: React.FC = () => {
         officialList = getOfficialRetirementChecklist(employee, caseRec);
         break;
       case 'pension':
-        // If deceased, use Family Pension, otherwise fallback to Retirement (as regular pension checklist is same as retirement typically)
-        if (isDeceasedStatus(employee.employees?.status)) {
-           officialList = getFamilyPensionChecklist();
-        } else {
-           // Regular pension usually uses the retirement checklist in this domain
-           officialList = getOfficialRetirementChecklist(employee, caseRec);
-        }
+        officialList = getOfficialPensionChecklist(employee, caseRec);
         break;
       case 'gpf_refundable':
       case 'gpf_non_refundable':
@@ -304,19 +300,19 @@ export const CaseDetail: React.FC = () => {
         officialList = getOfficialGPFChecklist(caseRec.case_type, employee);
         break;
       case 'rbdc':
-        officialList = getRBDCChecklist();
+        officialList = getRBDCChecklist(isDeceased);
         break;
       case 'benevolent_fund':
-        officialList = getBenevolentFundChecklist(employee.employees?.status === 'Deceased');
+        officialList = getBenevolentFundChecklist(isDeceased);
         break;
       case 'eef':
-        officialList = getEEFChecklist();
+        officialList = getEEFChecklist(isDeceased);
         break;
       case 'lpr':
         officialList = getLPRChecklist();
         break;
       case 'financial_assistance':
-        officialList = getFinancialAssistanceChecklist();
+        officialList = getFinancialAssistanceChecklist(isDeceased);
         break;
       default:
         // Keep existing if no official list
@@ -732,7 +728,14 @@ export const CaseDetail: React.FC = () => {
   const payrollWarnings = getPayrollWarnings();
 
   // --- Document Definitions ---
-  let documentsList: { id: string; title: string; route: string; Component: React.ReactNode; orientation?: 'landscape' | 'portrait' }[] = [];
+  let documentsList: { 
+    id: string; 
+    title: string; 
+    route: string; 
+    Component: React.ReactNode; 
+    orientation?: 'landscape' | 'portrait';
+    size?: 'a4' | 'legal';
+  }[] = [];
 
   if (isRetirement) {
     documentsList = [
@@ -859,8 +862,8 @@ export const CaseDetail: React.FC = () => {
   } else if (isRegularPension) {
      // --- REGULAR PENSION DOCUMENTS ---
      documentsList = [
-        // Added Checklist here
-        { id: 'rp_checklist', title: 'Checklist (Pension)', route: 'retirement-checklist', Component: <RetirementChecklist employee={employee} caseRecord={caseRec} /> },
+        // Use the specialized Pension Checklist
+        { id: 'rp_checklist', title: 'Checklist (Pension)', route: 'retirement-checklist', Component: <PensionChecklist employee={employee} caseRecord={caseRec} /> },
         
         { id: 'title', title: 'Title Page', route: 'regular-pension-packet', Component: <RegularTitlePage employee={employee} /> },
         { id: 'cover', title: 'Forwarding Letter', route: 'regular-pension-packet', Component: <RegularCoverLetter employee={employee} caseRecord={caseRec} /> },
@@ -903,6 +906,62 @@ export const CaseDetail: React.FC = () => {
       { id: 'cert', title: 'Non-Drawal Certificate', route: 'cert-nondrawal-financial-assistance', Component: <NonDrawalCertificate employee={employee} type="Financial Assistance" /> },
       { id: 'application', title: 'Application Form', route: 'financial-assistance-application', Component: <FinancialAssistanceApplication employee={employee} caseRecord={caseRec} /> }
     );
+  } else if (caseRec.case_type === 'full_pension') {
+     // --- FULL PENSION BUNDLE ---
+     // 1. Regular/Family Pension
+     if (isDeceased) {
+       documentsList.push(
+         { id: 'fp_checklist', title: 'Checklist (Family Pension)', route: 'checklist-family-pension', Component: <FamilyPensionChecklist employee={employee} caseRecord={caseRec} /> },
+         { id: 'fp_title', title: 'Pension Title Page', route: 'family-pension-packet', Component: <FamilyPensionTitlePage employee={employee} /> },
+         { id: 'fp_app', title: 'Pension Application (Form 3)', route: 'family-pension-packet', Component: <FamilyPensionApplication employee={employee} caseRecord={caseRec} /> },
+         { id: 'fp_family_list', title: 'Family Members List', route: 'family-pension-packet', Component: <FamilyMembersList employee={employee} /> },
+         { id: 'fp_succession', title: 'Succession Certificate', route: 'family-pension-succession', Component: <SuccessionCertificate employee={employee} /> },
+         { id: 'fp_bank', title: 'Bank Account Letter', route: 'family-pension-bank-letter', Component: <BankAccountLetter employee={employee} /> },
+         { id: 'fp_aff1', title: 'Affidavit 1 (Non-Marriage) [Legal]', route: 'family-pension-affidavit-1', size: 'legal', Component: <Affidavit1 employee={employee} /> },
+         { id: 'fp_aff2', title: 'Affidavit 2 (Indemnity) [Legal]', route: 'family-pension-affidavit-2', size: 'legal', Component: <Affidavit2 employee={employee} /> }
+       );
+     } else {
+       documentsList.push(
+         { id: 'rp_checklist', title: 'Checklist (Pension)', route: 'retirement-checklist', Component: <RetirementChecklist employee={employee} caseRecord={caseRec} /> },
+         { id: 'rp_title', title: 'Pension Title Page', route: 'regular-pension-packet', Component: <RegularTitlePage employee={employee} /> },
+         { id: 'rp_cover', title: 'Pension Forwarding Letter', route: 'regular-pension-packet', Component: <RegularCoverLetter employee={employee} caseRecord={caseRec} /> },
+         { id: 'rp_packet', title: 'Pension Complete Packet (A4)', route: 'regular-pension-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full 13-page set</div> },
+         { id: 'rp_aff2', title: 'Indemnity Bond [Legal]', route: 'family-pension-affidavit-2', size: 'legal', Component: <Affidavit2 employee={employee} /> },
+         { id: 'rp_aff3', title: 'Affidavit: Non-Availment [Legal]', route: 'family-pension-affidavit-3', size: 'legal', Component: <Affidavit3 employee={employee} /> }
+       );
+     }
+
+     // 2. GPF Final
+     documentsList.push(
+       { id: 'gpf_f_1', title: 'GPF Final Payment (Form-10)', route: 'gpf-final-payment', Component: <div className="p-8 text-center border-2 border-dashed">Form-10 Coming Soon</div> },
+       { id: 'gpf_f_2', title: 'GPF PAYF06 Form (Landscape)', route: 'gpf-payf06', orientation: 'landscape', Component: <PAYF06PermanentLoan employeeRecord={employee} caseRecord={caseRec} /> },
+       { id: 'gpf_f_3', title: 'GPF GCVP Proforma (Landscape)', route: 'gpf-gcvp', orientation: 'landscape', Component: <GPFClaimVerificationProforma employeeRecord={employee} caseRecord={caseRec} /> }
+     );
+
+     // 3. LPR
+     documentsList.push(
+       { id: 'lpr_cover', title: 'LPR Cover Letter', route: 'cover-lpr', Component: <LPRApplication employee={employee} caseRecord={caseRec} /> },
+       { id: 'lpr_pay', title: 'LPR Pay Form', route: 'lpr-pay-form', Component: <LPRPayForm employee={employee} caseRecord={caseRec} /> }
+     );
+
+     // 4. BF
+     documentsList.push(
+       { id: 'bf_cover', title: 'BF Application / Cover', route: 'cover-bf', Component: <BenevolentFundApplication employee={employee} caseRecord={caseRec} /> },
+       { id: 'bf_official', title: 'BF Official Form', route: 'bf-application', Component: <BenevolentFundOfficialForm employee={employee} caseRecord={caseRec} /> }
+     );
+
+     // 5. RBDC
+     documentsList.push(
+       { id: 'rbdc_cover', title: 'RBDC Application / Cover', route: 'cover-rbdc', Component: <RBDCApplication employee={employee} caseRecord={caseRec} /> },
+       { id: 'rbdc_official', title: 'RBDC Official Form', route: 'rbdc-application', Component: <RBDCOfficialForm employee={employee} caseRecord={caseRec} /> },
+       { id: 'rbdc_leave', title: 'RBDC Leave Account (Landscape)', route: 'leave-account', orientation: 'landscape', Component: <LeaveAccountProforma employeeRecord={employee} caseRecord={caseRec} /> }
+     );
+
+     // 6. EEF
+     documentsList.push(
+       { id: 'eef_cover', title: 'EEF Application / Cover', route: 'cover-eef', Component: <EEFApplication employee={employee} caseRecord={caseRec} /> },
+       { id: 'eef_official', title: 'EEF Official Form', route: 'eef-application', Component: <EEFOfficialForm employee={employee} caseRecord={caseRec} /> }
+     );
   } else if (isPayroll) {
     documentsList = [
       { id: 'payroll_source1', title: 'Form1 - Employee Master File', route: 'payroll-source-forms/source1', Component: <Form1 employeeRecord={employee} /> },
@@ -1323,6 +1382,31 @@ export const CaseDetail: React.FC = () => {
                  </div>
                  <div className="flex flex-wrap gap-2">
                     {/* UNIVERSAL PRINT PACKET BUTTONS */}
+                    {caseRec.case_type === 'full_pension' && (
+                      <div className="flex gap-2">
+                         <Button 
+                            variant="filled" 
+                            label="Bulk Portrait" 
+                            icon="portrait" 
+                            className="bg-blue-600 text-white"
+                            onClick={() => handlePrintDocument('bulk_p', 'pension-suite-portrait')} 
+                         />
+                         <Button 
+                            variant="filled" 
+                            label="Bulk Landscape" 
+                            icon="landscape" 
+                            className="bg-green-600 text-white"
+                            onClick={() => handlePrintDocument('bulk_l', 'pension-suite-landscape')} 
+                         />
+                         <Button 
+                            variant="filled" 
+                            label="Bulk Legal" 
+                            icon="article" 
+                            className="bg-orange-600 text-white"
+                            onClick={() => handlePrintDocument('bulk_legal', 'pension-suite-legal')} 
+                         />
+                      </div>
+                    )}
                     {isRetirement && (
                       <Button 
                           variant="filled" 

@@ -30,7 +30,7 @@ export const RetirementCoverLetter: React.FC<RetirementCoverLetterProps> = ({ em
       style={{ 
         width: '210mm', 
         height: '297mm', 
-        padding: '12mm',
+        padding: '8mm 12mm',
         fontFamily: 'Arial, Helvetica, sans-serif',
         fontSize: '11pt',
         boxSizing: 'border-box',
@@ -43,10 +43,10 @@ export const RetirementCoverLetter: React.FC<RetirementCoverLetterProps> = ({ em
         <Letterhead employeeRecord={employee} />
 
         {/* Double Line Separator */}
-        <div className="w-full border-t-4 border-black border-double mb-8"></div>
+        <div className="w-full border-t-4 border-black border-double mb-6"></div>
 
         {/* Reference and Date */}
-        <div className="flex justify-between items-end mb-8 font-medium">
+        <div className="flex justify-between items-end mb-6 font-medium">
           <div className="flex items-end">
             <span>No.</span>
             <div className="w-40 border-b border-black mx-2 text-center font-bold">{refNo}</div>
@@ -62,7 +62,7 @@ export const RetirementCoverLetter: React.FC<RetirementCoverLetterProps> = ({ em
         </div>
 
         {/* Recipient */}
-        <div className="mb-6 font-bold">
+        <div className="mb-4 font-bold">
           <div className="mb-1">To:</div>
           <div className="pl-24">
             <div>{recipientLine}</div>
@@ -70,7 +70,7 @@ export const RetirementCoverLetter: React.FC<RetirementCoverLetterProps> = ({ em
         </div>
 
         {/* Subject */}
-        <div className="flex mb-6">
+        <div className="flex mb-4">
           <span className="font-bold w-24 flex-shrink-0">Subject:</span>
           <span className="font-bold uppercase underline decoration-1 underline-offset-4">
             APPLICATION FOR RETIREMENT SANCTION
@@ -78,7 +78,7 @@ export const RetirementCoverLetter: React.FC<RetirementCoverLetterProps> = ({ em
         </div>
 
         {/* Salutation */}
-        <div className="mb-6">
+        <div className="mb-4">
           <p>Respected {salutation},</p>
         </div>
 
@@ -112,12 +112,13 @@ export const RetirementCoverLetter: React.FC<RetirementCoverLetterProps> = ({ em
         </div>
 
         {/* Footer Signature */}
-        <div className="mt-auto flex justify-end pt-12">
-          <div className="text-center w-64">
-            <div className="h-10 border-b border-gray-300 w-full mb-2"></div>
+        <div className="mt-auto flex justify-end pt-20">
+          <div className="text-center w-72">
+            <div className="h-12 border-b-2 border-dotted border-gray-400 w-full mb-2"></div>
             <p className="font-bold text-sm leading-tight uppercase whitespace-pre-line">
               {signatureTitle}
             </p>
+            <p className="text-[10px] opacity-60 mt-1 italic">(Official Seal & Stamp)</p>
           </div>
         </div>
 

@@ -121,13 +121,13 @@ export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
       style={{ 
         width: '210mm', 
         height: '297mm',
-        padding: '10mm 15mm', 
+        padding: '8mm 12mm', 
         boxSizing: 'border-box',
         overflow: 'hidden'
       }}>
       
       {/* Header */}
-      <div className="text-center font-bold text-lg uppercase underline mb-4 shrink-0">
+      <div className="text-center font-bold text-lg uppercase underline mb-3 shrink-0">
          LAST PAY CERTIFICATE
       </div>
 

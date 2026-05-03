@@ -22,7 +22,7 @@ const CASE_TYPES: { id: CaseType; label: string; icon: string }[] = [
   { id: 'eef', label: 'E.E.F (Employee Education Foundation)', icon: 'school' },
   { id: 'financial_assistance', label: 'Financial Assistance', icon: 'health_and_safety' },
   { id: 'payroll', label: 'Payroll / Salary Change', icon: 'receipt_long' },
-  { id: 'other', label: 'General Inquiry', icon: 'help_center' },
+  { id: 'full_pension', label: 'Full Pension Case (Bundle)', icon: 'auto_stories' },
 ];
 
 export const NewCase: React.FC = () => {
@@ -57,9 +57,8 @@ export const NewCase: React.FC = () => {
       priority: priority,
       deadline: deadline || undefined,
       title: `${CASE_TYPES.find(t => t.id === selectedType)?.label} Case - ${emp.employees.name}`,
-      checklist: getDefaultChecklist(selectedType),
-      documents: [],
-      notes: [],
+      checklist: getDefaultChecklist(selectedType, emp),
+      documents: [],      notes: [],
       auditLog: [],
       extras: {},
       createdAt: new Date().toISOString(),

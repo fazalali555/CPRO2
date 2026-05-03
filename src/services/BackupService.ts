@@ -1,4 +1,5 @@
 import { saveFileToIDB, getAllFilesFromIDB } from '../utils';
+import { exportAllData, importAllData } from '../lib/db';
 
 const SALT = 'CLERKPRO_GOVT_SECURE_2026_FAZAL_ALI';
 
@@ -38,23 +39,34 @@ export const BackupService = {
     const localStorageData: Record<string, string> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('clerk_pro_') || key === 'clerk_pro_language' || key.startsWith('budgeting/'))) {
+      // Backup everything except the auto-backup snapshot itself to avoid recursive growth
+      if (key && key !== 'clerk_pro_auto_backup_snapshot') {
         localStorageData[key] = localStorage.getItem(key) || '';
       }
     }
 
     let idbFiles: Record<string, Uint8Array> = {};
     try {
+      // These are files from the separate clerk_pro_rpms_files DB
       idbFiles = await getAllFilesFromIDB();
     } catch (e) {
-      console.warn('IndexedDB backup skipped:', e);
+      console.warn('IndexedDB files backup skipped:', e);
+    }
+
+    let dbData = null;
+    try {
+      // These are employees, cases, settings, and files from the main clerk_pro_rpms DB
+      dbData = await exportAllData();
+    } catch (e) {
+      console.error('Main database backup failed:', e);
     }
 
     const backup = {
-      version: 1,
+      version: 2,
       timestamp: new Date().toISOString(),
       localStorage: localStorageData,
       files: idbFiles,
+      database: dbData,
       branding: 'Clerk Pro by Fazal Ali'
     };
 
@@ -120,51 +132,21 @@ export const BackupService = {
         jsonStr = bytesToStr(decryptedBytes);
       } else if (content.startsWith('CLERKPRO_ENC_V1:')) {
         // Backward compatibility for V1 (Legacy)
-        jsonStr = decodeURIComponent(escape(atob(content))).replace('CLERKPRO_ENC_V1:', '');
+        const base64 = content.replace('CLERKPRO_ENC_V1:', '');
+        jsonStr = decodeURIComponent(escape(atob(base64)));
       } else {
         // Try Legacy without prefix
         try {
-          // Check if it's the old format which used simple XOR + btoa on string
-          // This path is tricky because the old code was buggy for unicode.
-          // If the file was created with the old buggy code and ONLY contained ASCII, this might work.
-          // If it contained Unicode, it likely crashed during creation so no such file exists.
-          // However, we should try to support reading valid files created by the old version.
-          
-          // Attempt to decode as if it was the old buggy XOR format
-          // Old logic: xorEncrypt(atob(encrypted), salt) where xorEncrypt returned a string
-          
-          const oldSalt = 'CLERKPRO_GOVT_SECURE_2026_FAZAL_ALI';
-          const oldXorEncrypt = (text: string, key: string) => {
-            return text.split('').map((c, i) => 
-              String.fromCharCode(c.charCodeAt(0) ^ key.charCodeAt(i % key.length))
-            ).join('');
-          };
-
-          // If content is just base64, try to decode
-          // Note: The previous code had a "try V1 without prefix" block that did:
-          // decodeURIComponent(escape(atob(content)))
-          // This implies V1 might have been just URI encoded? 
-          // Actually looking at the old code:
-          // } else {
-          //   // Try V1 without prefix if atob succeeds
-          //   try {
-          //     const decoded = decodeURIComponent(escape(atob(content)));
-          //     if (decoded.startsWith('CLERKPRO_ENC_V1:')) ...
-          
-          // Let's keep the exact logic for legacy fallback
+          // Attempt to decode as if it was raw Base64 V1
           const decoded = decodeURIComponent(escape(atob(content)));
-          if (decoded.startsWith('CLERKPRO_ENC_V1:')) {
-             jsonStr = decoded.replace('CLERKPRO_ENC_V1:', '');
+          if (decoded.includes('"localStorage"')) {
+             jsonStr = decoded;
           } else {
-             // Maybe it's the V2 format but missing prefix? Unlikely. 
-             // Or maybe it's raw JSON?
-             JSON.parse(content); // Test if it's raw JSON
+             // Maybe it's raw JSON
+             JSON.parse(content);
              jsonStr = content;
           }
         } catch (e) {
-             // Final fallback: maybe it was the buggy V2 format (btoa of xor string)
-             // If we are here, it means we couldn't parse it.
-             // Let's assume the user is trying to restore a valid backup.
              throw new Error('Invalid backup file format or corrupted data');
         }
       }
@@ -173,16 +155,32 @@ export const BackupService = {
 
       // 1. Restore LocalStorage
       if (backup.localStorage) {
+        // Optional: Clear existing prefixed data for a clean restore
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('clerk_pro_') || key.startsWith('budgeting/'))) {
+            localStorage.removeItem(key);
+            i--; // Adjust index after removal
+          }
+        }
+
         Object.entries(backup.localStorage as Record<string, string>).forEach(([key, val]) => {
           localStorage.setItem(key, val);
         });
       }
 
-      // 2. Restore IndexedDB Files
+      // 2. Restore IndexedDB Files (from separate files DB)
       if (backup.files) {
+        // We don't have a generic clear for the files DB in utils.ts, 
+        // but saveFileToIDB overwrites.
         for (const [id, data] of Object.entries(backup.files as Record<string, number[]>)) {
           await saveFileToIDB(id, new Uint8Array(data));
         }
+      }
+
+      // 3. Restore Main Database (employees, cases, settings)
+      if (backup.database) {
+        await importAllData(backup.database);
       }
 
       return true;

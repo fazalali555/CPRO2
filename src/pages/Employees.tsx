@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { differenceInYears, parseISO } from 'date-fns';
 
@@ -46,6 +47,29 @@ import {
   resolveAgeFactor,
 } from '../lib/pension';
 import { useEmployeeContext } from '../contexts/EmployeeContext';
+import { APP_NAME } from '../config/branding';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 100,
+    },
+  },
+};
 
 // ============================================================================
 // CONSTANTS
@@ -99,46 +123,47 @@ const SORT_OPTIONS = [
   { value: 'updated_desc', label: 'Recently Modified', field: 'updatedAt', dir: 'desc' as const },
 ];
 
-const EDUCATION_HINTS = [
+const INSTITUTION_HINTS = [
   'GPS = Primary School',
   'GMS = Middle School',
   'GHS = High School',
   'GHSS = Higher Secondary School',
-  'GGPS / GGMS / GGHS / GGHSS = Female School Variants',
+  'Hospitals = Health Department',
+  'Police = Police Department',
 ];
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type EducationLevelFilter =
+type InstitutionLevelFilter =
   | 'all'
   | 'primary'
   | 'middle'
   | 'high'
   | 'higher_secondary'
-  | 'education_office'
+  | 'office'
   | 'other';
 
 type SchoolGenderFilter = 'all' | 'male' | 'female';
 type StaffTypeFilter = 'all' | 'teaching' | 'non_teaching';
 
-interface EducationFilters {
+interface EmployeeFilters {
   status: string;
   district: string;
   tehsil: string;
-  schoolLevel: EducationLevelFilter;
+  institutionLevel: InstitutionLevelFilter;
   schoolGender: SchoolGenderFilter;
   staffType: StaffTypeFilter;
   retiringYear: string;
   hasGPF: boolean | null;
 }
 
-const DEFAULT_FILTERS: EducationFilters = {
+const DEFAULT_FILTERS: EmployeeFilters = {
   status: 'All',
   district: 'All',
   tehsil: 'All',
-  schoolLevel: 'all',
+  institutionLevel: 'all',
   schoolGender: 'all',
   staffType: 'all',
   retiringYear: '',
@@ -153,28 +178,29 @@ function normalizeText(value: string | undefined | null): string {
   return String(value || '').trim().toLowerCase();
 }
 
-// PERF: getEducationMeta is now only called during cache build (once per employee
+// PERF: getInstitutionMeta is now only called during cache build (once per employee
 // per employees-array reference change). All render paths consume the cache.
-function getEducationMeta(employee: EmployeeRecord) {
+function getInstitutionMeta(employee: EmployeeRecord) {
   const info = getDepartmentInfo(
     employee.employees.school_full_name || '',
     employee.employees.office_name || '',
     employee.employees.tehsil || '',
     employee.employees.district || '',
-    employee.employees.designation_full || employee.employees.designation || ''
+    employee.employees.designation_full || employee.employees.designation || '',
+    employee.employees.department // Passing explicit department if available
   );
 
-  let level: EducationLevelFilter = 'other';
+  let level: InstitutionLevelFilter = 'other';
 
   if (info.organizationType === 'primary_school') level = 'primary';
   else if (info.organizationType === 'middle_school') level = 'middle';
   else if (info.organizationType === 'high_school') level = 'high';
   else if (info.organizationType === 'higher_secondary_school') level = 'higher_secondary';
   else if (
-    info.organizationType === 'education_office' ||
+    info.organizationType.includes('office') ||
     info.organizationType === 'directorate'
   ) {
-    level = 'education_office';
+    level = 'office';
   }
 
   return {
@@ -184,13 +210,13 @@ function getEducationMeta(employee: EmployeeRecord) {
   } as const;
 }
 
-function getLevelBadgeLabel(level: EducationLevelFilter): string {
+function getLevelBadgeLabel(level: InstitutionLevelFilter): string {
   switch (level) {
     case 'primary':      return 'Primary';
     case 'middle':       return 'Middle';
     case 'high':         return 'High';
     case 'higher_secondary': return 'Higher Secondary';
-    case 'education_office': return 'Education Office';
+    case 'office':       return 'Office';
     default:             return 'Other';
   }
 }
@@ -199,7 +225,7 @@ function getLevelBadgeLabel(level: EducationLevelFilter): string {
 function matchesSearch(
   emp: EmployeeRecord,
   term: string,
-  meta: ReturnType<typeof getEducationMeta>
+  meta: ReturnType<typeof getInstitutionMeta>
 ): boolean {
   const t = normalizeText(term);
   if (!t) return true;
@@ -323,11 +349,11 @@ const DynamicMapEditor = React.memo(
 );
 DynamicMapEditor.displayName = 'DynamicMapEditor';
 
-// PERF: EducationSummary now accepts the pre-built meta cache so it does NOT
-// call getEducationMeta or getDepartmentInfo at all during stat computation.
-const EducationSummary: React.FC<{
+// PERF: DepartmentSummary now accepts the pre-built meta cache so it does NOT
+// call getInstitutionMeta or getDepartmentInfo at all during stat computation.
+const DepartmentSummary: React.FC<{
   employees: EmployeeRecord[];
-  metaCache: Map<string, ReturnType<typeof getEducationMeta>>;
+  metaCache: Map<string, ReturnType<typeof getInstitutionMeta>>;
 }> = React.memo(({ employees, metaCache }) => {
   const stats = useMemo(() => {
     let active = 0, retired = 0, teaching = 0, nonTeaching = 0;
@@ -348,7 +374,7 @@ const EducationSummary: React.FC<{
         else if (meta.level === 'middle') middle++;
         else if (meta.level === 'high') high++;
         else if (meta.level === 'higher_secondary') higherSecondary++;
-        else if (meta.level === 'education_office') offices++;
+        else if (meta.level === 'office') offices++;
       }
 
       const dor = emp.service_history.date_of_retirement;
@@ -364,59 +390,79 @@ const EducationSummary: React.FC<{
   }, [employees, metaCache]);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-      <Card variant="filled" className="p-3 bg-primary-container/40 text-center rounded-xl">
-        <div className="text-2xl font-bold text-primary">{stats.total.toLocaleString()}</div>
-        <div className="text-xs text-on-surface-variant uppercase tracking-wide">Total</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-green-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-green-700">{stats.active.toLocaleString()}</div>
-        <div className="text-xs text-green-600 uppercase tracking-wide">Active</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-orange-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-orange-700">{stats.retired.toLocaleString()}</div>
-        <div className="text-xs text-orange-600 uppercase tracking-wide">Inactive</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-blue-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-blue-700">{stats.teaching.toLocaleString()}</div>
-        <div className="text-xs text-blue-600 uppercase tracking-wide">Teaching</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-pink-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-pink-700">{stats.femaleInstitutions.toLocaleString()}</div>
-        <div className="text-xs text-pink-600 uppercase tracking-wide">Female Inst.</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-red-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-red-700">{stats.retiringThisYear.toLocaleString()}</div>
-        <div className="text-xs text-red-600 uppercase tracking-wide">Retiring {new Date().getFullYear()}</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-amber-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-amber-700">{stats.primary.toLocaleString()}</div>
-        <div className="text-xs text-amber-600 uppercase tracking-wide">Primary</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-cyan-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-cyan-700">{stats.middle.toLocaleString()}</div>
-        <div className="text-xs text-cyan-600 uppercase tracking-wide">Middle</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-indigo-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-indigo-700">{stats.high.toLocaleString()}</div>
-        <div className="text-xs text-indigo-600 uppercase tracking-wide">High</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-violet-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-violet-700">{stats.higherSecondary.toLocaleString()}</div>
-        <div className="text-xs text-violet-600 uppercase tracking-wide">Higher Sec.</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-slate-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-slate-700">{stats.offices.toLocaleString()}</div>
-        <div className="text-xs text-slate-600 uppercase tracking-wide">Ed. Offices</div>
-      </Card>
-      <Card variant="filled" className="p-3 bg-rose-100 text-center rounded-xl">
-        <div className="text-2xl font-bold text-rose-700">{stats.nonTeaching.toLocaleString()}</div>
-        <div className="text-xs text-rose-600 uppercase tracking-wide">Non-Teaching</div>
-      </Card>
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"
+    >
+      <StatCard 
+        label="Total Staff" 
+        value={stats.total} 
+        icon="groups" 
+        color="primary" 
+      />
+      <StatCard 
+        label="Active" 
+        value={stats.active} 
+        icon="how_to_reg" 
+        color="emerald" 
+      />
+      <StatCard 
+        label="Inactive" 
+        value={stats.retired} 
+        icon="person_off" 
+        color="orange" 
+      />
+      <StatCard 
+        label="Professional" 
+        value={stats.teaching} 
+        icon="work" 
+        color="purple" 
+      />
+      <StatCard 
+        label="Female Inst." 
+        value={stats.femaleInstitutions} 
+        icon="female" 
+        color="pink" 
+      />
+      <StatCard 
+        label={`Retiring ${new Date().getFullYear()}`} 
+        value={stats.retiringThisYear} 
+        icon="event_busy" 
+        color="red" 
+      />
+    </motion.div>
   );
 });
-EducationSummary.displayName = 'EducationSummary';
+DepartmentSummary.displayName = 'DepartmentSummary';
+
+const StatCard = ({ label, value, icon, color }: { label: string, value: number, icon: string, color: string }) => {
+  const colors: Record<string, string> = {
+    primary: 'from-primary/20 to-primary/5 text-primary border-primary/20',
+    emerald: 'from-emerald-500/20 to-emerald-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+    orange: 'from-orange-500/20 to-orange-500/5 text-orange-700 dark:text-orange-400 border-orange-500/20',
+    purple: 'from-purple-500/20 to-purple-500/5 text-purple-700 dark:text-purple-400 border-purple-500/20',
+    pink: 'from-pink-500/20 to-pink-500/5 text-pink-700 dark:text-pink-400 border-pink-500/20',
+    red: 'from-red-500/20 to-red-500/5 text-red-700 dark:text-red-400 border-red-500/20',
+  };
+
+  return (
+    <div className="relative overflow-hidden p-4 rounded-3xl glass border shadow-premium group transition-all hover:scale-[1.02]">
+      <div className={`absolute inset-0 bg-gradient-to-br ${colors[color] || colors.primary} opacity-40 group-hover:opacity-60 transition-opacity`} />
+      <div className="relative z-10 flex items-center gap-4">
+        <div className="p-3 bg-white/50 dark:bg-black/20 rounded-2xl shadow-sm text-inherit">
+          <AppIcon name={icon} size={24} />
+        </div>
+        <div>
+          <div className="text-2xl font-bold text-on-surface tracking-tighter leading-none">{value.toLocaleString()}</div>
+          <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mt-1 opacity-70">{label}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+DepartmentSummary.displayName = 'DepartmentSummary';
 
 const BulkActionsBar: React.FC<{
   selectedCount: number;
@@ -438,36 +484,47 @@ const BulkActionsBar: React.FC<{
   if (selectedCount === 0) return null;
 
   return (
-    <Card
-      variant="filled"
-      className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 bg-primary-container/50 rounded-xl animate-in slide-in-from-top-2 duration-200"
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="p-4 glass border-primary/20 bg-primary/5 rounded-[32px] flex flex-col md:flex-row items-center justify-between gap-4 shadow-premium"
     >
-      <div className="flex items-center gap-4">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white">
-          <AppIcon name="check" />
+      <div className="flex items-center gap-5 ml-2">
+        <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
+          <AppIcon name="done_all" size={24} />
         </div>
         <div>
-          <span className="font-bold text-lg">{selectedCount.toLocaleString()}</span>
-          <span className="text-on-surface-variant ml-2">selected</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-on-surface">{selectedCount.toLocaleString()}</span>
+            <span className="text-xs font-bold text-on-surface-variant/40 uppercase tracking-widest">Personnel Selected</span>
+          </div>
           {!isAllSelected && totalCount > selectedCount && (
             <button
               onClick={onSelectAllFiltered}
-              className="ml-3 text-primary text-sm hover:underline font-medium"
+              className="text-xs text-primary font-bold hover:underline tracking-tight"
             >
-              Select all {totalCount.toLocaleString()}
+              Select all {totalCount.toLocaleString()} records
             </button>
           )}
         </div>
       </div>
-      <div className="flex gap-2 flex-wrap justify-center">
-        <Button variant="tonal" icon="download" label="Export CSV" onClick={onExport} />
-        <Button variant="tonal" icon="print" label="Print" onClick={() => window.print()} />
-        <Button variant="tonal" icon="delete" label="Delete" onClick={onDelete} className="text-error" />
-        <Button variant="text" icon="close" onClick={onClear} />
+      
+      <div className="flex items-center gap-2">
+        <Button variant="filled" icon="download" label="Export" onClick={onExport} className="h-12 px-6 rounded-2xl shadow-lg shadow-primary/20" />
+        <Button variant="tonal" icon="delete" label="Delete" onClick={onDelete} className="h-12 px-6 rounded-2xl bg-error/10 text-error border-error/10 hover:bg-error/20" />
+        <div className="w-px h-8 bg-outline-variant/30 mx-2" />
+        <button 
+          onClick={onClear}
+          className="w-12 h-12 flex items-center justify-center rounded-2xl hover:bg-surface-variant text-on-surface-variant transition-colors"
+          title="Clear Selection"
+        >
+          <AppIcon name="close" size={24} />
+        </button>
       </div>
-    </Card>
+    </motion.div>
   );
 };
+
 
 const PaginationControls: React.FC<{
   currentPage: number;
@@ -481,58 +538,62 @@ const PaginationControls: React.FC<{
   const endItem   = Math.min(currentPage * pageSize, totalItems);
 
   return (
-    <div className="p-4 border-t border-outline-variant flex flex-col sm:flex-row items-center justify-between gap-4 bg-surface-container-low rounded-b-xl">
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-on-surface-variant">Rows per page:</span>
+    <div className="p-6 glass border-t-0 rounded-b-[32px] flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="flex items-center gap-4 bg-surface-variant/20 px-4 py-2 rounded-2xl border border-outline-variant/10">
+        <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">Rows per page</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="border border-outline-variant rounded-lg px-3 py-1.5 bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="bg-transparent text-sm font-bold focus:outline-none cursor-pointer"
         >
           {PAGE_SIZE_OPTIONS.map((size) => (
             <option key={size} value={size}>{size}</option>
           ))}
         </select>
       </div>
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-on-surface-variant">
-          <strong>{startItem.toLocaleString()}</strong>-
-          <strong>{endItem.toLocaleString()}</strong> of{' '}
-          <strong>{totalItems.toLocaleString()}</strong>
-        </span>
-        <div className="flex gap-1">
-          <button onClick={() => onPageChange(1)} disabled={currentPage === 1}
-            className="p-2 rounded-full hover:bg-surface-variant disabled:opacity-30 disabled:cursor-not-allowed transition-all" title="First page">
-            <AppIcon name="first_page" size={20} />
-          </button>
-          <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}
-            className="p-2 rounded-full hover:bg-surface-variant disabled:opacity-30 disabled:cursor-not-allowed transition-all" title="Previous page">
-            <AppIcon name="chevron_left" size={20} />
-          </button>
-          <div className="flex items-center gap-1 px-2">
-            <input
-              type="number" min={1} max={totalPages || 1} value={currentPage}
-              onChange={(e) => {
-                const page = Math.max(1, Math.min(totalPages || 1, Number(e.target.value) || 1));
-                onPageChange(page);
-              }}
-              className="w-14 text-center border border-outline-variant rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <span className="text-sm text-on-surface-variant">/ {(totalPages || 1).toLocaleString()}</span>
+
+      <div className="flex items-center gap-6">
+        <div className="text-sm font-bold text-on-surface/60">
+          <span className="text-on-surface font-black">{startItem.toLocaleString()} - {endItem.toLocaleString()}</span>
+          <span className="mx-2 opacity-30">of</span>
+          <span className="text-on-surface font-black">{totalItems.toLocaleString()}</span>
+        </div>
+
+        <div className="flex gap-1.5 p-1 bg-surface-variant/20 rounded-2xl border border-outline-variant/10">
+          <PaginationButton onClick={() => onPageChange(1)} disabled={currentPage === 1} icon="first_page" />
+          <PaginationButton onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} icon="chevron_left" />
+          
+          <div className="flex items-center gap-2 px-3">
+             <input 
+               type="number" 
+               className="w-12 bg-white dark:bg-surface text-center font-bold text-sm rounded-lg h-8 focus:outline-none ring-1 ring-primary/20"
+               value={currentPage}
+               onChange={(e) => {
+                 const p = parseInt(e.target.value);
+                 if (p > 0 && p <= totalPages) onPageChange(p);
+               }}
+             />
+             <span className="text-xs font-bold opacity-30">/ {totalPages}</span>
           </div>
-          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0}
-            className="p-2 rounded-full hover:bg-surface-variant disabled:opacity-30 disabled:cursor-not-allowed transition-all" title="Next page">
-            <AppIcon name="chevron_right" size={20} />
-          </button>
-          <button onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages || totalPages === 0}
-            className="p-2 rounded-full hover:bg-surface-variant disabled:opacity-30 disabled:cursor-not-allowed transition-all" title="Last page">
-            <AppIcon name="last_page" size={20} />
-          </button>
+
+          <PaginationButton onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} icon="chevron_right" />
+          <PaginationButton onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} icon="last_page" />
         </div>
       </div>
     </div>
   );
 };
+
+const PaginationButton = ({ onClick, disabled, icon }: any) => (
+  <button 
+    onClick={onClick} 
+    disabled={disabled}
+    className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white dark:hover:bg-surface disabled:opacity-20 transition-all text-on-surface shadow-sm"
+  >
+    <AppIcon name={icon} size={20} />
+  </button>
+);
+
 
 const InstitutionPreviewCard: React.FC<{ employee: EmployeeRecord }> = ({ employee }) => {
   const info = useMemo(
@@ -594,15 +655,15 @@ const InstitutionPreviewCard: React.FC<{ employee: EmployeeRecord }> = ({ employ
   );
 };
 
-const EducationFilterPanel: React.FC<{
-  filters: EducationFilters;
-  onChange: (filters: EducationFilters) => void;
+const EmployeeFilterPanel: React.FC<{
+  filters: EmployeeFilters;
+  onChange: (filters: EmployeeFilters) => void;
   onClose: () => void;
 }> = ({ filters, onChange, onClose }) => {
-  const [local, setLocal] = useState<EducationFilters>(filters);
+  const [local, setLocal] = useState<EmployeeFilters>(filters);
 
   const update = useCallback(
-    <K extends keyof EducationFilters>(key: K, value: EducationFilters[K]) => {
+    <K extends keyof EmployeeFilters>(key: K, value: EmployeeFilters[K]) => {
       setLocal((prev) => ({ ...prev, [key]: value }));
     },
     []
@@ -613,7 +674,7 @@ const EducationFilterPanel: React.FC<{
     if (local.status !== 'All') count++;
     if (local.district !== 'All') count++;
     if (local.tehsil !== 'All') count++;
-    if (local.schoolLevel !== 'all') count++;
+    if (local.institutionLevel !== 'all') count++;
     if (local.schoolGender !== 'all') count++;
     if (local.staffType !== 'all') count++;
     if (local.retiringYear) count++;
@@ -621,121 +682,126 @@ const EducationFilterPanel: React.FC<{
     return count;
   }, [local]);
 
-  const tehsilOptions = local.district !== 'All' ? DISTRICT_TEHSIL_MAP[local.district] || [] : [];
+  const tehsilOptions = local.district !== 'All' ? DISTRICT_TEHSIL_MAP[local.district as keyof typeof DISTRICT_TEHSIL_MAP] || [] : [];
 
   return (
-    <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-3xl bg-surface rounded-3xl shadow-elevation-4 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-outline-variant flex justify-between items-center bg-surface-container">
+    <div className="fixed inset-0 z-[101] flex items-center justify-end">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/40 backdrop-blur-md" 
+        onClick={onClose} 
+      />
+      
+      <motion.div 
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="relative w-full max-w-md h-full glass-dark shadow-2xl flex flex-col border-l border-white/10"
+      >
+        <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/5">
           <div>
-            <h3 className="text-xl font-bold">Education Filters</h3>
-            {activeFilterCount > 0 && (
-              <span className="text-sm text-primary font-medium">{activeFilterCount} filter(s) active</span>
-            )}
+            <h3 className="text-2xl font-black text-white tracking-tighter">Advanced Filters</h3>
+            <p className="text-sm font-bold text-white/40 uppercase tracking-widest mt-1">Refine Personnel Records</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface-variant rounded-full transition-colors">
-            <AppIcon name="close" />
+          <button onClick={onClose} className="w-12 h-12 flex items-center justify-center hover:bg-white/10 rounded-2xl transition-all text-white/60">
+            <AppIcon name="close" size={28} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SelectField label="Status" value={local.status} onChange={(e: any) => update('status', e.target.value)}>
-              <option value="All">All</option>
-              <option value="Active">Active</option>
-              <option value="Retired">Retired / Inactive</option>
-              {STATUS_OPTIONS.filter((s) => s !== 'Active').map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </SelectField>
+        <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-6">
+              <FilterSection label="Employment Status" icon="how_to_reg">
+                <SelectField value={local.status} onChange={(e: any) => update('status', e.target.value)}>
+                  <option value="All">All Statuses</option>
+                  <option value="Active">Active Duty</option>
+                  <option value="Retired">Inactive / Retired</option>
+                  {STATUS_OPTIONS.filter((s) => s !== 'Active').map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </SelectField>
+              </FilterSection>
 
-            <TextField label="Retiring Year" value={local.retiringYear}
-              onChange={(e) => update('retiringYear', e.target.value)} placeholder="e.g. 2027" />
+              <FilterSection label="Retirement Target" icon="event_busy">
+                <TextField value={local.retiringYear} onChange={(e) => update('retiringYear', e.target.value)} placeholder="e.g. 2026" />
+              </FilterSection>
 
-            <SelectField label="District" value={local.district}
-              onChange={(e: any) => {
-                const district = e.target.value;
-                update('district', district);
-                update('tehsil', 'All');
-              }}>
-              <option value="All">All Districts</option>
-              {KPK_DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
-            </SelectField>
+              <FilterSection label="Jurisdiction" icon="map">
+                <div className="space-y-4">
+                  <SelectField label="District" value={local.district} onChange={(e: any) => {
+                    const d = e.target.value;
+                    update('district', d);
+                    update('tehsil', 'All');
+                  }}>
+                    <option value="All">All Districts</option>
+                    {KPK_DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </SelectField>
+                  <SelectField label="Tehsil" value={local.tehsil} onChange={(e: any) => update('tehsil', e.target.value)}>
+                    <option value="All">All Tehsils</option>
+                    {tehsilOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </SelectField>
+                </div>
+              </FilterSection>
 
-            <SelectField label="Tehsil" value={local.tehsil}
-              onChange={(e: any) => update('tehsil', e.target.value)}>
-              <option value="All">All Tehsils</option>
-              {tehsilOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            </SelectField>
+              <FilterSection label="Institution Metrics" icon="business">
+                <div className="space-y-4">
+                  <SelectField label="Level" value={local.institutionLevel} onChange={(e: any) => update('institutionLevel', e.target.value)}>
+                    <option value="all">Any Level</option>
+                    <option value="primary">Primary School</option>
+                    <option value="middle">Middle School</option>
+                    <option value="high">High School</option>
+                    <option value="higher_secondary">Higher Secondary School</option>
+                    <option value="office">Office / Directorate</option>
+                    <option value="other">Other</option>
+                  </SelectField>
+                  <SelectField label="Gender Focus" value={local.schoolGender} onChange={(e: any) => update('schoolGender', e.target.value)}>
+                    <option value="all">Any Gender</option>
+                    <option value="male">Male Institutions</option>
+                    <option value="female">Female Institutions</option>
+                  </SelectField>
+                </div>
+              </FilterSection>
 
-            <SelectField label="Institution Level" value={local.schoolLevel}
-              onChange={(e: any) => update('schoolLevel', e.target.value)}>
-              <option value="all">All</option>
-              <option value="primary">Primary</option>
-              <option value="middle">Middle</option>
-              <option value="high">High</option>
-              <option value="higher_secondary">Higher Secondary</option>
-              <option value="education_office">Education Office</option>
-              <option value="other">Other</option>
-            </SelectField>
-
-            <SelectField label="Institution Gender" value={local.schoolGender}
-              onChange={(e: any) => update('schoolGender', e.target.value)}>
-              <option value="all">All</option>
-              <option value="male">Male Institutions</option>
-              <option value="female">Female Institutions</option>
-            </SelectField>
-
-            <SelectField label="Staff Type" value={local.staffType}
-              onChange={(e: any) => update('staffType', e.target.value)}>
-              <option value="all">All</option>
-              <option value="teaching">Teaching</option>
-              <option value="non_teaching">Non Teaching</option>
-            </SelectField>
-
-            <SelectField
-              label="GPF Account"
-              value={local.hasGPF === null ? 'all' : local.hasGPF ? 'has' : 'missing'}
-              onChange={(e: any) => {
-                const v = e.target.value;
-                update('hasGPF', v === 'all' ? null : v === 'has');
-              }}>
-              <option value="all">Any</option>
-              <option value="has">Has GPF</option>
-              <option value="missing">No GPF</option>
-            </SelectField>
-          </div>
-
-          <Card className="p-4 bg-surface-container-low rounded-xl">
-            <div className="font-bold text-sm text-primary mb-2">Elementary & Secondary Education Tips</div>
-            <ul className="space-y-1 text-sm text-on-surface-variant">
-              {EDUCATION_HINTS.map((hint) => (
-                <li key={hint} className="flex items-start gap-2">
-                  <AppIcon name="info" size={16} className="mt-0.5" />
-                  <span>{hint}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </div>
-
-        <div className="p-6 border-t border-outline-variant flex justify-between bg-surface-container">
-          <Button variant="text" label="Reset All" onClick={() => setLocal(DEFAULT_FILTERS)} icon="restart_alt" />
-          <div className="flex gap-2">
-            <Button variant="text" label="Cancel" onClick={onClose} />
-            <Button
-              variant="filled"
-              label={`Apply Filters${activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}`}
-              onClick={() => { onChange(local); onClose(); }}
-              icon="check"
-            />
+              <FilterSection label="Staff Classification" icon="badge">
+                 <SelectField value={local.staffType} onChange={(e: any) => update('staffType', e.target.value)}>
+                    <option value="all">All Types</option>
+                    <option value="teaching">Teaching / Professional</option>
+                    <option value="non_teaching">Non-Teaching / Support</option>
+                 </SelectField>
+              </FilterSection>
+            </div>
           </div>
         </div>
-      </div>
+
+        <div className="p-8 border-t border-white/10 bg-white/5 flex gap-4">
+          <Button variant="text" label="Reset" onClick={() => setLocal(DEFAULT_FILTERS)} className="flex-1 text-white/40 font-bold" />
+          <Button
+            variant="filled"
+            label="Apply Filters"
+            onClick={() => { onChange(local); onClose(); }}
+            className="flex-[2] h-14 rounded-2xl shadow-lg shadow-primary/20"
+            icon="check"
+          />
+        </div>
+      </motion.div>
     </div>
   );
 };
+
+const FilterSection = ({ label, icon, children }: any) => (
+  <div className="space-y-3">
+    <div className="flex items-center gap-2 text-white/40">
+      <AppIcon name={icon} size={16} />
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{label}</span>
+    </div>
+    {children}
+  </div>
+);
+
+
 
 // ============================================================================
 // MAIN COMPONENT
@@ -767,7 +833,7 @@ export const Employees: React.FC = () => {
 
   // Filters / view state
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [filters, setFilters]         = useState<EducationFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters]         = useState<EmployeeFilters>(DEFAULT_FILTERS);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize]       = useState(50);
@@ -777,10 +843,10 @@ export const Employees: React.FC = () => {
 
   // PERF: single-pass meta cache keyed by employee id.
   // Rebuilt only when the employees array reference changes (add/edit/delete).
-  const educationMetaCache = useMemo(() => {
-    const cache = new Map<string, ReturnType<typeof getEducationMeta>>();
+  const institutionMetaCache = useMemo(() => {
+    const cache = new Map<string, ReturnType<typeof getInstitutionMeta>>();
     for (const emp of employees) {
-      cache.set(emp.id, getEducationMeta(emp));
+      cache.set(emp.id, getInstitutionMeta(emp));
     }
     return cache;
   }, [employees]);
@@ -913,7 +979,7 @@ export const Employees: React.FC = () => {
   const [formData, setFormData] = useState<EmployeeRecord>(initialFormState);
 
   // ==========================================================================
-  // FILTERING — uses debouncedSearch + educationMetaCache
+  // FILTERING — uses debouncedSearch + institutionMetaCache
   // ==========================================================================
 
   const filteredEmployees = useMemo(() => {
@@ -923,7 +989,7 @@ export const Employees: React.FC = () => {
     // after the 300 ms debounce instead of on every keystroke.
     if (debouncedSearch.trim()) {
       result = result.filter((emp) => {
-        const meta = educationMetaCache.get(emp.id)!;
+        const meta = institutionMetaCache.get(emp.id)!;
         return matchesSearch(emp, debouncedSearch, meta);
       });
     }
@@ -944,12 +1010,12 @@ export const Employees: React.FC = () => {
       result = result.filter((emp) => emp.employees.tehsil === filters.tehsil);
     }
 
-    if (filters.schoolLevel !== 'all') {
-      result = result.filter((emp) => educationMetaCache.get(emp.id)!.level === filters.schoolLevel);
+    if (filters.institutionLevel !== 'all') {
+      result = result.filter((emp) => institutionMetaCache.get(emp.id)!.level === filters.institutionLevel);
     }
 
     if (filters.schoolGender !== 'all') {
-      result = result.filter((emp) => educationMetaCache.get(emp.id)!.gender === filters.schoolGender);
+      result = result.filter((emp) => institutionMetaCache.get(emp.id)!.gender === filters.schoolGender);
     }
 
     if (filters.staffType !== 'all') {
@@ -969,7 +1035,7 @@ export const Employees: React.FC = () => {
     }
 
     return result;
-  }, [employees, debouncedSearch, filters, educationMetaCache]);
+  }, [employees, debouncedSearch, filters, institutionMetaCache]);
 
   // ==========================================================================
   // SORTING
@@ -1391,105 +1457,99 @@ export const Employees: React.FC = () => {
   // ==========================================================================
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <PageHeader
-        title="Employees"
-        subtitle="Elementary & Secondary Education — KPK"
-        actions={
-          <div className="hidden lg:flex gap-2">
-            <Button
-              variant="tonal"
-              onClick={() => setShowStatistics(!showStatistics)}
-              icon={showStatistics ? 'visibility_off' : 'analytics'}
-              label={showStatistics ? 'Hide Stats' : 'Stats'}
-            />
-            <Button
-              variant="tonal"
-              onClick={() => setShowAdvancedFilters(true)}
-              label={`Filters${activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}`}
-              icon="tune"
-            />
-            <Button variant="filled" onClick={handleAddNew} label="Add Employee" icon="add" />
+    <>
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 md:space-y-8 max-w-7xl mx-auto pb-24 lg:pb-8 px-4 md:px-6 bg-mesh min-h-screen"
+    >
+      {/* 1. Page Header & Stats Hub */}
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-5">
+          <div className="w-16 h-16 rounded-[22px] bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30">
+            <AppIcon name="groups" size={32} />
           </div>
-        }
-      />
+          <div>
+            <h1 className="text-3xl font-bold text-on-surface tracking-tighter">Personnel Hub</h1>
+            <p className="text-sm font-medium text-on-surface-variant/60 uppercase tracking-[0.2em]">{APP_NAME} Management Suite</p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+           <Button 
+             variant="filled" 
+             icon="person_add" 
+             label="Add Employee" 
+             onClick={handleAddNew} 
+             className="h-12 px-6 shadow-lg shadow-primary/20"
+           />
+           <Button 
+             variant="tonal" 
+             icon={showStatistics ? "visibility_off" : "analytics"} 
+             label={showStatistics ? "Hide Analytics" : "Show Analytics"} 
+             onClick={() => setShowStatistics(!showStatistics)}
+             className="h-12 glass"
+           />
+        </div>
+      </motion.div>
 
-      <div className="space-y-4">
-        {/* PERF: EducationSummary now receives metaCache — no re-computation inside */}
+      <AnimatePresence>
         {showStatistics && (
-          <EducationSummary employees={employees} metaCache={educationMetaCache} />
-        )}
-
-        <Card className="p-4 rounded-xl bg-surface-container-low border border-outline-variant">
-          <div className="font-bold text-primary mb-2 flex items-center gap-2">
-            <AppIcon name="school" size={18} />
-            Education-Focused Usage
-          </div>
-          <div className="text-sm text-on-surface-variant">
-            Use <strong>School Full Name</strong> for GPS / GGPS / GMS / GGMS / GHS / GGHS / GHSS / GGHSS.
-            Use <strong>Office Name</strong> for SDEO / DEO / Directorate / office cases.
-            The system will automatically detect letterhead, authority, and signature title.
-          </div>
-        </Card>
-
-        {/* Search & quick filters */}
-        <div className="flex flex-col sm:flex-row gap-3 overflow-x-auto no-scrollbar pb-1">
-          <Card
-            variant="filled"
-            className="flex-1 flex items-center gap-4 p-2 rounded-full shadow-sm min-w-[250px]"
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
           >
-            <div className="pl-4 text-on-surface-variant">
-              <AppIcon name="search" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search name, CNIC, P.No, school, office, district..."
-              className="bg-transparent w-full outline-none h-10 text-sm"
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-            />
-            {searchTerm && (
-              <button
-                onClick={() => { setSearchTerm(''); setDebouncedSearch(''); setCurrentPage(1); }}
-                className="pr-4 text-on-surface-variant hover:text-error transition-colors"
-              >
-                <AppIcon name="close" size={18} />
-              </button>
-            )}
-          </Card>
+            <DepartmentSummary employees={employees} metaCache={institutionMetaCache} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          <div className="flex bg-surface-variant/30 rounded-full p-1 border border-outline-variant/30 min-w-max">
-            {['All', 'Active', 'Retired'].map((s) => (
-              <button
-                key={s}
-                onClick={() => updateQuickStatus(s)}
-                className={clsx(
-                  'px-4 py-2 rounded-full text-sm font-medium transition-all',
-                  filters.status === s ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant hover:bg-white/50'
-                )}
-              >
-                {s}
-              </button>
-            ))}
+      {/* 2. Command Bar: Search & Quick Filters */}
+      <motion.div variants={itemVariants} className="flex flex-col lg:flex-row gap-4">
+        <div className="flex-1 relative group">
+          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-on-surface-variant/40 group-focus-within:text-primary transition-colors">
+            <AppIcon name="search" size={24} />
           </div>
+          <input
+            type="text"
+            placeholder="Search name, CNIC, personal number, school..."
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full h-16 pl-14 pr-6 rounded-[24px] glass border-primary/10 focus:border-primary/40 focus:ring-4 focus:ring-primary/5 transition-all outline-none text-lg font-medium shadow-premium"
+          />
+          {searchTerm && (
+            <button 
+              onClick={() => { setSearchTerm(''); setDebouncedSearch(''); setCurrentPage(1); }}
+              className="absolute right-5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center transition-colors"
+            >
+              <AppIcon name="close" size={18} />
+            </button>
+          )}
+        </div>
 
-          <div className="flex bg-surface-variant/30 rounded-full p-1 border border-outline-variant/30 min-w-max">
+        <div className="flex gap-2">
+          <div className="hidden lg:flex p-1.5 glass rounded-[24px] border-primary/10 shadow-premium">
             {[
-              { value: 'all', label: 'All Levels' },
+              { value: 'all', label: 'All Personnel' },
               { value: 'primary', label: 'Primary' },
               { value: 'middle', label: 'Middle' },
               { value: 'high', label: 'High' },
-              { value: 'higher_secondary', label: 'H. Sec.' },
+              { value: 'higher_secondary', label: 'Higher Sec' },
+              { value: 'office', label: 'Offices' },
             ].map((item) => (
               <button
                 key={item.value}
                 onClick={() => {
-                  setFilters((prev) => ({ ...prev, schoolLevel: item.value as EducationLevelFilter }));
+                  setFilters((prev) => ({ ...prev, institutionLevel: item.value as InstitutionLevelFilter }));
                   setCurrentPage(1);
                 }}
                 className={clsx(
-                  'px-4 py-2 rounded-full text-sm font-medium transition-all',
-                  filters.schoolLevel === item.value ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant hover:bg-white/50'
+                  'px-6 py-2.5 rounded-[18px] text-sm font-bold transition-all',
+                  filters.institutionLevel === item.value 
+                    ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' 
+                    : 'text-on-surface-variant/60 hover:bg-primary/5'
                 )}
               >
                 {item.label}
@@ -1499,24 +1559,47 @@ export const Employees: React.FC = () => {
 
           <button
             onClick={() => setShowAdvancedFilters(true)}
-            className="px-4 py-2 rounded-full bg-primary text-white flex items-center gap-2 min-w-max lg:hidden"
+            className="px-6 py-4 rounded-[24px] glass border-primary/10 shadow-premium flex items-center gap-3 font-bold text-primary hover:bg-primary/5 transition-all"
           >
-            <AppIcon name="tune" size={18} />
-            Filters
+            <AppIcon name="tune" size={22} />
+            <span className="hidden sm:inline">Advanced Filters</span>
             {activeFilterCount > 0 && (
-              <span className="bg-white text-primary text-xs rounded-full px-2 py-0.5 font-bold">{activeFilterCount}</span>
+              <span className="w-6 h-6 bg-primary text-white text-[10px] rounded-full flex items-center justify-center shadow-lg shadow-primary/30">{activeFilterCount}</span>
             )}
           </button>
         </div>
+      </motion.div>
 
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-on-surface-variant">Sort:</span>
+      {/* 3. Controls & Active Filters */}
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
+          {activeFilterCount > 0 && (
+            <>
+              <div className="flex items-center gap-2 p-1.5 bg-primary/5 rounded-full border border-primary/10 px-4">
+                 <AppIcon name="filter_list" size={16} className="text-primary" />
+                 <span className="text-xs font-bold text-primary uppercase tracking-widest">Active Filters</span>
+              </div>
+              {debouncedSearch && <Badge label={`"${debouncedSearch}"`} color="primary" />}
+              {filters.status !== 'All' && <Badge label={filters.status} color="primary" />}
+              {filters.district !== 'All' && <Badge label={filters.district} color="secondary" />}
+              {filters.institutionLevel !== 'all' && <Badge label={getLevelBadgeLabel(filters.institutionLevel)} color="tertiary" />}
+              <button
+                onClick={clearFilters}
+                className="text-primary hover:bg-primary/5 text-xs px-3 py-1.5 rounded-full font-bold transition-all uppercase tracking-tighter"
+              >
+                Clear All
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 glass px-4 py-2 rounded-2xl border-primary/5 shadow-sm">
+            <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">Sort by</span>
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value)}
-              className="border border-outline-variant rounded-lg px-3 py-1.5 bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="bg-transparent text-sm font-bold focus:outline-none cursor-pointer"
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -1524,76 +1607,41 @@ export const Employees: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex border border-outline-variant rounded-lg overflow-hidden">
+          <div className="flex p-1 bg-surface-variant/20 rounded-2xl border border-outline-variant/10 shadow-sm">
             <button
               onClick={() => setViewMode('table')}
               className={clsx(
-                'px-3 py-1.5 flex items-center gap-1 transition-colors',
-                viewMode === 'table' ? 'bg-primary text-white' : 'bg-surface hover:bg-surface-variant'
+                'p-2 rounded-xl transition-all',
+                viewMode === 'table' ? 'bg-white dark:bg-surface text-primary shadow-sm' : 'text-on-surface-variant/40 hover:text-on-surface-variant'
               )}
+              title="Table View"
             >
-              <AppIcon name="table_rows" size={18} />
-              <span className="text-sm hidden sm:inline">Table</span>
+              <AppIcon name="table_rows" size={20} />
             </button>
             <button
               onClick={() => setViewMode('cards')}
               className={clsx(
-                'px-3 py-1.5 flex items-center gap-1 transition-colors',
-                viewMode === 'cards' ? 'bg-primary text-white' : 'bg-surface hover:bg-surface-variant'
+                'p-2 rounded-xl transition-all',
+                viewMode === 'cards' ? 'bg-white dark:bg-surface text-primary shadow-sm' : 'text-on-surface-variant/40 hover:text-on-surface-variant'
               )}
+              title="Grid View"
             >
-              <AppIcon name="grid_view" size={18} />
-              <span className="text-sm hidden sm:inline">Cards</span>
+              <AppIcon name="grid_view" size={20} />
             </button>
           </div>
-
-          {sortedEmployees.length > 0 && (
-            <Button
-              variant="text"
-              icon="download"
-              label={`Export (${sortedEmployees.length})`}
-              onClick={handleExportAll}
-              className="ml-auto"
-            />
-          )}
         </div>
+      </motion.div>
 
-        {/* Active filters */}
-        {activeFilterCount > 0 && (
-          <div className="flex items-center gap-2 text-sm text-on-surface-variant flex-wrap p-3 bg-surface-variant/30 rounded-xl">
-            <AppIcon name="filter_list" size={18} />
-            <span className="font-medium">Active:</span>
-            {debouncedSearch && <Badge label={`"${debouncedSearch}"`} color="primary" />}
-            {filters.status !== 'All' && <Badge label={filters.status} color="primary" />}
-            {filters.district !== 'All' && <Badge label={filters.district} color="secondary" />}
-            {filters.tehsil !== 'All' && <Badge label={filters.tehsil} color="secondary" />}
-            {filters.schoolLevel !== 'all' && <Badge label={getLevelBadgeLabel(filters.schoolLevel)} color="tertiary" />}
-            {filters.schoolGender !== 'all' && (
-              <Badge label={filters.schoolGender === 'female' ? 'Female Institutions' : 'Male Institutions'} color="secondary" />
-            )}
-            {filters.staffType !== 'all' && (
-              <Badge label={filters.staffType === 'teaching' ? 'Teaching' : 'Non Teaching'} />
-            )}
-            {filters.retiringYear && <Badge label={`Retiring ${filters.retiringYear}`} color="error" />}
-            {filters.hasGPF !== null && <Badge label={filters.hasGPF ? 'Has GPF' : 'No GPF'} color="neutral" />}
-            <button
-              onClick={clearFilters}
-              className="text-primary hover:underline text-xs ml-2 flex items-center gap-1 font-medium"
-            >
-              <AppIcon name="close" size={14} /> Clear All
-            </button>
-          </div>
-        )}
+      <BulkActionsBar
+        selectedCount={selectedEmployees.size}
+        onExport={handleBulkExport}
+        onDelete={handleBulkDelete}
+        onClear={() => setSelectedEmployees(new Set())}
+        onSelectAllFiltered={handleSelectAllFiltered}
+        isAllSelected={selectedEmployees.size === sortedEmployees.length && sortedEmployees.length > 0}
+        totalCount={sortedEmployees.length}
+      />
 
-        <BulkActionsBar
-          selectedCount={selectedEmployees.size}
-          onExport={handleBulkExport}
-          onDelete={handleBulkDelete}
-          onClear={() => setSelectedEmployees(new Set())}
-          onSelectAllFiltered={handleSelectAllFiltered}
-          isAllSelected={selectedEmployees.size === sortedEmployees.length && sortedEmployees.length > 0}
-          totalCount={sortedEmployees.length}
-        />
 
         {/* Missing DOB warning */}
         {missingDOBCount > 0 && missingDOBCount <= 10 && !debouncedSearch && (
@@ -1663,73 +1711,72 @@ export const Employees: React.FC = () => {
                           <th className="p-3 text-center font-semibold w-24">Actions</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <motion.tbody variants={containerVariants}>
                         {paginatedEmployees.map((emp) => {
-                          // PERF: read from cache — zero getDepartmentInfo calls here
-                          const meta = educationMetaCache.get(emp.id)!;
-
+                          const meta = institutionMetaCache.get(emp.id)!;
                           return (
-                            <tr
+                            <motion.tr
+                              variants={itemVariants}
                               key={emp.id}
                               className={clsx(
-                                'border-t border-outline-variant hover:bg-surface-variant/30 cursor-pointer transition-colors',
-                                selectedEmployees.has(emp.id) && 'bg-primary-container/20'
+                                'border-t border-outline-variant/30 hover:bg-primary/5 cursor-pointer transition-all group',
+                                selectedEmployees.has(emp.id) && 'bg-primary/10'
                               )}
                               onClick={() => handleEdit(emp)}
                             >
-                              <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                              <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   type="checkbox"
                                   checked={selectedEmployees.has(emp.id)}
                                   onChange={() => handleToggleSelect(emp.id)}
-                                  className="rounded accent-primary"
+                                  className="w-5 h-5 rounded-lg border-2 border-outline-variant accent-primary cursor-pointer"
                                 />
                               </td>
-                              <td className="p-3">
-                                <div className="font-semibold">{emp.employees.name}</div>
-                                <div className="text-xs text-on-surface-variant">{emp.employees.personal_no || '-'}</div>
+                              <td className="p-4">
+                                <div className="font-bold text-on-surface group-hover:text-primary transition-colors">{emp.employees.name}</div>
+                                <div className="text-[10px] font-mono font-bold text-on-surface-variant/40 uppercase tracking-widest">{emp.employees.personal_no || 'No Personal No'}</div>
                               </td>
-                              <td className="p-3 text-sm">
-                                {emp.employees.designation || '-'}
-                                <div className="text-xs text-on-surface-variant mt-1">
-                                  {emp.employees.staff_type === 'non_teaching' ? 'Non Teaching' : 'Teaching'}
+                              <td className="p-4 text-sm font-medium">
+                                <div className="text-on-surface">{emp.employees.designation || '-'}</div>
+                                <div className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-0.5">
+                                  BPS-{emp.employees.bps || '??'} • {emp.employees.staff_type === 'non_teaching' ? 'Non Teaching' : 'Teaching'}
                                 </div>
                               </td>
-                              <td className="p-3 text-sm max-w-[240px]">
-                                <div className="truncate font-medium"
+                              <td className="p-4 text-sm max-w-[240px]">
+                                <div className="truncate font-bold text-on-surface/80"
                                   title={emp.employees.school_full_name || emp.employees.office_name || ''}>
                                   {emp.employees.school_full_name || emp.employees.office_name || '-'}
                                 </div>
-                                <div className="text-xs text-on-surface-variant truncate">
+                                <div className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest truncate">
                                   {emp.employees.district || '-'} • {emp.employees.tehsil || '-'}
                                 </div>
                               </td>
-                              <td className="p-3">
-                                <Badge label={getLevelBadgeLabel(meta.level)} color="secondary" />
-                                <div className="mt-1">
-                                  <Badge label={meta.gender === 'female' ? 'Female' : 'Male'} color="neutral" />
+                              <td className="p-4">
+                                <div className="flex flex-col gap-1">
+                                  <Badge label={getLevelBadgeLabel(meta.level)} color="primary" />
+                                  <Badge label={meta.gender === 'female' ? 'Female Inst' : 'Male Inst'} color="neutral" />
                                 </div>
                               </td>
-                              <td className="p-3">
+                              <td className="p-4">
                                 <Badge
                                   label={emp.employees.status}
                                   color={emp.employees.status === 'Active' ? 'success' : 'neutral'}
                                 />
                               </td>
-                              <td className="p-3 text-sm">
+                              <td className="p-4 text-sm font-bold font-mono text-on-surface/60">
                                 {emp.service_history.date_of_retirement
                                   ? formatDate(emp.service_history.date_of_retirement, 'dd/MM/yyyy')
                                   : '-'}
                               </td>
-                              <td className="p-3 font-mono text-xs">{emp.employees.cnic_no || '-'}</td>
-                              <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-center gap-1">
+                              <td className="p-4 font-mono text-xs text-on-surface-variant/60">{emp.employees.cnic_no || '-'}</td>
+                              <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-center gap-2">
                                   <button
                                     onClick={() => handleEdit(emp)}
-                                    className="p-1.5 hover:bg-surface-variant rounded-full text-primary transition-colors"
-                                    title="Edit"
+                                    className="w-10 h-10 flex items-center justify-center hover:bg-primary/10 rounded-2xl text-primary transition-all"
+                                    title="Edit Profile"
                                   >
-                                    <AppIcon name="edit" size={18} />
+                                    <AppIcon name="edit" size={20} />
                                   </button>
                                   <button
                                     onClick={() => {
@@ -1738,17 +1785,17 @@ export const Employees: React.FC = () => {
                                         showToast('Employee deleted', 'success');
                                       }
                                     }}
-                                    className="p-1.5 hover:bg-error/10 rounded-full text-error transition-colors"
-                                    title="Delete"
+                                    className="w-10 h-10 flex items-center justify-center hover:bg-error/10 rounded-2xl text-error transition-all"
+                                    title="Remove"
                                   >
-                                    <AppIcon name="delete" size={18} />
+                                    <AppIcon name="delete" size={20} />
                                   </button>
                                 </div>
                               </td>
-                            </tr>
+                            </motion.tr>
                           );
                         })}
-                      </tbody>
+                      </motion.tbody>
                     </table>
                   </div>
                   <PaginationControls
@@ -1764,85 +1811,101 @@ export const Employees: React.FC = () => {
             {/* Cards view */}
             {viewMode === 'cards' && (
               <div className="space-y-4 pb-20">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <motion.div 
+                  variants={containerVariants}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
                   {paginatedEmployees.map((emp) => {
-                    // PERF: read from cache
-                    const meta = educationMetaCache.get(emp.id)!;
+                    const meta = institutionMetaCache.get(emp.id)!;
+                    const isSelected = selectedEmployees.has(emp.id);
 
                     return (
-                      <Card
+                      <motion.div
+                        variants={itemVariants}
                         key={emp.id}
                         className={clsx(
-                          'p-4 cursor-pointer hover:shadow-lg transition-all rounded-xl',
-                          selectedEmployees.has(emp.id) && 'ring-2 ring-primary'
+                          'group relative overflow-hidden p-6 cursor-pointer glass rounded-[32px] border transition-all hover:scale-[1.02] shadow-premium',
+                          isSelected ? 'border-primary ring-4 ring-primary/5 bg-primary/5' : 'border-primary/5'
                         )}
                         onClick={() => handleEdit(emp)}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedEmployees.has(emp.id)}
-                              onChange={(e) => { e.stopPropagation(); handleToggleSelect(emp.id); }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="rounded accent-primary"
-                            />
-                            <div className="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-xl font-bold text-primary">
-                              {emp.employees.name?.[0] || '?'}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-bold truncate">{emp.employees.name}</div>
-                              <div className="text-sm text-on-surface-variant truncate">
-                                {emp.employees.designation || 'No Designation'}
-                              </div>
-                            </div>
-                          </div>
-                          <Badge
-                            label={emp.employees.status}
-                            color={emp.employees.status === 'Active' ? 'success' : 'neutral'}
-                          />
+                        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <AppIcon name="chevron_right" className="text-primary" />
                         </div>
 
-                        <div className="mt-3 pt-3 border-t border-outline-variant space-y-1.5 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-on-surface-variant">Institution</span>
-                            <span className="text-right max-w-[60%] truncate">
+                        <div className="flex items-start gap-4">
+                          <div className="relative">
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+                              {emp.employees.name?.[0] || '?'}
+                            </div>
+                            <div className="absolute -bottom-1 -right-1">
+                               <Badge 
+                                 label={emp.employees.status === 'Active' ? '✓' : '×'} 
+                                 color={emp.employees.status === 'Active' ? 'success' : 'neutral'}
+                                 className="!p-1 !min-w-0 !w-6 !h-6 flex items-center justify-center rounded-full border-2 border-white dark:border-surface"
+                               />
+                            </div>
+                          </div>
+                          
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => { e.stopPropagation(); handleToggleSelect(emp.id); }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-4 h-4 rounded border-outline-variant accent-primary"
+                              />
+                              <div className="font-bold text-lg truncate group-hover:text-primary transition-colors">{emp.employees.name}</div>
+                            </div>
+                            <div className="text-xs font-bold text-on-surface-variant/60 uppercase tracking-widest truncate mt-0.5">
+                              {emp.employees.designation || 'No Designation'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 space-y-3">
+                          <div className="flex flex-col gap-1 p-3 bg-primary/5 rounded-2xl">
+                            <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">Institution</span>
+                            <span className="text-sm font-bold text-on-surface/80 truncate">
                               {emp.employees.school_full_name || emp.employees.office_name || '-'}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-on-surface-variant">Type</span>
-                            <span>{getLevelBadgeLabel(meta.level)}</span>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 glass rounded-2xl border-primary/5">
+                               <span className="block text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest mb-1">Scale</span>
+                               <span className="font-mono font-bold text-primary">BPS-{emp.employees.bps || '??'}</span>
+                            </div>
+                            <div className="p-3 glass rounded-2xl border-primary/5">
+                               <span className="block text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest mb-1">Level</span>
+                               <span className="font-bold text-on-surface/60">{getLevelBadgeLabel(meta.level)}</span>
+                            </div>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-on-surface-variant">BPS</span>
-                            <span className="font-mono font-medium">{emp.employees.bps || '-'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-on-surface-variant">Personal No</span>
-                            <span className="font-mono">{emp.employees.personal_no || '-'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-on-surface-variant">Retirement</span>
-                            <span>
-                              {emp.service_history.date_of_retirement
-                                ? formatDate(emp.service_history.date_of_retirement, 'dd/MM/yyyy')
-                                : '-'}
-                            </span>
+
+                          <div className="p-3 glass rounded-2xl border-primary/5 flex justify-between items-center">
+                            <div>
+                               <span className="block text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest mb-1">Retirement</span>
+                               <span className="font-mono font-bold text-on-surface/60 text-sm">
+                                 {emp.service_history.date_of_retirement ? formatDate(emp.service_history.date_of_retirement, 'dd/MM/yyyy') : '-'}
+                               </span>
+                            </div>
+                            <Badge label={meta.gender === 'female' ? 'Female' : 'Male'} color="secondary" />
                           </div>
                         </div>
 
-                        <div className="mt-3 flex gap-2 flex-wrap">
-                          <Badge label={meta.gender === 'female' ? 'Female' : 'Male'} color="secondary" />
-                          <Badge
-                            label={emp.employees.staff_type === 'non_teaching' ? 'Non Teaching' : 'Teaching'}
-                            color="tertiary"
-                          />
+                        <div className="mt-4 flex justify-between items-center">
+                           <div className="text-[10px] font-mono font-bold text-on-surface-variant/30 uppercase tracking-[0.2em]">
+                             P.No: {emp.employees.personal_no || 'N/A'}
+                           </div>
+                           <div className="flex gap-1">
+                              <Badge label={emp.employees.staff_type === 'non_teaching' ? 'Non-Teach' : 'Teach'} color="tertiary" />
+                           </div>
                         </div>
-                      </Card>
+                      </motion.div>
                     );
                   })}
-                </div>
+                </motion.div>
                 <PaginationControls
                   currentPage={currentPage} totalPages={totalPages}
                   pageSize={pageSize} totalItems={sortedEmployees.length}
@@ -1857,7 +1920,7 @@ export const Employees: React.FC = () => {
               <div className="md:hidden pb-20 space-y-3">
                 {paginatedEmployees.map((emp) => {
                   // PERF: read from cache
-                  const meta = educationMetaCache.get(emp.id)!;
+                  const meta = institutionMetaCache.get(emp.id)!;
 
                   return (
                     <MobileListCard
@@ -1889,13 +1952,13 @@ export const Employees: React.FC = () => {
             )}
           </>
         )}
-      </div>
+      </motion.div>
 
       <FAB onClick={handleAddNew} icon="person_add" />
 
       {/* Filter Modal */}
       {showAdvancedFilters && (
-        <EducationFilterPanel
+        <EmployeeFilterPanel
           filters={filters}
           onChange={(next) => {
             setFilters(next);
@@ -1910,78 +1973,110 @@ export const Employees: React.FC = () => {
       )}
 
       {/* Employee Form Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-end lg:items-center justify-center sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 z-[100] flex items-end lg:items-center justify-center sm:p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md" 
+              onClick={() => setShowModal(false)} 
+            />
 
-          <div className="relative w-full max-w-5xl bg-surface-container-low rounded-t-3xl lg:rounded-3xl shadow-elevation-4 flex flex-col h-[100dvh] lg:h-[90vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex-none px-6 py-4 border-b border-outline-variant bg-surface-container flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-semibold text-on-surface">
-                  {formData.employees.name || 'New Employee'}
-                </h3>
-                <div className="text-xs text-on-surface-variant font-mono">
-                  {(formData.employees.designation || 'No designation') + ' • ' + (formData.employees.personal_no || 'No P.No')}
-                </div>
-              </div>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-surface-variant rounded-full transition-colors">
-                <AppIcon name="close" />
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex-none border-b border-outline-variant overflow-x-auto no-scrollbar">
-              <div className="flex min-w-max">
-                {TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={clsx(
-                      'flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all whitespace-nowrap',
-                      activeTab === tab.id
-                        ? 'border-primary text-primary bg-surface-variant/30'
-                        : 'border-transparent text-on-surface-variant hover:bg-surface-variant/20'
-                    )}
-                  >
-                    <AppIcon name={tab.icon} size={18} filled={activeTab === tab.id} />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Duplicate warning */}
-            {duplicateWarning && (
-              <div className="bg-error-container text-on-error-container p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-2">
-                <div className="flex items-center gap-3">
-                  <AppIcon name="warning" size={32} />
+            <motion.div 
+              initial={{ opacity: 0, y: 100, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 100, scale: 0.95 }}
+              className="relative w-full max-w-5xl bg-surface-container-low rounded-t-[40px] lg:rounded-[40px] shadow-2xl flex flex-col h-[100dvh] lg:h-[90vh] overflow-hidden border border-white/10"
+            >
+              {/* Modal Header */}
+              <div className="flex-none px-8 py-6 border-b border-outline-variant bg-surface-container flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm">
+                    <AppIcon name="person" size={28} />
+                  </div>
                   <div>
-                    <div className="font-bold">Duplicate Employee Found</div>
-                    <div className="text-sm">
-                      {duplicateWarning.employees.name} ({duplicateWarning.employees.personal_no}) already exists.
+                    <h3 className="text-2xl font-black text-on-surface tracking-tighter leading-none">
+                      {formData.employees.name || 'New Personnel'}
+                    </h3>
+                    <div className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-[0.2em] mt-2">
+                      {(formData.employees.designation || 'Classified Designation') + ' • ' + (formData.employees.personal_no || 'P.No Pending')}
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="text" label="Cancel" onClick={() => setShowModal(false)} className="text-on-error-container" />
-                  <Button variant="filled" label="Edit Existing" onClick={handleSwitchToExisting} className="bg-error text-white" />
+                <button onClick={() => setShowModal(false)} className="w-12 h-12 flex items-center justify-center hover:bg-surface-variant rounded-2xl transition-all">
+                  <AppIcon name="close" size={24} />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex-none border-b border-outline-variant overflow-x-auto no-scrollbar bg-surface-container-lowest">
+                <div className="flex px-4">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={clsx(
+                        'flex items-center gap-2 px-8 py-5 text-sm font-bold transition-all relative',
+                        activeTab === tab.id
+                          ? 'text-primary'
+                          : 'text-on-surface-variant/40 hover:text-on-surface-variant'
+                      )}
+                    >
+                      <AppIcon name={tab.icon} size={20} filled={activeTab === tab.id} />
+                      {tab.label}
+                      {activeTab === tab.id && (
+                        <motion.div 
+                          layoutId="activeTab"
+                          className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full mx-6" 
+                        />
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* Form content */}
-            <div ref={modalScrollRef} className="flex-1 overflow-y-auto p-4 sm:p-6 bg-surface-container-low">
-              <form onSubmit={handleSave}>
-                {activeTab === 'posting' && (
-                  <div className="mb-4">
-                    <InstitutionPreviewCard employee={formData} />
-                  </div>
+              {/* Duplicate warning */}
+              <AnimatePresence>
+                {duplicateWarning && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="bg-error-container/50 backdrop-blur-md text-on-error-container p-6 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-error/20"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-error text-white flex items-center justify-center shadow-lg shadow-error/30">
+                        <AppIcon name="warning" size={24} />
+                      </div>
+                      <div>
+                        <div className="font-black text-lg">Potential Conflict Detected</div>
+                        <div className="text-sm font-medium opacity-70">
+                          {duplicateWarning.employees.name} ({duplicateWarning.employees.personal_no}) already exists in the system.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="text" label="Cancel Entry" onClick={() => setShowModal(false)} className="font-bold" />
+                      <Button variant="filled" label="Modify Existing" onClick={handleSwitchToExisting} className="bg-error text-white h-12 px-6 rounded-2xl shadow-lg shadow-error/20" />
+                    </div>
+                  </motion.div>
                 )}
+              </AnimatePresence>
+
+              {/* Form content */}
+              <div ref={modalScrollRef} className="flex-1 overflow-y-auto p-8 sm:p-10 bg-mesh no-scrollbar">
+                <form id="employee-form" onSubmit={handleSave} className="space-y-10 max-w-4xl mx-auto">
+                  {activeTab === 'posting' && (
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+                      <InstitutionPreviewCard employee={formData} />
+                    </motion.div>
+                  )}
 
                 {/* MASTER TAB */}
                 {activeTab === 'master' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <TextField label="Personnel No" value={formData.employees.personal_no}
                       onChange={(e) => updateDeep(['employees', 'personal_no'], e.target.value)} />
 
@@ -2089,12 +2184,12 @@ export const Employees: React.FC = () => {
                         </div>
                       </div>
                     </Card>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* POSTING TAB */}
                 {activeTab === 'posting' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <TextField label="Designation (Short)" value={formData.employees.designation}
                       onChange={(e) => updateDeep(['employees', 'designation'], e.target.value)} />
 
@@ -2153,12 +2248,12 @@ export const Employees: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* FINANCIAL TAB */}
                 {activeTab === 'financial' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <TextField label="Bank Name" value={formData.employees.bank_name}
                       onChange={(e) => updateDeep(['employees', 'bank_name'], e.target.value)} />
                     <TextField label="Branch Name" value={formData.employees.branch_name}
@@ -2172,31 +2267,31 @@ export const Employees: React.FC = () => {
                       <option value="PLS">PLS</option>
                       <option value="Current">Current</option>
                     </SelectField>
-                    <div className="md:col-span-2 border-t border-outline-variant my-4 pt-4">
-                      <h4 className="font-bold text-sm text-on-surface-variant mb-4">Fund Accounts</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 border-t border-outline-variant my-4 pt-8">
+                      <h4 className="font-black text-sm text-on-surface-variant mb-6 uppercase tracking-[0.2em]">Fund Accounts</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <TextField label="GPF Account No" value={formData.employees.gpf_account_no}
                           onChange={(e) => updateDeep(['employees', 'gpf_account_no'], e.target.value)} />
                         <TextField label="PPO No (If Retired)" value={formData.employees.ppo_no}
                           onChange={(e) => updateDeep(['employees', 'ppo_no'], e.target.value)} />
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* PAYROLL TAB */}
                 {activeTab === 'payroll' && (
-                  <div className="space-y-6 animate-in fade-in">
-                    <Card variant="filled" className="bg-primary-container/30 border border-primary/20 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl">
-                      <div className="text-sm font-bold text-on-surface-variant uppercase tracking-wide">Gross Salary (LPC Entitlement)</div>
-                      <div className="text-3xl font-bold font-mono text-primary">{formatCurrency(grossPay)}</div>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
+                    <Card variant="filled" className="bg-primary/10 border border-primary/20 p-8 flex flex-col sm:flex-row items-center justify-between gap-6 rounded-[32px] shadow-lg shadow-primary/5">
+                      <div className="text-sm font-black text-on-surface-variant/60 uppercase tracking-[0.2em]">Gross Salary (LPC Entitlement)</div>
+                      <div className="text-4xl font-black font-mono text-primary tracking-tighter">{formatCurrency(grossPay)}</div>
                     </Card>
 
-                    <div className="bg-surface p-4 rounded-xl border border-outline-variant">
-                      <h4 className="font-bold text-sm uppercase mb-4 text-primary flex items-center gap-2">
-                        <AppIcon name="payments" size={18} /> Pay & Regular Allowances
+                    <div className="bg-surface/40 backdrop-blur-md p-8 rounded-[32px] border border-outline-variant/30">
+                      <h4 className="font-black text-xs uppercase mb-8 text-primary flex items-center gap-3 tracking-[0.2em]">
+                        <AppIcon name="payments" size={20} /> Pay & Regular Allowances
                       </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
                         <TextField label="Basic Pay" type="number" value={formData.financials.basic_pay}
                           onChange={(e) => updateDeep(['financials', 'basic_pay'], Number(e.target.value))} />
                         <TextField label="Personal Pay (PP)" type="number" value={formData.financials.p_pay}
@@ -2238,11 +2333,11 @@ export const Employees: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="bg-surface p-4 rounded-xl border border-outline-variant">
-                      <h4 className="font-bold text-sm uppercase mb-4 text-primary flex items-center gap-2">
-                        <AppIcon name="trending_up" size={18} /> Adhoc Reliefs
+                    <div className="bg-surface/40 backdrop-blur-md p-8 rounded-[32px] border border-outline-variant/30">
+                      <h4 className="font-black text-xs uppercase mb-8 text-primary flex items-center gap-3 tracking-[0.2em]">
+                        <AppIcon name="trending_up" size={20} /> Adhoc Reliefs
                       </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
                         <TextField label="Adhoc 2013" type="number" value={formData.financials.adhoc_2013}
                           onChange={(e) => updateDeep(['financials', 'adhoc_2013'], Number(e.target.value))} />
                         <TextField label="Adhoc 2015" type="number" value={formData.financials.adhoc_2015}
@@ -2267,23 +2362,23 @@ export const Employees: React.FC = () => {
                       map={formData.financials.allowances_extra || {}}
                       onChange={(newMap) => updateDeep(['financials', 'allowances_extra'], newMap)}
                     />
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* DEDUCTIONS TAB */}
                 {activeTab === 'deductions' && (
-                  <div className="space-y-6 animate-in fade-in">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Card variant="filled" className="bg-error-container/30 text-center py-4 rounded-xl">
-                        <div className="text-xs uppercase font-bold text-error/80">Total Deductions</div>
-                        <div className="text-2xl font-bold text-error">{formatCurrency(totalDeduction)}</div>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
+                    <div className="grid grid-cols-2 gap-8">
+                      <Card variant="filled" className="bg-error/10 text-center py-6 rounded-[32px] border border-error/20">
+                        <div className="text-[10px] uppercase font-black text-error/60 tracking-widest">Total Deductions</div>
+                        <div className="text-3xl font-black text-error font-mono">{formatCurrency(totalDeduction)}</div>
                       </Card>
-                      <Card variant="filled" className="bg-primary-container/30 text-center py-4 rounded-xl">
-                        <div className="text-xs uppercase font-bold text-primary/80">Net Pay</div>
-                        <div className="text-2xl font-bold text-primary">{formatCurrency(netPay)}</div>
+                      <Card variant="filled" className="bg-primary/10 text-center py-6 rounded-[32px] border border-primary/20">
+                        <div className="text-[10px] uppercase font-black text-primary/60 tracking-widest">Net Payable</div>
+                        <div className="text-3xl font-black text-primary font-mono">{formatCurrency(netPay)}</div>
                       </Card>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
                       <TextField label="GP Fund Sub" type="number" value={formData.financials.gpf}
                         onChange={(e) => updateDeep(['financials', 'gpf'], Number(e.target.value))} />
                       <TextField label="Benevolent Fund" type="number" value={formData.financials.bf}
@@ -2302,31 +2397,31 @@ export const Employees: React.FC = () => {
                       map={formData.financials.deductions_extra || {}}
                       onChange={(newMap) => updateDeep(['financials', 'deductions_extra'], newMap)}
                     />
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* LOANS TAB */}
                 {activeTab === 'loans' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <TextField label="GPF Advance Recovery" type="number" value={formData.financials.gpf_loan_instal}
                       onChange={(e) => updateDeep(['financials', 'gpf_loan_instal'], Number(e.target.value))} />
                     <TextField label="HBA Loan Installment" type="number" value={formData.financials.hba_loan_instal}
                       onChange={(e) => updateDeep(['financials', 'hba_loan_instal'], Number(e.target.value))} />
                     <TextField label="Other Recovery" type="number" value={formData.financials.recovery}
                       onChange={(e) => updateDeep(['financials', 'recovery'], Number(e.target.value))} />
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* PENSION TAB */}
                 {activeTab === 'pension' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <TextField label="LWP Days (Leave Without Pay)" type="number" value={formData.service_history.lwp_days}
                       onChange={(e) => updateDeep(['service_history', 'lwp_days'], Number(e.target.value))} />
 
                     <TextField label="Leaves Taken (For Account)" type="number" value={formData.service_history.leave_taken_days}
                       onChange={(e) => updateDeep(['service_history', 'leave_taken_days'], Number(e.target.value))} />
 
-                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-surface-variant/30 rounded-xl">
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-8 p-8 bg-primary/5 rounded-[32px] border border-primary/10">
                       <TextField label="LPR Days (Encashment)" type="number" value={formData.service_history.lpr_days ?? 365}
                         onChange={(e) => updateDeep(['service_history', 'lpr_days'], Number(e.target.value))} />
 
@@ -2336,18 +2431,18 @@ export const Employees: React.FC = () => {
                         placeholder="35" />
 
                       <div className="flex flex-col justify-end pb-2">
-                        <span className="text-xs text-on-surface-variant uppercase mb-1">Encashment Amount (Est.)</span>
-                        <span className="text-xl font-bold font-mono text-primary">{formatCurrency(lprAmount)}</span>
-                        <span className="text-[10px] text-on-surface-variant">(Basic Pay / 30) × Days</span>
+                        <span className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest mb-1">Encashment Amount (Est.)</span>
+                        <span className="text-2xl font-black font-mono text-primary tracking-tighter">{formatCurrency(lprAmount)}</span>
+                        <span className="text-[10px] text-on-surface-variant/40 mt-1">(Basic Pay / 30) × Days</span>
                       </div>
                     </div>
 
-                    <div className="md:col-span-2 mt-2">
+                    <div className="md:col-span-2 mt-4">
                       {!isDeceased && (
-                        <div className="p-4 border border-outline-variant rounded-xl bg-surface-container-low">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-bold text-sm uppercase text-primary flex items-center gap-2">
-                              <AppIcon name="calculate" /> Pension Estimates
+                        <div className="p-8 border border-outline-variant/30 rounded-[40px] bg-surface/40 backdrop-blur-md shadow-xl">
+                          <div className="flex justify-between items-center mb-8">
+                            <h4 className="font-black text-xs uppercase text-primary flex items-center gap-3 tracking-[0.2em]">
+                              <AppIcon name="calculate" /> Pension Metrics
                             </h4>
                             <Badge
                               label={isEmployeeActive ? 'Calculated Till Date (Active)' : 'Calculated at Retirement'}
@@ -2355,52 +2450,52 @@ export const Employees: React.FC = () => {
                             />
                           </div>
 
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
                             <div className="col-span-2 md:col-span-1">
-                              <div className="text-xs text-on-surface-variant uppercase">Qualifying Service</div>
-                              <div className="font-bold text-lg">
+                              <div className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest">Qualifying Service</div>
+                              <div className="font-black text-xl mt-1">
                                 {qService} Years{' '}
-                                <span className="text-xs font-normal text-on-surface-variant">(Max 30)</span>
+                                <span className="text-xs font-bold text-on-surface-variant/40">(Max 30)</span>
                               </div>
                             </div>
                             <div>
-                              <div className="text-xs text-on-surface-variant uppercase">Gross Pension</div>
-                              <div className="font-bold text-lg">{formatCurrency(grossPensionCalc)}</div>
+                              <div className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest">Gross Pension</div>
+                              <div className="font-black text-xl mt-1 font-mono">{formatCurrency(grossPensionCalc)}</div>
                             </div>
                             <div>
-                              <div className="text-xs text-on-surface-variant uppercase text-green-600">
+                              <div className="text-[10px] font-black text-green-600/60 uppercase tracking-widest">
                                 Net Pension ({100 - (((formData.extras as any)?.commutation_portion ?? 35) as number)}%)
                               </div>
-                              <div className="font-bold text-lg text-green-600">{formatCurrency(netPensionCalc)}</div>
+                              <div className="font-black text-xl mt-1 text-green-600 font-mono">{formatCurrency(netPensionCalc)}</div>
                             </div>
 
-                            <div className="col-span-2 md:col-span-3 p-3 bg-primary-container/20 border border-primary/30 rounded-lg flex flex-col md:flex-row justify-between items-center gap-2">
+                            <div className="col-span-2 md:col-span-3 p-6 bg-primary/10 border border-primary/20 rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg shadow-primary/5">
                               <div>
-                                <div className="text-xs font-bold text-primary uppercase">Monthly Payable Pension</div>
-                                <div className="text-[10px] text-on-surface-variant">(Net + Adhoc Reliefs + Medical Allowances)</div>
+                                <div className="text-xs font-black text-primary uppercase tracking-[0.2em]">Monthly Payable Pension</div>
+                                <div className="text-[10px] font-bold text-on-surface-variant/40 uppercase mt-1 tracking-widest">(Net + Adhoc Reliefs + Medical)</div>
                               </div>
-                              <div className="text-2xl font-bold font-mono text-primary">{formatCurrency(monthlyPayablePension)}</div>
+                              <div className="text-3xl font-black font-mono text-primary tracking-tighter">{formatCurrency(monthlyPayablePension)}</div>
                             </div>
 
-                            <div className="col-span-2 md:col-span-3 mt-2 p-3 bg-secondary-container/20 rounded-lg flex justify-between items-center border border-secondary-container">
+                            <div className="col-span-2 md:col-span-3 mt-2 p-6 bg-secondary/10 rounded-[32px] flex justify-between items-center border border-secondary/20 shadow-lg shadow-secondary/5">
                               <div>
-                                <div className="text-xs font-bold text-secondary uppercase">
+                                <div className="text-xs font-black text-secondary uppercase tracking-[0.2em]">
                                   Commutation ({(formData.extras as any)?.commutation_portion ?? 35}%)
                                 </div>
-                                <div className="text-xs opacity-70">
+                                <div className="text-[10px] font-bold text-on-surface-variant/40 uppercase mt-1 tracking-widest">
                                   Gross × {commutationPortion.toFixed(2)} × 12 × {ageFactor}
                                 </div>
                               </div>
-                              <div className="text-xl font-bold font-mono text-secondary">{formatCurrency(commLumpSumCalc)}</div>
+                              <div className="text-2xl font-black font-mono text-secondary tracking-tighter">{formatCurrency(commLumpSumCalc)}</div>
                             </div>
                           </div>
                         </div>
                       )}
 
                       {isDeceased && familyPensionCalc && (
-                        <div className="p-4 border border-error/30 rounded-xl bg-error-container/5">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-bold text-sm uppercase text-error flex items-center gap-2">
+                        <div className="p-8 border border-error/30 rounded-[40px] bg-error/5 backdrop-blur-md shadow-xl">
+                          <div className="flex justify-between items-center mb-8">
+                            <h4 className="font-black text-xs uppercase text-error flex items-center gap-3 tracking-[0.2em]">
                               <AppIcon name="calculate" /> Family Pension Estimates
                             </h4>
                             <Badge
@@ -2409,33 +2504,33 @@ export const Employees: React.FC = () => {
                             />
                           </div>
 
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
                             <div className="col-span-2 md:col-span-1">
-                              <div className="text-xs text-on-surface-variant uppercase">Last Drawn Pay</div>
-                              <div className="font-bold text-lg">{formatCurrency(familyPensionCalc.lastPay)}</div>
+                              <div className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest">Last Drawn Pay</div>
+                              <div className="font-black text-xl mt-1 font-mono">{formatCurrency(familyPensionCalc.lastPay)}</div>
                             </div>
                             <div>
-                              <div className="text-xs text-on-surface-variant uppercase">Gross Pension</div>
-                              <div className="font-bold text-lg">{formatCurrency(familyPensionCalc.grossPension)}</div>
-                              <div className="text-[10px] text-on-surface-variant">
-                                {isDeathInService ? '(Last Pay × Service × 7) / 300' : '50% of Last Pay'}
+                              <div className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest">Gross Pension</div>
+                              <div className="font-black text-xl mt-1 font-mono">{formatCurrency(familyPensionCalc.grossPension)}</div>
+                              <div className="text-[10px] font-bold text-on-surface-variant/40 uppercase mt-1 tracking-widest">
+                                {isDeathInService ? '(L.Pay × Serv × 7) / 300' : '50% of L.Pay'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-xs text-on-surface-variant uppercase">Commuted ({familyPensionCalc.commutedPortion}%)</div>
-                              <div className="font-bold text-lg text-error">{formatCurrency(familyPensionCalc.surrenderedPortion)}</div>
+                              <div className="text-[10px] font-black text-error/60 uppercase tracking-widest">Commuted ({familyPensionCalc.commutedPortion}%)</div>
+                              <div className="font-black text-xl mt-1 text-error font-mono">{formatCurrency(familyPensionCalc.surrenderedPortion)}</div>
                             </div>
                             <div>
-                              <div className="text-xs text-on-surface-variant uppercase text-green-600">Net Pension</div>
-                              <div className="font-bold text-lg text-green-600">{formatCurrency(familyPensionCalc.netPension)}</div>
+                              <div className="text-[10px] font-black text-green-600/60 uppercase tracking-widest">Net Pension</div>
+                              <div className="font-black text-xl mt-1 text-green-600 font-mono">{formatCurrency(familyPensionCalc.netPension)}</div>
                             </div>
-                            <div className="col-span-2 md:col-span-3 p-3 bg-error-container/20 border border-error/30 rounded-lg">
+                            <div className="col-span-2 md:col-span-3 p-6 bg-error/10 border border-error/20 rounded-[32px] shadow-lg shadow-error/5">
                               <div className="flex justify-between w-full items-center">
                                 <div>
-                                  <div className="text-xs font-bold text-error uppercase">Monthly Family Pension</div>
-                                  <div className="text-[10px] text-on-surface-variant">(Net + Adhoc Reliefs + Medical)</div>
+                                  <div className="text-xs font-black text-error uppercase tracking-[0.2em]">Monthly Family Pension</div>
+                                  <div className="text-[10px] font-bold text-on-surface-variant/40 uppercase mt-1 tracking-widest">(Net + Adhoc Reliefs + Medical)</div>
                                 </div>
-                                <div className="text-2xl font-bold font-mono text-error">{formatCurrency(familyPensionCalc.netFamilyPension)}</div>
+                                <div className="text-3xl font-black font-mono text-error tracking-tighter">{formatCurrency(familyPensionCalc.netFamilyPension)}</div>
                               </div>
                             </div>
                           </div>
@@ -2443,27 +2538,27 @@ export const Employees: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="md:col-span-2 border-t border-outline-variant pt-4 mt-2">
-                      <h4 className="font-bold text-sm mb-2">Pension Order Info</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 border-t border-outline-variant pt-8 mt-4">
+                      <h4 className="font-black text-xs uppercase mb-6 tracking-[0.2em] text-on-surface-variant/60">Pension Order Info</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <TextField label="Retirement Order No" value={formData.service_history.retirement_order_no}
                           onChange={(e) => updateDeep(['service_history', 'retirement_order_no'], e.target.value)} />
                         <TextField label="Order Date" type="date" value={formData.service_history.retirement_order_date}
                           onChange={(e) => updateDeep(['service_history', 'retirement_order_date'], e.target.value)} />
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* FAMILY TAB */}
                 {activeTab === 'family' && (
-                  <div className="animate-in fade-in">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
                     {isDeceased && (
-                      <div className="mb-6 p-4 border border-error bg-error-container/10 rounded-xl">
-                        <h4 className="font-bold text-error mb-4 flex items-center gap-2">
-                          <AppIcon name="diversity_3" /> Family Pension Beneficiary (Widow/Heir)
+                      <div className="p-8 border border-error/20 bg-error/5 rounded-[40px] backdrop-blur-md">
+                        <h4 className="font-black text-xs uppercase text-error mb-8 flex items-center gap-3 tracking-[0.2em]">
+                          <AppIcon name="diversity_3" /> Family Pension Beneficiary
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <TextField label="Beneficiary Name" value={(formData.extras as any)?.beneficiary?.name || ''}
                             onChange={(e) => updateDeep(['extras', 'beneficiary', 'name'], e.target.value)} />
                           <SelectField label="Relation" value={(formData.extras as any)?.beneficiary?.relation || ''}
@@ -2490,10 +2585,14 @@ export const Employees: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-bold">Family Members</h4>
+                    <div className="flex justify-between items-center px-4">
+                      <div>
+                        <h4 className="font-black text-xl text-on-surface tracking-tighter">Family Members</h4>
+                        <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-1">Dependency Records</p>
+                      </div>
                       <Button
                         type="button" variant="tonal" icon="add" label="Add Member"
+                        className="rounded-2xl h-12 px-6"
                         onClick={() => {
                           const newMember: OfficialFamilyMember = {
                             id: Date.now().toString(),
@@ -2507,28 +2606,33 @@ export const Employees: React.FC = () => {
                       />
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {formData.family_members.length === 0 && (
-                        <div className="text-center text-on-surface-variant p-8 border border-dashed border-outline-variant rounded-xl">
-                          No family members added yet.
+                        <div className="text-center text-on-surface-variant/40 p-12 border-2 border-dashed border-outline-variant/30 rounded-[40px] font-bold text-sm uppercase tracking-widest">
+                          No personnel dependencies recorded.
                         </div>
                       )}
 
                       {formData.family_members.map((fm, idx) => (
-                        <div key={fm.id} className="p-4 border border-outline-variant rounded-xl bg-surface relative group">
+                        <motion.div 
+                          key={fm.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="p-8 border border-outline-variant/30 rounded-[40px] bg-white/5 relative group transition-all hover:bg-white/10"
+                        >
                           <button
                             type="button"
-                            className="absolute top-2 right-2 text-error p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-error/10 rounded"
+                            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-error/40 hover:text-error hover:bg-error/10 rounded-xl transition-all"
                             onClick={() => {
                               const next = [...formData.family_members];
                               next.splice(idx, 1);
                               setFormData((prev) => ({ ...prev, family_members: next }));
                             }}
                           >
-                            <AppIcon name="delete" />
+                            <AppIcon name="delete" size={20} />
                           </button>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8">
                             <TextField label="Name" value={fm.relative_name}
                               onChange={(e) => {
                                 const next = [...formData.family_members];
@@ -2576,22 +2680,36 @@ export const Employees: React.FC = () => {
                                 setFormData((prev) => ({ ...prev, family_members: next }));
                               }} />
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
               </form>
             </div>
 
-            {/* Footer */}
-            <div className="flex-none p-4 border-t border-outline-variant bg-surface-container flex justify-end gap-2">
-              <Button variant="text" label="Cancel" onClick={() => setShowModal(false)} />
-              <Button variant="filled" label="Save Employee" onClick={handleSave} icon="save" />
+            {/* Sticky footer */}
+            <div className="flex-none p-6 border-t border-outline-variant bg-surface-container flex flex-col sm:flex-row justify-between items-center gap-4">
+               <div className="flex items-center gap-2 text-on-surface-variant/40">
+                  <AppIcon name="security" size={16} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">End-to-end encrypted records</span>
+               </div>
+               <div className="flex gap-3 w-full sm:w-auto">
+                 <Button variant="text" label="Discard Changes" onClick={() => setShowModal(false)} className="font-bold h-12 px-8 flex-1 sm:flex-none" />
+                 <Button 
+                   type="submit" 
+                   form="employee-form"
+                   variant="filled" 
+                   label={formData.id ? "Apply Changes" : "Register Personnel"} 
+                   className="h-12 px-10 rounded-2xl shadow-lg shadow-primary/20 flex-1 sm:flex-none" 
+                   icon="check_circle"
+                 />
+               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
-    </div>
+    </AnimatePresence>
+    </>
   );
 };

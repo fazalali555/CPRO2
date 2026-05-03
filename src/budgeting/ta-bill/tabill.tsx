@@ -1,5 +1,6 @@
 // tabill.tsx - Travel Allowance Bill Component
 import React, { useMemo } from 'react';
+import { OfficialLogo } from '../../components/OfficialLogo';
 
 export interface TABillRow {
   date: string;
@@ -210,8 +211,8 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
     return (
       <div className="flex flex-col items-center mb-1 w-full">
         <div className="relative w-full text-center">
-          <div className="absolute left-4 top-0 w-20 h-16">
-            <img src="/assets/KP_logo.png" alt="KPK Logo" className="w-full h-full object-contain" />
+          <div className="absolute left-4 top-0 w-20 h-16 flex justify-center">
+            <OfficialLogo className="w-full h-full" departmentType={header.station} />
           </div>
           <h1 className="font-bold underline text-[14px] leading-tight uppercase">
             {header.station || 'Government Office'}

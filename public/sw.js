@@ -3,7 +3,13 @@ const CACHE_NAME = 'clerk-pro-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './assets/logo.png',
+  './assets/ese_logo.png',
+  './assets/health.png',
+  './assets/Higher_edu.jpeg',
+  './assets/live_stock.jpeg',
+  './assets/local_gov.jpeg',
+  './assets/police.png',
+  './assets/KP_logo.png',
   './assets/project-logo.png',
   './manifest.webmanifest'
 ];

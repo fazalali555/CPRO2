@@ -2,6 +2,7 @@ import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { formatDate } from '../utils/dateUtils';
 import { parseSchoolInfo } from '../utils';
+import { OfficialLogo } from './OfficialLogo';
 
 interface NotingDraftingTemplateProps {
   office: {
@@ -52,13 +53,9 @@ export const NotingDraftingTemplate: React.FC<NotingDraftingTemplateProps> = ({
       {/* Header */}
       <div className="text-center mb-8 border-b-2 border-black pb-4">
         <div className="flex justify-center mb-2">
-          <img 
-            src="/assets/KP_logo.png" 
-            alt="KP Govt Logo" 
-            className="h-20 w-auto object-contain grayscale"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
+          <OfficialLogo 
+            className="h-20 w-auto grayscale" 
+            departmentType={office.department} 
           />
         </div>
         <h1 className="font-bold text-xl uppercase tracking-wide">{t.templates.govtKP}</h1>

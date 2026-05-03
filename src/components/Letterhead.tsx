@@ -43,6 +43,7 @@ export const Letterhead: React.FC<LetterheadProps> = ({ employeeRecord }) => {
     headerTitle,
     letterhead,
     department,
+    departmentType,
   } = coverInfo;
 
   // letterhead.line1 = office/institution name
@@ -51,11 +52,9 @@ export const Letterhead: React.FC<LetterheadProps> = ({ employeeRecord }) => {
   const departmentLine = letterhead.line2 || department || office.district_line;
   const govtLine       = letterhead.line3 || office.govt_line;
 
-  // Flatten multi-line titles into one line
-  const singleLineTitle = (letterhead.line1 || headerTitle)
-    .replace(/\n/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  // Preserve newlines if they exist (e.g., from Local Government full headers)
+  const mainTitle = (letterhead.line1 || headerTitle).trim();
+  const isMultiLine = mainTitle.includes('\n');
 
   const qrValue = `${window.location.origin}${
     window.location.hash || window.location.pathname
@@ -66,22 +65,26 @@ export const Letterhead: React.FC<LetterheadProps> = ({ employeeRecord }) => {
 
       {/* Logo — aligned start */}
       <div className="w-16 flex-shrink-0 pt-1 flex justify-start">
-        <OfficialLogo className="w-16 h-16" />
+        <OfficialLogo className="w-16 h-16" departmentType={departmentType} />
       </div>
 
       {/* Centre title block */}
       <div className="flex-grow text-center px-1 pt-2">
-        <h1 className="text-lg md:text-xl font-extrabold uppercase tracking-wide leading-tight text-black whitespace-normal">
-          {singleLineTitle}
+        <h1 className="text-lg md:text-xl font-extrabold uppercase tracking-wide leading-tight text-black whitespace-pre-line">
+          {mainTitle}
         </h1>
 
-        <h2 className="text-sm font-bold font-serif mt-1 leading-tight">
-          {departmentLine}
-        </h2>
+        {!isMultiLine && (
+          <>
+            <h2 className="text-[11px] font-bold font-serif mt-1 leading-tight">
+              {departmentLine}
+            </h2>
 
-        <h3 className="text-sm font-bold font-serif mt-1">
-          {govtLine}
-        </h3>
+            <h3 className="text-[11px] font-bold font-serif mt-1">
+              {govtLine}
+            </h3>
+          </>
+        )}
       </div>
 
       {/* Right contact + QR */}

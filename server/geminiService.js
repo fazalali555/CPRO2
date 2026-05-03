@@ -10,18 +10,20 @@ const buildPrompt = ({ recipient, tone, purpose, keyPoints, length, language, se
   const points = (keyPoints || []).map((p, i) => `${i + 1}. ${p}`).join('\n');
   const forwardList = (forwardedTo || []).map((p, i) => `${i + 1}. ${p}`).join('\n');
   return [
-    `Compose a professional ${language || 'English'} letter suitable for a government clerk.`,
+    `CRITICAL INSTRUCTION: You are writing a highly professional ${language || 'English'} document for a government clerk office.`,
+    `TONE: 100% natural, strict official government language.`,
+    `PROHIBITED: Do not use any generic AI phrasing, robotic transitions, or typical LLM fluff (e.g. "I hope this finds you well", "Furthermore", "In conclusion").`,
+    `Write directly, concisely, and exactly as a human civil servant would.`,
     letterhead ? `Letterhead:\n${letterhead}` : '',
     fromOffice ? `From Office: ${fromOffice}` : '',
     `Recipient: ${recipient}`,
-    `Tone: ${tone}`,
     `Purpose: ${purpose}`,
-    `Key Points:\n${points}`,
+    `Key Points / Input Text:\n${points}`,
     referenceNo ? `Reference: ${referenceNo}` : '',
     constraints.length ? `Constraints: ${constraints.join('; ')}` : '',
     forwardList ? `Forwarded To:\n${forwardList}` : '',
     `Include a standard formal closing and sender block: ${senderName || 'Clerk'}, ${senderTitle || 'Education Office'}.`,
-    `Output plain text, formatted with paragraphs and proper salutations.`
+    `Output only the pure plain text document, formatted with paragraphs and proper salutations.`
   ].filter(Boolean).join('\n');
 };
 
@@ -74,6 +76,7 @@ export const composeWithGemini = async (payload, attempt = 1) => {
 
     return { text, tokens, ms: Date.now() - startedAt };
   } catch (err) {
+    console.error('Exact Gemini Fetch Error:', err);
     if (attempt < 3 && (err.code === 'NETWORK_ERROR' || err.code === 'QUOTA_EXCEEDED')) {
       await delay(500 * attempt);
       return composeWithGemini(payload, attempt + 1);

@@ -21,8 +21,29 @@ import { RegularPensionPacketPrint } from '../pages/print/RegularPensionPacketPr
 import { NonDrawalPrint } from '../pages/print/NonDrawalPrint';
 import { LPRPayFormPrint } from '../pages/print/LPRPayFormPrint';
 import { OfficialApplicationsPrint } from '../pages/print/OfficialApplicationsPrint';
+import { RetirementSuitePortraitPrint } from '../pages/print/RetirementSuitePortraitPrint';
+import { RetirementSuiteLandscapePrint } from '../pages/print/RetirementSuiteLandscapePrint';
+import { RetirementSuiteAffidavitsPrint } from '../pages/print/RetirementSuiteAffidavitsPrint';
+import { LetterPrint } from '../features/clerk-desk/components/letters/LetterPrint';
 
 export const PrintWrapper = () => <Print />;
+
+export const LetterPrintWrapper = () => <LetterPrint />;
+
+export const RetirementSuitePortraitPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <RetirementSuitePortraitPrint employees={employees} cases={cases} />;
+};
+
+export const RetirementSuiteLandscapePrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <RetirementSuiteLandscapePrint employees={employees} cases={cases} />;
+};
+
+export const RetirementSuiteAffidavitsPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <RetirementSuiteAffidavitsPrint employees={employees} cases={cases} />;
+};
 
 export const UniversalChecklistPrintWrapper = ({ type }: { type: any }) => {
   const { employees, cases } = useEmployeeContext();

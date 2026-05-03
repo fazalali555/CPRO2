@@ -1019,7 +1019,7 @@ export const INSTITUTION_CONFIG: KeywordConfig[] = [
     priority: 90,
   },
   {
-    keywords: ['DIRECTOR EDUCATION', 'DIRECTORATE EDUCATION', 'DIRECTOR ESE', 'DIRECTOR ELEM'],
+    keywords: ['DIRECTOR EDUCATION', 'DIRECTORATE EDUCATION', 'DIRECTOR ESE', 'DIRECTOR ELEM', 'ESE DEPARTMENT'],
     designation: 'Director Education',
     department: 'DEPARTMENT OF ELEMENTARY & SECONDARY EDUCATION',
     departmentShort: 'Elementary & Secondary Education Department',
@@ -1028,7 +1028,7 @@ export const INSTITUTION_CONFIG: KeywordConfig[] = [
     priority: 91,
   },
   {
-    keywords: ['DEPUTY DIRECTOR EDUCATION', 'DD EDUCATION', 'DDE'],
+    keywords: ['DEPUTY DIRECTOR EDUCATION', 'DEPUTY DIRECTOR', 'DD EDUCATION', 'DDE', 'DEPUTY DIRECTOR E&SE'],
     designation: 'Deputy Director Education',
     department: 'DEPARTMENT OF ELEMENTARY & SECONDARY EDUCATION',
     departmentShort: 'Elementary & Secondary Education Department',
@@ -1038,7 +1038,7 @@ export const INSTITUTION_CONFIG: KeywordConfig[] = [
     addDistrictSuffix: true,
   },
   {
-    keywords: ['DISTRICT EDUCATION OFFICER', 'DEO'],
+    keywords: ['DISTRICT EDUCATION OFFICER', 'DEO', 'DEO E&SE'],
     designation: 'District Education Officer',
     designationFemale: 'District Education Officer',
     department: 'DEPARTMENT OF ELEMENTARY & SECONDARY EDUCATION',
@@ -1051,7 +1051,7 @@ export const INSTITUTION_CONFIG: KeywordConfig[] = [
     includeGenderSuffix: true,
   },
   {
-    keywords: ['SUB DIVISIONAL EDUCATION OFFICER', 'SDEO'],
+    keywords: ['SUB DIVISIONAL EDUCATION OFFICER', 'SUB-DIVISIONAL EDUCATION OFFICER', 'SDEO', 'ASDEO', 'SDEO E&SE'],
     designation: 'Sub Divisional Education Officer',
     designationFemale: 'Sub Divisional Education Officer',
     department: 'DEPARTMENT OF ELEMENTARY & SECONDARY EDUCATION',
@@ -1068,7 +1068,9 @@ export const INSTITUTION_CONFIG: KeywordConfig[] = [
   // HIGHER EDUCATION (95–96)
   // ==========================================================================
   {
-    keywords: ['GOVERNMENT COLLEGE', 'DEGREE COLLEGE', 'POSTGRADUATE COLLEGE', 'PG COLLEGE', 'WOMEN COLLEGE'],
+    keywords: [
+      'GOVERNMENT COLLEGE', 'DEGREE COLLEGE', 'POSTGRADUATE COLLEGE', 'PG COLLEGE', 'WOMEN COLLEGE'
+    ],
     designation: 'Principal',
     designationFemale: 'Principal',
     department: 'HIGHER EDUCATION ARCHIVES & LIBRARIES DEPARTMENT',
@@ -1611,6 +1613,46 @@ export const INSTITUTION_CONFIG: KeywordConfig[] = [
     organizationType: 'general_office',
     priority: 194,
   },
+
+  // ==========================================================================
+  // CATCH-ALL DEPARTMENT KEYWORDS (195–199)
+  // ==========================================================================
+  {
+    keywords: ['E&SE', 'ELEMENTARY & SECONDARY EDUCATION', 'ESE DEPARTMENT'],
+    designation: 'Director Education',
+    department: 'DEPARTMENT OF ELEMENTARY & SECONDARY EDUCATION',
+    departmentShort: 'Elementary & Secondary Education Department',
+    departmentType: 'education',
+    organizationType: 'education_office',
+    priority: 195,
+  },
+  {
+    keywords: ['HIGHER EDUCATION', 'HED', 'H.E.D'],
+    designation: 'Director Higher Education',
+    department: 'HIGHER EDUCATION ARCHIVES & LIBRARIES DEPARTMENT',
+    departmentShort: 'Higher Education Department',
+    departmentType: 'higher_education',
+    organizationType: 'education_office',
+    priority: 196,
+  },
+  {
+    keywords: ['HEALTH DEPARTMENT', 'DEPARTMENT OF HEALTH'],
+    designation: 'Director General Health Services',
+    department: 'HEALTH DEPARTMENT',
+    departmentShort: 'Health Department',
+    departmentType: 'health',
+    organizationType: 'directorate',
+    priority: 197,
+  },
+  {
+    keywords: ['POLICE DEPARTMENT'],
+    designation: 'Inspector General of Police',
+    department: 'POLICE DEPARTMENT',
+    departmentShort: 'Police Department',
+    departmentType: 'police',
+    organizationType: 'police_office',
+    priority: 198,
+  },
 ];
 
 // ============================================================================
@@ -1685,21 +1727,48 @@ function matchesKeyword(text: string, keyword: string, useSubstring = false): bo
 function findMatchingConfig(
   name: string,
   officeName?: string,
-  designation?: string
+  designation?: string,
+  departmentHint?: string
 ): KeywordConfig | null {
   const primary   = normalizeName(name);
   const secondary = normalizeName(officeName || '');
   const desig     = normalizeName(designation || '');
+  const hint      = normalizeName(departmentHint || '');
 
   const sorted = [...INSTITUTION_CONFIG].sort((a, b) => a.priority - b.priority);
 
+  // First pass: look for exact department matches if hint is provided
+  if (hint) {
+    for (const config of sorted) {
+      if (
+        normalizeName(config.department).includes(hint) ||
+        normalizeName(config.departmentShort).includes(hint) ||
+        normalizeName(config.departmentType).includes(hint)
+      ) {
+        const useSubstring = config.substringMatch === true;
+        for (const keyword of config.keywords) {
+          if (matchesKeyword(primary, keyword, useSubstring)) return config;
+          if (matchesKeyword(secondary, keyword, useSubstring)) return config;
+        }
+      }
+    }
+  }
+
+  // Second pass: check primary name against all configs (highest priority first)
   for (const config of sorted) {
     const useSubstring = config.substringMatch === true;
     for (const keyword of config.keywords) {
-      if (
-        matchesKeyword(primary, keyword, useSubstring) ||
-        matchesKeyword(secondary, keyword, useSubstring)
-      ) {
+      if (matchesKeyword(primary, keyword, useSubstring)) {
+        return config;
+      }
+    }
+  }
+
+  // Third pass: check secondary (office) name against all configs
+  for (const config of sorted) {
+    const useSubstring = config.substringMatch === true;
+    for (const keyword of config.keywords) {
+      if (matchesKeyword(secondary, keyword, useSubstring)) {
         return config;
       }
     }
@@ -1730,11 +1799,12 @@ export function getDepartmentInfo(
   officeName?: string,
   tehsil?: string,
   district?: string,
-  designation?: string
+  designation?: string,
+  department?: string
 ): DepartmentInfo {
   const institutionName = (schoolFullName || officeName || '').trim();
   const officeNameClean = (officeName || '').trim();
-  const config          = findMatchingConfig(institutionName, officeName, designation);
+  const config          = findMatchingConfig(institutionName, officeName, designation, department);
   const districtClean   = (district || '').trim();
   const tehsilClean     = (tehsil || '').trim();
 
@@ -1767,17 +1837,44 @@ export function getDepartmentInfo(
     : baseDesig;
 
   // ------------------------------------------------------------------
-  // Location suffix
+  // Extract location from institutionName if no tehsil/district provided
+  // e.g. "SDEO (F) ALLAI" → extra = "ALLAI"
+  // ------------------------------------------------------------------
+  let extractedLocation = '';
+  if (!districtClean && !tehsilClean && institutionName && config) {
+    let rem = institutionName.toUpperCase().replace(/\s*\([^)]*\)\s*/g, ' '); // strip all (...)
+    for (const kw of config.keywords) {
+      rem = rem.replace(new RegExp(`\\b${escapeRegExp(kw.toUpperCase())}\\b`, 'g'), ' ');
+    }
+    const noise = ['MALE', 'FEMALE', 'BOYS', 'GIRLS', 'OFFICE', 'SUB', 'DIVISIONAL', 'EDUCATION', 'DISTRICT'];
+    for (const n of noise) {
+      rem = rem.replace(new RegExp(`\\b${escapeRegExp(n)}\\b`, 'g'), ' ');
+    }
+    const extra = rem.replace(/\s+/g, ' ').trim();
+    if (extra && extra.length > 1 && /[A-Z]/.test(extra)) {
+      extractedLocation = extra; // e.g. "ALLAI"
+    }
+  }
+
+  const locationLabel = extractedLocation
+    ? extractedLocation.charAt(0) + extractedLocation.slice(1).toLowerCase()
+    : '';
+
+  // ------------------------------------------------------------------
+  // Build final/header designation
   // ------------------------------------------------------------------
   let finalDesignation: string;
   let headerDesignation: string;
 
   if (config?.addDistrictSuffix && districtClean) {
-    finalDesignation  = `${desigWithGender} District ${districtClean}`;
-    headerDesignation = finalDesignation.toUpperCase();
+    finalDesignation  = `${desigWithGender} ${districtClean}`;
+    headerDesignation = `${desigWithGender.toUpperCase()} ${districtClean.toUpperCase()}`;
   } else if (config?.addTehsilSuffix && tehsilClean) {
     finalDesignation  = `${desigWithGender} ${tehsilClean}`;
-    headerDesignation = finalDesignation.toUpperCase();
+    headerDesignation = `${desigWithGender.toUpperCase()} ${tehsilClean.toUpperCase()}`;
+  } else if (locationLabel) {
+    finalDesignation  = `${desigWithGender} ${locationLabel}`;
+    headerDesignation = `${desigWithGender.toUpperCase()} ${locationLabel.toUpperCase()}`;
   } else {
     finalDesignation  = desigWithGender;
     headerDesignation = desigWithGender.toUpperCase();
@@ -1836,9 +1933,47 @@ export function getDepartmentInfo(
     config?.organizationType === 'hospital'                ||
     config?.organizationType === 'dispensary';
 
-  const signatureTitle = appendInstToSig && institutionName
-    ? `${finalDesignation}\n${institutionName}`
-    : finalDesignation;
+  // For education offices (SDEO/DEO): build "Title (Gender)\nLocation, District"
+  // so signature reads neatly as two lines
+  let signatureTitle: string;
+  if (appendInstToSig && institutionName) {
+    // Format the institution name for signature (expand abbreviations to full form)
+    const expandSchoolName = (name: string): string => {
+      let n = name.trim();
+      // Expand common govt school abbreviations and add a newline for the location
+      n = n.replace(/^GGHS\b/i, 'Govt. Girls High School\n');
+      n = n.replace(/^GHS\b/i, 'Govt. High School\n');
+      n = n.replace(/^GGHSS\b/i, 'Govt. Girls Higher Secondary School\n');
+      n = n.replace(/^GHSS\b/i, 'Govt. Higher Secondary School\n');
+      n = n.replace(/^GGMS\b/i, 'Govt. Girls Middle School\n');
+      n = n.replace(/^GMS\b/i, 'Govt. Middle School\n');
+      n = n.replace(/^GGPS\b/i, 'Govt. Girls Primary School\n');
+      n = n.replace(/^GPS\b/i, 'Govt. Primary School\n');
+      
+      // Title-case the rest (which is usually the location part)
+      return n.split(' ').map(w =>
+        w.length > 1 ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w.toUpperCase()
+      ).join(' ');
+    };
+    const formattedSchoolName = expandSchoolName(institutionName);
+    signatureTitle = `${desigWithGender}\n${formattedSchoolName}`;
+  } else if (
+    config?.organizationType === 'education_office' &&
+    (locationLabel || districtClean || tehsilClean)
+  ) {
+    // Base title without location
+    const baseTitle = `${desigWithGender}`;
+    const locPart = locationLabel
+      ? districtClean
+        ? `${locationLabel}, District ${districtClean}`
+        : locationLabel
+      : districtClean
+        ? `District ${districtClean}`
+        : tehsilClean;
+    signatureTitle = locPart ? `${baseTitle}\n${locPart}` : finalDesignation;
+  } else {
+    signatureTitle = finalDesignation;
+  }
 
   // ------------------------------------------------------------------
   // Authority title (forwarding address / higher authority)
@@ -1871,15 +2006,16 @@ export function getDepartmentInfo(
     line2 ? `${line1}\n${line2}` : line1;
 
   // -------------------------
-  // EDUCATION CHAIN
+  // EDUCATION CHAIN (E&SE)
   // -------------------------
 
-  // All schools should forward upward
+  // All schools should forward upward to DEO
   if (
-    config?.organizationType === 'primary_school' ||
-    config?.organizationType === 'middle_school' ||
-    config?.organizationType === 'high_school' ||
-    config?.organizationType === 'higher_secondary_school'
+    config?.departmentType === 'education' &&
+    (config?.organizationType === 'primary_school' ||
+     config?.organizationType === 'middle_school' ||
+     config?.organizationType === 'high_school' ||
+     config?.organizationType === 'higher_secondary_school')
   ) {
     authorityTitle = twoLine(
       `The District Education Officer ${genderSuffix}`,
@@ -1888,7 +2024,7 @@ export function getDepartmentInfo(
   }
 
   // Education offices should forward one step above themselves
-  else if (config?.organizationType === 'education_office') {
+  else if (config?.departmentType === 'education' && config?.organizationType === 'education_office') {
     if (isSDEOOffice) {
       authorityTitle = twoLine(
         `The District Education Officer ${genderSuffix}`,
@@ -1916,6 +2052,26 @@ export function getDepartmentInfo(
     } else {
       authorityTitle = 'The Secretary to Government of Khyber Pakhtunkhwa\nElementary & Secondary Education Department';
     }
+  }
+
+  // -------------------------
+  // HIGHER EDUCATION CHAIN
+  // -------------------------
+  else if (config?.departmentType === 'higher_education') {
+    if (config?.organizationType === 'college') {
+      authorityTitle = 'The Director Higher Education\nKhyber Pakhtunkhwa, Peshawar';
+    } else if (config?.organizationType === 'university') {
+      authorityTitle = 'The Secretary to Government of Khyber Pakhtunkhwa\nHigher Education Department';
+    } else {
+      authorityTitle = 'The Director Higher Education\nKhyber Pakhtunkhwa, Peshawar';
+    }
+  }
+
+  // -------------------------
+  // TECHNICAL EDUCATION CHAIN
+  // -------------------------
+  else if (config?.departmentType === 'technical_education') {
+    authorityTitle = 'The Chairman / Director General\nTechnical Education & Vocational Training Authority';
   }
 
   // -------------------------

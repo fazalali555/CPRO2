@@ -29,6 +29,7 @@ interface EmployeeContextType {
   deleteCase: (id: string) => void;
   isLoading: boolean;
   dbError: string | null;
+  canSave: boolean; // Exposed to allow UI to show warning if saving is disabled
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -39,12 +40,12 @@ const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined
 
 /**
  * Debounced write to IndexedDB.
- * Prevents excessive writes when multiple state changes happen rapidly
- * (e.g., during bulk import or auto-calculation).
+ * Prevents excessive writes when multiple state changes happen rapidly.
  */
 const useDebouncedDBWrite = <T,>(
   data: T[],
   writeFunction: (data: T[]) => Promise<void>,
+  canSave: boolean, // Protection flag
   delay: number = 500
 ) => {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,9 +53,14 @@ const useDebouncedDBWrite = <T,>(
   const lastWrittenRef = useRef<string>('');
 
   useEffect(() => {
-    // Skip the initial render — data is loaded FROM db, no need to write back
+    // Skip if initial render OR if we are in a protected state (load failed)
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      return;
+    }
+
+    if (!canSave) {
+      console.warn('[DB] Write blocked: System is in protected mode due to load failure.');
       return;
     }
 
@@ -84,7 +90,7 @@ const useDebouncedDBWrite = <T,>(
         clearTimeout(timerRef.current);
       }
     };
-  }, [data, writeFunction, delay]);
+  }, [data, writeFunction, delay, canSave]);
 };
 
 // ============================================================================
@@ -97,6 +103,7 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [cases, setCasesState] = useState<CaseRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [canSave, setCanSave] = useState(false); // Critical protection flag
 
   // ── Load data from IndexedDB on mount ────────────────────────────────
   useEffect(() => {
@@ -119,8 +126,10 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
           caseDB.getAll(),
         ]);
 
+        const isFreshInstall = dbEmployees.length === 0;
+
         // Step 3: If IndexedDB is empty, try localStorage fallback
-        if (dbEmployees.length === 0) {
+        if (isFreshInstall) {
           console.log('[Context] IndexedDB empty, checking localStorage...');
 
           const lsEmployees = localStorage.getItem('clerk_pro_rpms_employees');
@@ -162,15 +171,16 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
         const calculatedEmployees = autoCalculateRetirementDates(migratedEmployees);
         const migratedCases = migrateCasesToV1(dbCases);
 
-        // Step 5: Save migrated data back to IndexedDB
+        // Step 5: Save migrated data back to IndexedDB (only if we actually have data or it's a fresh install)
         await Promise.all([
           employeeDB.replaceAll(calculatedEmployees),
           caseDB.replaceAll(migratedCases),
         ]);
 
-        // Step 6: Set state
+        // Step 6: Set state & Enable Saving
         setEmployeesState(calculatedEmployees);
         setCasesState(migratedCases);
+        setCanSave(true); // Load succeeded, we can now safely persist changes
 
         console.log(
           `[Context] Loaded: ${calculatedEmployees.length} employees, ${migratedCases.length} cases`
@@ -179,21 +189,25 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
         const msg = e instanceof Error ? e.message : 'Unknown database error';
         console.error('[Context] Load error:', e);
         setDbError(msg);
+        setCanSave(false); // CRITICAL: Stop auto-saving to prevent overwriting valid DB data with samples
 
-        // Emergency fallback: try localStorage directly
+        // Emergency READ-ONLY fallback: try localStorage directly
         try {
           const lsEmp = localStorage.getItem('clerk_pro_rpms_employees');
           const lsCases = localStorage.getItem('clerk_pro_rpms_cases');
 
-          const empData = lsEmp ? JSON.parse(lsEmp) : INITIAL_EMPLOYEES;
-          const caseData = lsCases ? JSON.parse(lsCases) : [];
-
-          setEmployeesState(migrateToV2(empData));
-          setCasesState(migrateCasesToV1(caseData));
-
-          console.warn('[Context] Fell back to localStorage due to IndexedDB error');
+          if (lsEmp) {
+            const empData = JSON.parse(lsEmp);
+            const caseData = lsCases ? JSON.parse(lsCases) : [];
+            setEmployeesState(migrateToV2(empData));
+            setCasesState(migrateCasesToV1(caseData));
+            console.warn('[Context] Emergency Read-Only fallback to localStorage');
+          } else {
+            setEmployeesState(INITIAL_EMPLOYEES);
+            setCasesState([]);
+          }
         } catch (fallbackErr) {
-          console.error('[Context] localStorage fallback also failed:', fallbackErr);
+          console.error('[Context] Emergency fallback failed:', fallbackErr);
           setEmployeesState(INITIAL_EMPLOYEES);
           setCasesState([]);
         }
@@ -215,36 +229,37 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // ── Debounced writes to IndexedDB ────────────────────────────────────
   const writeEmployees = useCallback(async (data: EmployeeRecord[]) => {
+    if (!canSave) return;
     try {
       await employeeDB.replaceAll(data);
-      // Also keep localStorage as backup (optional — remove if too large)
       try {
         localStorage.setItem('clerk_pro_rpms_employees', JSON.stringify(data));
       } catch {
-        // localStorage full — that's fine, IndexedDB is primary now
+        // localStorage full
       }
     } catch (e) {
       console.error('[DB] Employee write failed:', e);
     }
-  }, []);
+  }, [canSave]);
 
   const writeCases = useCallback(async (data: CaseRecord[]) => {
+    if (!canSave) return;
     try {
       await caseDB.replaceAll(data);
       try {
         localStorage.setItem('clerk_pro_rpms_cases', JSON.stringify(data));
       } catch {
-        // localStorage full — fine
+        // localStorage full
       }
     } catch (e) {
       console.error('[DB] Case write failed:', e);
     }
-  }, []);
+  }, [canSave]);
 
-  useDebouncedDBWrite(employees, writeEmployees, 300);
-  useDebouncedDBWrite(cases, writeCases, 300);
+  useDebouncedDBWrite(employees, writeEmployees, canSave, 300);
+  useDebouncedDBWrite(cases, writeCases, canSave, 300);
 
-  // ── Setters (update in-memory state — DB write is debounced) ─────────
+  // ── Setters ──────────────────────────────────────────────────────────
   const setEmployees = useCallback((newEmployees: EmployeeRecord[]) => {
     setEmployeesState(newEmployees);
   }, []);
@@ -256,38 +271,49 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
   // ── Individual CRUD Operations ───────────────────────────────────────
   const addEmployee = useCallback((emp: EmployeeRecord) => {
     setEmployeesState((prev) => [...prev, emp]);
-    // Also write immediately to DB for single operations
-    employeeDB.save(emp).catch(e => console.error('[DB] Add employee failed:', e));
-  }, []);
+    if (canSave) {
+      employeeDB.save(emp).catch(e => console.error('[DB] Add employee failed:', e));
+    }
+  }, [canSave]);
 
   const updateEmployee = useCallback((updatedEmp: EmployeeRecord) => {
     setEmployeesState((prev) =>
       prev.map((e) => (e.id === updatedEmp.id ? updatedEmp : e))
     );
-    employeeDB.save(updatedEmp).catch(e => console.error('[DB] Update employee failed:', e));
-  }, []);
+    if (canSave) {
+      employeeDB.save(updatedEmp).catch(e => console.error('[DB] Update employee failed:', e));
+    }
+  }, [canSave]);
 
   const deleteEmployee = useCallback((id: string) => {
     setEmployeesState((prev) => prev.filter((e) => e.id !== id));
-    employeeDB.delete(id).catch(e => console.error('[DB] Delete employee failed:', e));
-  }, []);
+    if (canSave) {
+      employeeDB.delete(id).catch(e => console.error('[DB] Delete employee failed:', e));
+    }
+  }, [canSave]);
 
   const addCase = useCallback((c: CaseRecord) => {
     setCasesState((prev) => [...prev, c]);
-    caseDB.save(c).catch(e => console.error('[DB] Add case failed:', e));
-  }, []);
+    if (canSave) {
+      caseDB.save(c).catch(e => console.error('[DB] Add case failed:', e));
+    }
+  }, [canSave]);
 
   const updateCase = useCallback((updatedCase: CaseRecord) => {
     setCasesState((prev) =>
       prev.map((c) => (c.id === updatedCase.id ? updatedCase : c))
     );
-    caseDB.save(updatedCase).catch(e => console.error('[DB] Update case failed:', e));
-  }, []);
+    if (canSave) {
+      caseDB.save(updatedCase).catch(e => console.error('[DB] Update case failed:', e));
+    }
+  }, [canSave]);
 
   const deleteCase = useCallback((id: string) => {
     setCasesState((prev) => prev.filter((c) => c.id !== id));
-    caseDB.delete(id).catch(e => console.error('[DB] Delete case failed:', e));
-  }, []);
+    if (canSave) {
+      caseDB.delete(id).catch(e => console.error('[DB] Delete case failed:', e));
+    }
+  }, [canSave]);
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
@@ -305,6 +331,7 @@ export const EmployeeProvider: React.FC<{ children: ReactNode }> = ({ children }
         deleteCase,
         isLoading,
         dbError,
+        canSave,
       }}
     >
       {children}

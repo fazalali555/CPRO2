@@ -430,6 +430,14 @@ export const settingsDB = {
     );
   },
 
+  getAll: async (): Promise<{ key: string; value: any }[]> => {
+    return getAllFromStore<{ key: string; value: any }>(STORES.SETTINGS);
+  },
+
+  saveAll: async (settings: { key: string; value: any }[]): Promise<void> => {
+    await batchPut(STORES.SETTINGS, settings);
+  },
+
   clear: async (): Promise<void> => {
     await clearStore(STORES.SETTINGS);
   },
@@ -558,20 +566,52 @@ export const getDBSize = async (): Promise<{
 export const exportAllData = async (): Promise<{
   employees: EmployeeRecord[];
   cases: CaseRecord[];
+  settings: { key: string; value: any }[];
+  files: any[];
   exportDate: string;
   version: string;
 }> => {
-  const [employees, cases] = await Promise.all([
+  const [employees, cases, settings, files] = await Promise.all([
     employeeDB.getAll(),
     caseDB.getAll(),
+    settingsDB.getAll(),
+    getAllFromStore<any>(STORES.FILES),
   ]);
 
   return {
     employees,
     cases,
+    settings,
+    files,
     exportDate: new Date().toISOString(),
     version: '2.0',
   };
+};
+
+/**
+ * Import all data from a backup object
+ */
+export const importAllData = async (data: {
+  employees: EmployeeRecord[];
+  cases: CaseRecord[];
+  settings?: { key: string; value: any }[];
+  files?: any[];
+}): Promise<void> => {
+  // Clear all stores first
+  await Promise.all([
+    employeeDB.clear(),
+    caseDB.clear(),
+    settingsDB.clear(),
+    clearStore(STORES.FILES),
+  ]);
+
+  // Then restore
+  await Promise.all([
+    employeeDB.saveAll(data.employees || []),
+    caseDB.saveAll(data.cases || []),
+    data.settings ? settingsDB.saveAll(data.settings) : Promise.resolve(),
+    data.files ? batchPut(STORES.FILES, data.files) : Promise.resolve(),
+  ]);
 };
 
 /**

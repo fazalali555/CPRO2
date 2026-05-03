@@ -1,6 +1,6 @@
 // constants/index.ts - Application Constants
 
-import { LetterTemplate, OfficeProfile, TabConfig } from '../types';
+import { LetterTemplate, OfficeProfile, TabConfig } from '..';
 
 export const STORAGE_KEYS = {
   LETTERS: 'clerk_pro_clerk_letters',

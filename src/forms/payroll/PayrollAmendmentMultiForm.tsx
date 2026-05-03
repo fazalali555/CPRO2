@@ -1,6 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { splitToChars, formatCurrency } from '../../utils';
+import { OfficialLogo } from '../../components/OfficialLogo';
 
 interface MultiEntry {
   employee_id: string;
@@ -70,11 +71,10 @@ export const PayrollAmendmentMultiForm: React.FC<Props> = ({
       {/* HEADER SECTION */}
       <div className="flex mb-4 mt-2">
         {/* Logo Section */}
-        <div className="w-20 h-20 mr-4 flex-shrink-0">
-          <img 
-            src="/assets/KP_logo.png" 
-            alt="KP Govt Logo" 
-            className="w-full h-full object-contain"
+        <div className="w-20 h-20 mr-4 flex-shrink-0 flex justify-center">
+          <OfficialLogo 
+            className="w-full h-full" 
+            departmentType={officeName} 
           />
         </div>
 

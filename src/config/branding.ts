@@ -7,13 +7,14 @@ export const APP_TAGLINE = 'Professional Clerking System';
 
 export const DEVELOPER = {
   name: 'Fazal Ali',
-  role: 'Full Stack Developer',
+  role: 'Master in Computer Science | MOS Expert',
   image: '/assets/developer.png',
-  email: 'contact@clerkpro.com',
-  contact: '+92-3XX-XXXXXXX',
-  bio: 'Professional software developer specializing in clerking and administrative systems.',
+  email: 'fazalali555@gmail.com',
+  contact: '+92 302 5625439',
+  whatsapp: '923432900419',
+  bio: 'Certified IT Professional & Data Analyst. Master in Computer Science with extensive experience in Microsoft Office Specialist (MOS) certifications and Google IT Support.',
   location: 'Khyber Pakhtunkhwa, Pakistan',
-  website: 'https://clerkpro.com',
+  website: 'https://www.credly.com/users/fazal-ali.e42cff73',
 };
 
 export const COMPANY_NAME = 'Clerk Pro';

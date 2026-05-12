@@ -194,7 +194,6 @@ const mapToCanonicalRow = (identity: any, wages: { pay_wages: Record<string, num
     const key = def.db_short;
     row[key] = String(amt);
     if (def.db_short === 'basic_pay') {
-      row.last_basic_pay = String(amt);
       row.last_pay_with_increment = String(amt);
     }
   });
@@ -353,7 +352,7 @@ export const PayrollPdfImport: React.FC = () => {
                       <td className="p-2">{r.name}</td>
                       <td className="p-2">{r.designation}</td>
                       <td className="p-2">{r.bps}</td>
-                      <td className="p-2 text-right">{r.basic_pay || r.last_basic_pay}</td>
+                      <td className="p-2 text-right">{r.basic_pay}</td>
                       <td className="p-2 text-right">{r.hra}</td>
                       <td className="p-2 text-right">{r.ca}</td>
                       <td className="p-2 text-right">{r.ma}</td>

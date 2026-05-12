@@ -33,7 +33,7 @@ export const FamilyPensionSanctionOrder: React.FC<Props> = ({ employee }) => {
 
   const famPension = calculateFamilyPension(
     employee.employees.status,
-    employee.financials.last_basic_pay,
+    employee.financials.basic_pay,
     employee.financials.p_pay,
     qService,
     ageAtRetirement,

@@ -552,10 +552,9 @@ def extract_employee_data(page_text):
             other_total += amount
     data['other'] = other_total if other_total > 0 else ""
 
-    # Basic pay / last_basic_pay / last_pay_with_increment consistency
+    # Basic pay / last_pay_with_increment consistency
     basic = data.get('basic_pay') or pay_wages.get('0001', "")
     data['basic_pay'] = basic
-    data['last_basic_pay'] = basic
     data['last_pay_with_increment'] = basic
 
     # ===== DEDUCTIONS (mapped via DEDUCTION_MAP) =====
@@ -680,7 +679,7 @@ def main():
         'date_of_regularization', 'date_of_death',
 
         # Financials - Allowances
-        'basic_pay', 'last_basic_pay', 'last_pay_with_increment', 'p_pay', 'hra', 'ca', 'ma', 'uaa',
+        'basic_pay', 'last_pay_with_increment', 'p_pay', 'hra', 'ca', 'ma', 'uaa',
         'spl_allow', 'teaching_allow', 'spl_allow_female', 'spl_allow_disable',
         'integrated_allow', 'charge_allow', 'wa', 'dress_allow', 'other',
         'computer_allow', 'mphil_allow', 'entertainment_allow', 'science_teaching_allow', 'weather_allow', 'special_allow_non_teaching',
@@ -763,7 +762,7 @@ def main():
 
                     # Verify by summing all allowances
                     allow_fields = [
-                        'last_basic_pay', 'p_pay', 'hra', 'ca',
+                        'basic_pay', 'p_pay', 'hra', 'ca',
                         'ma', 'uaa', 'spl_allow', 'teaching_allow',
                         'spl_allow_female', 'spl_allow_disable',
                         'integrated_allow', 'charge_allow', 'wa',
@@ -807,7 +806,7 @@ def main():
                         f"{emp.get('name','?')} | "
                         f"{emp.get('designation','')} | "
                         f"BPS-{emp.get('bps','')} | "
-                        f"Basic:{emp.get('last_basic_pay','')} | "
+                        f"Basic:{emp.get('basic_pay','')} | "
                         f"CA:{emp.get('ca','')} | "
                         f"Adhoc13:{emp.get('adhoc_2013','')} | "
                         f"Gross:PDF={pdf_gross},Calc={calc_gross} "

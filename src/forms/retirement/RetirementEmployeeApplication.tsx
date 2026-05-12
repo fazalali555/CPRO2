@@ -37,18 +37,18 @@ export const RetirementEmployeeApplication: React.FC<Props> = ({ employee, caseR
   const getBody = () => {
     if (type === 'medical') {
       return (
-        <div className="text-justify text-lg space-y-6 mb-12">
+        <div className="text-justify text-lg space-y-6 mb-12 font-serif">
           <p>
             Most respectfully, it is submitted that the undersigned has been performing duties 
             as <strong>{employee.employees.designation}</strong> at <strong>{employee.employees.school_full_name}</strong> since <strong>{doa}</strong>.
           </p>
           <p>
-            Due to medical reasons and as medically advised {caseRecord.extras?.medical_ref ? `(Ref: ${caseRecord.extras.medical_ref})` : ''}, 
+            It is stated that due to medical reasons and as medically advised {caseRecord.extras?.medical_ref ? `(Ref: ${caseRecord.extras.medical_ref})` : ''}, 
             I am unable to continue my service any further.
           </p>
           <p>
-            Therefore, it is humbly requested that my retirement be sanctioned on medical grounds with effect from 
-            <strong> {dor}</strong>, and approval for pension and other admissible benefits be granted accordingly.
+            Therefore, it is humbly requested that my retirement from Government service be sanctioned on <span className="font-bold underline">medical grounds</span> with effect from 
+            <strong> {dor}</strong>, and approval for pension, gratuity, and other admissible benefits be granted as per the prevailing rules.
           </p>
           <p>I shall be extremely grateful to you for this act of kindness.</p>
         </div>
@@ -57,17 +57,17 @@ export const RetirementEmployeeApplication: React.FC<Props> = ({ employee, caseR
 
     if (type === 'premature') {
       return (
-        <div className="text-justify text-lg space-y-6 mb-12">
+        <div className="text-justify text-lg space-y-6 mb-12 font-serif">
           <p>
             Most respectfully, it is submitted that the undersigned has been performing duties 
-            as <strong>{employee.employees.designation}</strong> at <strong>{employee.employees.school_full_name}</strong> since <strong>{doa}</strong>.
+            as <strong>{employee.employees.designation}</strong> since <strong>{doa}</strong>.
           </p>
           <p>
-            Due to unavoidable personal circumstances, I am unable to continue my service any further.
+            It is stated that I have completed more than 25 years of qualifying service for pension. Due to unavoidable personal circumstances, I have been permitted to retire from Government service on a <span className="font-bold underline">voluntary/premature basis</span>.
           </p>
           <p>
             Therefore, I humbly request that you kindly sanction my premature retirement effective from 
-            <strong> {dor}</strong>, and approve the release of my pension benefits as per rules.
+            <strong> {dor}</strong>, and approve the release of my pensionary benefits as per the Khyber Pakhtunkhwa Civil Servants Pension Rules.
           </p>
           <p>I shall be extremely grateful to you for this act of kindness.</p>
         </div>
@@ -76,13 +76,13 @@ export const RetirementEmployeeApplication: React.FC<Props> = ({ employee, caseR
 
     // Default: Superannuation
     return (
-      <div className="text-justify text-lg space-y-6 mb-12">
+      <div className="text-justify text-lg space-y-6 mb-12 font-serif">
         <p>
           Most respectfully, it is submitted that the undersigned has been performing duties 
           as <strong>{employee.employees.designation}</strong> since <strong>{doa}</strong>.
         </p>
         <p>
-          It is stated that I will attain the age of superannuation (60 years) on <strong>{dor}</strong>.
+          It is stated that I will attain the age of <span className="font-bold underline">superannuation (60 years)</span> on <strong>{dor}</strong> and am due to retire from Government service on the said date.
         </p>
         <p>
           Therefore, it is humbly requested that my retirement be sanctioned with effect from 

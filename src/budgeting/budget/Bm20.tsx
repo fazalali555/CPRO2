@@ -74,7 +74,7 @@ export const Bm20: React.FC<Bm20Props> = ({ officeName, fiscalYearLabel, previou
       const desNorm = normalizeDesignation(rawDesignation, bps);
       const key = desNorm;
       const f: any = e.financials || {};
-      const basicMonthly = Number(f.last_pay_with_increment) || Number(f.last_basic_pay) || 0;
+      const basicMonthly = Number(f.last_pay_with_increment) || Number(f.basic_pay) || 0;
       const personalMonthly = Number(f.p_pay) || 0;
       const basicYear = Math.round(basicMonthly * 12);
       const personalYear = Math.round(personalMonthly * 12);
@@ -122,7 +122,7 @@ export const Bm20: React.FC<Bm20Props> = ({ officeName, fiscalYearLabel, previou
       const f: any = e.financials || {};
       const bps = Number(e.employees.bps) || 0;
       const isGazetted = bps >= 16;
-      const basicMonthly = Number(f.last_pay_with_increment) || Number(f.last_basic_pay) || 0;
+      const basicMonthly = Number(f.last_pay_with_increment) || Number(f.basic_pay) || 0;
       const personalMonthly = Number(f.p_pay) || 0;
       if (isGazetted) {
         monthlySumByCode['A01101'] = (monthlySumByCode['A01101'] || 0) + basicMonthly;

@@ -1708,6 +1708,27 @@ function normalizeName(name: string): string {
   return (name || '').toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Expands common government institution abbreviations to their full form.
+ * e.g., "GHS" -> "Govt. High School"
+ */
+export function expandInstitutionAbbreviations(name: string, addNewline: boolean = false): string {
+  let n = name.trim();
+  const nl = addNewline ? '\n' : ' ';
+  
+  // Expand common govt school abbreviations
+  n = n.replace(/^GGHS\b/i, `Govt. Girls High School${nl}`);
+  n = n.replace(/^GHS\b/i, `Govt. High School${nl}`);
+  n = n.replace(/^GGHSS\b/i, `Govt. Girls Higher Secondary School${nl}`);
+  n = n.replace(/^GHSS\b/i, `Govt. Higher Secondary School${nl}`);
+  n = n.replace(/^GGMS\b/i, `Govt. Girls Middle School${nl}`);
+  n = n.replace(/^GMS\b/i, `Govt. Middle School${nl}`);
+  n = n.replace(/^GGPS\b/i, `Govt. Girls Primary School${nl}`);
+  n = n.replace(/^GPS\b/i, `Govt. Primary School${nl}`);
+  
+  return n;
+}
+
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -1900,8 +1921,9 @@ export function getDepartmentInfo(
 
   if (config?.includeInstitutionInHeader && institutionName) {
     const isSchoolType = (config.organizationType ?? '').includes('school');
+    const expandedName = expandInstitutionAbbreviations(institutionName, false);
     headerLine1 = isSchoolType
-      ? `${prefix} ${baseDesig.toUpperCase()}\n${institutionName.toUpperCase()}`
+      ? `${prefix} ${baseDesig.toUpperCase()}\n${expandedName.toUpperCase()}`
       : `${prefix} ${headerDesignation}`;
   } else {
     headerLine1 = `${prefix} ${headerDesignation}`;
@@ -1938,24 +1960,13 @@ export function getDepartmentInfo(
   let signatureTitle: string;
   if (appendInstToSig && institutionName) {
     // Format the institution name for signature (expand abbreviations to full form)
-    const expandSchoolName = (name: string): string => {
-      let n = name.trim();
-      // Expand common govt school abbreviations and add a newline for the location
-      n = n.replace(/^GGHS\b/i, 'Govt. Girls High School\n');
-      n = n.replace(/^GHS\b/i, 'Govt. High School\n');
-      n = n.replace(/^GGHSS\b/i, 'Govt. Girls Higher Secondary School\n');
-      n = n.replace(/^GHSS\b/i, 'Govt. Higher Secondary School\n');
-      n = n.replace(/^GGMS\b/i, 'Govt. Girls Middle School\n');
-      n = n.replace(/^GMS\b/i, 'Govt. Middle School\n');
-      n = n.replace(/^GGPS\b/i, 'Govt. Girls Primary School\n');
-      n = n.replace(/^GPS\b/i, 'Govt. Primary School\n');
-      
-      // Title-case the rest (which is usually the location part)
-      return n.split(' ').map(w =>
-        w.length > 1 ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w.toUpperCase()
-      ).join(' ');
-    };
-    const formattedSchoolName = expandSchoolName(institutionName);
+    const expanded = expandInstitutionAbbreviations(institutionName, true);
+    
+    // Title-case the rest (which is usually the location part)
+    const formattedSchoolName = expanded.split(' ').map(w =>
+      w.length > 1 ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w.toUpperCase()
+    ).join(' ');
+    
     signatureTitle = `${desigWithGender}\n${formattedSchoolName}`;
   } else if (
     config?.organizationType === 'education_office' &&

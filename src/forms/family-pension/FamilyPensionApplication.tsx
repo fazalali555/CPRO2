@@ -23,13 +23,21 @@ export const FamilyPensionApplication: React.FC<Props> = ({ employee, caseRecord
       style={{ width: '210mm', height: '297mm', padding: '10mm', boxSizing: 'border-box', fontSize: '10.5pt', overflow: 'hidden' }}>
       
       <div className="text-center font-bold mb-4">
-        <div className="text-sm">Form 3 (PEN)</div>
-        <div className="text-lg uppercase underline leading-tight">Application for Family Pension</div>
-        <div className="text-[10px] font-normal leading-tight">(To be filled and signed by applicant himself/herself)</div>
+        <div className="flex justify-between items-start">
+          <div className="text-left text-xs font-bold w-32">
+            Form 3 (PEN)<br/>
+            PPO No. _________
+          </div>
+          <div className="flex-grow">
+            <div className="text-lg uppercase underline leading-tight">Application for Family Pension</div>
+            <div className="text-[10px] font-normal leading-tight">(To be filled and signed by applicant himself/herself)</div>
+          </div>
+          <div className="w-32"></div>
+        </div>
       </div>
 
       <div className="mb-4">
-        <div className="font-bold mb-2">The District Account Officer,</div>
+        <div className="font-bold mb-2">The District Accounts Officer,</div>
         <div className="font-bold">{employee.employees.district}.</div>
       </div>
 
@@ -41,7 +49,7 @@ export const FamilyPensionApplication: React.FC<Props> = ({ employee, caseRecord
           <span className="font-bold border-b border-black px-2 inline-block min-w-[100px] text-center">{formatDate(deathDate)}</span> (Death Certificate attached).
         </p>
         <p className="mt-2">
-          I therefore request that the family pension admissible under the rules may kindly be sanctioned to me.
+          I therefore request that the family pension admissible under the rules may kindly be sanctioned to me. I hereby opt for the <span className="font-bold underline">Direct Credit System (DCS)</span> for the transfer of my family pension.
         </p>
       </div>
 
@@ -87,29 +95,38 @@ export const FamilyPensionApplication: React.FC<Props> = ({ employee, caseRecord
       </div>
 
       <div className="mb-3">
-        <h3 className="font-bold underline mb-2">UNDERTAKINGS:</h3>
-        <ol className="list-decimal list-outside ml-5 space-y-1.5 text-sm text-justify leading-[1.6]">
+        <h3 className="font-bold underline mb-1.5">UNDERTAKINGS:</h3>
+        <ol className="list-decimal list-outside ml-5 space-y-1 text-xs text-justify leading-tight">
           <li>I do hereby undertake that government may within one year of Pension Payment Order, recover any of its due from the pension granted to me.</li>
           <li>I do hereby declare that I have neither applied for nor received any family pension or gratuity in respect of any portion of the service included in this application.</li>
           <li>I hereby undertake to refund if the amount of family pension granted to me afterwards found to be in excess of that to which I am entitled.</li>
-          <li>I do hereby declare that I have not received any family pension in respect of any portion of service included in this application.</li>
+          <li>I do hereby declare that I was residing with and wholly dependent upon the deceased at the time of his/her death.</li>
+          <li>I further undertake that I shall not take part in any elections or engage myself in political activities of any kind for a period of two years.</li>
         </ol>
       </div>
 
-      <div className="mt-auto flex justify-between items-end pt-6 pb-6" style={{ pageBreakInside: 'avoid' }}>
+      <div className="flex justify-between items-end pt-4 pb-4" style={{ pageBreakInside: 'avoid' }}>
         <div className="text-center">
-           <div className="w-40 h-[14mm] border border-dashed border-gray-400 flex items-center justify-center text-xs text-gray-400 mb-2">Thumb Impression</div>
+           <div className="w-32 h-16 border border-dashed border-gray-400 flex items-center justify-center text-[10px] text-gray-400 mb-1">Thumb Impression</div>
         </div>
-        <div className="text-right space-y-4">
+        <div className="text-right space-y-2 text-sm">
            <div>Signature: _______________________</div>
            <div className="flex items-end justify-end">Name: <span className="font-bold uppercase border-b border-black px-2 inline-block min-w-[150px] text-center">{ben.name}</span></div>
            <div className="flex items-end justify-end">CNIC: <span className="font-bold border-b border-black px-2 inline-block min-w-[150px] text-center">{ben.cnic}</span></div>
-           <div className="flex items-end justify-end">Date: <span className="font-bold border-b border-black px-2 inline-block min-w-[100px] text-center">{formatDate(new Date().toISOString())}</span></div>
         </div>
       </div>
 
-      <div className="border-t-2 border-black pt-2 text-center font-bold">
-        HEAD OF OFFICE / DEPARTMENT
+      <div className="grid grid-cols-2 gap-8 border-t-2 border-black pt-4">
+        <div className="text-center">
+          <div className="h-16 border-b border-dotted border-gray-400 mb-2"></div>
+          <p className="font-bold text-xs uppercase">Attested by Gazetted Officer</p>
+          <p className="text-[10px] italic">(with Name, Designation & Seal)</p>
+        </div>
+        <div className="text-center">
+          <div className="h-16 border-b border-dotted border-gray-400 mb-2"></div>
+          <p className="font-bold text-xs uppercase">Head of Office / Department</p>
+          <p className="text-[10px] italic">(Official Seal & Stamp)</p>
+        </div>
       </div>
     </div>
   );

@@ -67,7 +67,7 @@ Granted to the family of a Government servant who dies.
 
 ---
 
-## 4. Documentation Checklists (AG Office)
+## 4. Documentation Checklists (District Accounts Office / DAO)
 
 ### List A: Superannuation / Retiring / Invalid
 1.  Physical verification of pensioner & Focal Person.

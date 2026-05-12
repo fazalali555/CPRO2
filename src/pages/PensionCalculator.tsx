@@ -823,7 +823,7 @@ export const PensionCalculator: React.FC = () => {
           {/* Footer Note */}
           <div className="text-center text-xs text-on-surface-variant/70 p-4 border border-dashed border-outline-variant rounded-lg print:border-black print:p-1 print:text-[10px] print:mt-2">
             <p className="font-bold mb-1">Disclaimer</p>
-            <p>This is a computer-generated estimate based on the information provided. Actual pension may vary based on verification of service records and applicable rules at the time of retirement. Please consult the Accountant General's office for official calculations.</p>
+            <p>This is a computer-generated estimate based on the information provided. Actual pension may vary based on verification of service records and applicable rules at the time of retirement. Please consult your District Accounts Office (DAO) for official calculations.</p>
             <p className="mt-2 font-mono">Generated: {currentDate} | System: Clerk Pro by Fazal Ali Calculator v2.0</p>
           </div>
 

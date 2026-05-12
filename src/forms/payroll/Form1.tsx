@@ -284,7 +284,7 @@ export const Form1: React.FC<Props> = ({ employeeRecord }) => {
            
            {/* 35: Basic Pay */}
            <div className="absolute top-[8.2mm] left-[65mm] w-[30mm] text-right font-bold text-[12px]">
-             {financials?.last_basic_pay?.toLocaleString() || 0}
+             {financials?.basic_pay?.toLocaleString() || 0}
            </div>
            
            {/* 36: Payment Method */}

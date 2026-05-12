@@ -180,6 +180,7 @@ export const RetirementSuitePortraitPrint: React.FC<Props> = ({ employees, cases
       <BenevolentFundChecklist key="bf-chk" employee={employee} caseRecord={bfCase} />,
       <BenevolentFundApplication key="bf-cov" employee={employee} caseRecord={bfCase} />,
       <NonDrawalCertificate key="bf-ndc" employee={employee} type="Benevolent Fund" />,
+      <NonDrawalCertificate key="bf-cont" employee={employee} type="Contribution" />,
       <BenevolentFundOfficialForm key="bf-off" employee={employee} caseRecord={bfCase} />
     );
   }

@@ -17,7 +17,7 @@ export const FamilyPensionInServiceDeathData: React.FC<Props> = ({ employee, cas
   const ben = employee.extras?.beneficiary || {};
   
   // Real Calculations
-  const basicPay = financials.last_basic_pay || 0;
+  const basicPay = financials.basic_pay || 0;
   const personalPay = financials.p_pay || 0;
   const totalReckonable = basicPay + personalPay;
 

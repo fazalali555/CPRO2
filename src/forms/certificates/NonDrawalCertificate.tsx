@@ -37,7 +37,7 @@ export const NonDrawalCertificate: React.FC<Props> = ({ employee, type }) => {
               This is to certify that <span className="font-bold uppercase">Mr./Ms. {employees.name}</span> was a government servant in the Education Department, serving as <span className="font-bold uppercase">{employees.designation}</span> at <span className="font-bold uppercase">{employees.school_full_name}</span>, District {employees.district}.
             </p>
             <p className="mt-8">
-              It is further certified that he/she was a regular contributor to the Benevolent Fund (BF) with a monthly contribution of <span className="font-bold">Rs. {financials.bf > 0 ? financials.bf : '_______'}/-</span> from the date of his/her appointment to the date of his/her retirement.
+              It is further certified that the said official remained a regular contributor to the Benevolent Fund (BF) during his/her tenure of service. The monthly contribution of <span className="font-bold">Rs. {financials.bf > 0 ? financials.bf : '_______'}/-</span> was consistently deducted from his/her salary at source as per the prescribed rates until the date of his/her retirement.
             </p>
           </div>
         </>

@@ -240,7 +240,7 @@ const buildMonthlySumByCode = (employees: EmployeeRecord[], ddoCode: string): Re
     const bps = Number(e.employees.bps) || 0;
     const isGazetted = bps >= 16;
     
-    const basicMonthly = Number(f.last_pay_with_increment) || Number(f.last_basic_pay) || 0;
+    const basicMonthly = Number(f.last_pay_with_increment) || Number(f.basic_pay) || 0;
     const personalMonthly = Number(f.p_pay) || 0;
     
     if (isGazetted) {
@@ -298,7 +298,7 @@ const buildPayrollGroupMap = (employees: EmployeeRecord[], ddoCode: string): Rec
     const designation = normalizeDesignation(rawDesignation, bpsRaw);
     const bps = normalizeBpsForBudget(designation, bpsRaw);
     const key = `${designation}|${bps}`;
-    const basic = e.financials?.last_basic_pay || 0;
+    const basic = e.financials?.basic_pay || 0;
     if (!basic) return;
     result[key] = (result[key] || 0) + basic * 7;
   });

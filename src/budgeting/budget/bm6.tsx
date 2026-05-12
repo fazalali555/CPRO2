@@ -141,7 +141,7 @@ export const PayAllowancesStatement: React.FC<PayAllowancesStatementProps> = ({
 
     filteredEmployees.forEach(emp => {
       const f: any = emp.financials || {};
-      const hasBasic = Number(f.last_basic_pay) > 0 || Number(f.last_pay_with_increment) > 0;
+      const hasBasic = Number(f.basic_pay) > 0 || Number(f.last_pay_with_increment) > 0;
       const hasAnyAllowance = f.hra || f.ca || f.ma || f.integrated_allow || f.wa || f.dress_allow || 
         f.spl_allow || f.uaa || f.science_teaching_allow || f.teaching_allow || f.charge_allow || 
         f.computer_allow || f.mphil_allow || f.entertainment_allow || f.spl_allow_female || 
@@ -178,7 +178,7 @@ export const PayAllowancesStatement: React.FC<PayAllowancesStatementProps> = ({
 
       // Get scale FIRST - this contains the correct increment values
       const scale = PAY_SCALES[bpsActual];
-      const baseBasic = Number(f.last_basic_pay) || 0;
+      const baseBasic = Number(f.basic_pay) || 0;
       // ✅ FIX: Use scale.inc instead of ANNUAL_INCREMENTS
       const increment = scale?.inc || 0;
       const currentBasic = Number(f.last_pay_with_increment) || baseBasic || 0;

@@ -39,7 +39,7 @@ export const FinancialAssistanceApplication: React.FC<Props> = ({ employee, case
   const serviceText = `${service.years} Years ${service.months} Months ${service.days} Days`;
 
   const basicPay = Math.round(
-    Number(financials.basic_pay ?? (financials as any).last_basic_pay ?? 0)
+    Number(financials.basic_pay ?? 0)
   );
 
   const claimAmount =

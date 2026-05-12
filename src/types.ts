@@ -63,7 +63,7 @@ export interface EmployeeRecord {
     qualifying_service?: string;
   };
   financials: {
-    last_basic_pay: number;
+    basic_pay: number;
     last_pay_with_increment: number;
     p_pay: number;
     hra: number;
@@ -408,7 +408,7 @@ export const INITIAL_EMPLOYEES: EmployeeRecord[] = [
       qualifying_service: '14 Years'
     },
     financials: {
-      last_basic_pay: 65000,
+      basic_pay: 65000,
       last_pay_with_increment: 67000,
       p_pay: 0,
       hra: 5000,

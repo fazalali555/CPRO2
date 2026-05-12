@@ -226,6 +226,7 @@ const App: React.FC = () => {
               <Route path="/print/lpr-pay-form/:caseId" element={<LPRPayFormPrintWrapper />} />
 
               <Route path="/print/cert-nondrawal-bf/:caseId" element={<NonDrawalPrintWrapper type="Benevolent Fund" />} />
+              <Route path="/print/cert-contribution-bf/:caseId" element={<NonDrawalPrintWrapper type="Contribution" />} />
               <Route path="/print/cert-nondrawal-eef/:caseId" element={<NonDrawalPrintWrapper type="Employees Education Foundation" />} />
               <Route path="/print/cert-nondrawal-lpr/:caseId" element={<NonDrawalPrintWrapper type="LPR" />} />
               <Route path="/print/cert-nondrawal-financial-assistance/:caseId" element={<NonDrawalPrintWrapper type="Financial Assistance" />} />

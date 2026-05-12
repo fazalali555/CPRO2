@@ -27,8 +27,8 @@ export const SuccessionCertificate: React.FC<Props> = ({ employee }) => {
   if (service.months >= 6) qService += 1;
 
   const pensionCalc = calculatePension({
-    basicPay: employee.financials.last_basic_pay,
-    personalPay: employee.financials.personal_pay || 0,
+    basicPay: employee.financials.basic_pay,
+    personalPay: employee.financials.p_pay || 0,
     qualifyingServiceYears: qService,
     ageAtRetirement: 60 // Default age, adjustment might be needed based on actual age logic
   });
@@ -88,7 +88,7 @@ export const SuccessionCertificate: React.FC<Props> = ({ employee }) => {
         </p>
         
         <ul className="list-disc pl-12 font-bold space-y-1">
-           <li>Last Drawn Pay/Emoluments: Rs. {pensionCalc.grossPension ? Math.round(employee.financials.last_basic_pay).toLocaleString() : '-'}</li>
+           <li>Last Drawn Pay/Emoluments: Rs. {pensionCalc.grossPension ? Math.round(employee.financials.basic_pay).toLocaleString() : '-'}</li>
            <li>Gross Pension: Rs. {pensionCalc.grossPension ? Math.round(pensionCalc.grossPension).toLocaleString() : '-'}</li>
            <li>Net Pension: Rs. {pensionCalc.netPension ? Math.round(pensionCalc.netPension).toLocaleString() : '-'}</li>
            <li>Commutation Amount: Rs. {pensionCalc.commutationLumpSum ? Math.round(pensionCalc.commutationLumpSum).toLocaleString() : '-'}</li>

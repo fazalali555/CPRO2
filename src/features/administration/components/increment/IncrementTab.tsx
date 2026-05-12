@@ -74,7 +74,7 @@ export const IncrementTab: React.FC<IncrementTabProps> = ({ onGenerateOrders }) 
       key: 'current',
       header: t.admin.currentBasicPay,
       render: (emp) => {
-        const currentPay = emp.financials?.last_basic_pay || emp.employees.bps * 10000;
+        const currentPay = emp.financials?.basic_pay || emp.employees.bps * 10000;
         return <span className="font-mono">Rs. {currentPay.toLocaleString()}</span>;
       },
       className: 'text-center',
@@ -84,7 +84,7 @@ export const IncrementTab: React.FC<IncrementTabProps> = ({ onGenerateOrders }) 
       header: t.admin.annualIncrement,
       render: (emp) => {
         const eligible = isEligibleForIncrement(emp.service_history.date_of_appointment);
-        const currentPay = emp.financials?.last_basic_pay || emp.employees.bps * 10000;
+        const currentPay = emp.financials?.basic_pay || emp.employees.bps * 10000;
         const nextPay = calculateAnnualIncrement(emp.employees.bps, currentPay);
         const incrementAmount = nextPay - currentPay;
         return (
@@ -100,7 +100,7 @@ export const IncrementTab: React.FC<IncrementTabProps> = ({ onGenerateOrders }) 
       header: t.admin.newBasicPay,
       render: (emp) => {
         const eligible = isEligibleForIncrement(emp.service_history.date_of_appointment);
-        const currentPay = emp.financials?.last_basic_pay || emp.employees.bps * 10000;
+        const currentPay = emp.financials?.basic_pay || emp.employees.bps * 10000;
         const nextPay = calculateAnnualIncrement(emp.employees.bps, currentPay);
         return (
           <span className="font-mono font-bold text-success">

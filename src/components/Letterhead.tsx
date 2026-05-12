@@ -56,9 +56,24 @@ export const Letterhead: React.FC<LetterheadProps> = ({ employeeRecord }) => {
   const mainTitle = (letterhead.line1 || headerTitle).trim();
   const isMultiLine = mainTitle.includes('\n');
 
-  const qrValue = `${window.location.origin}${
-    window.location.hash || window.location.pathname
-  }`;
+  const qrData = {
+    name: employeeRecord.employees.name,
+    designation: employeeRecord.employees.designation,
+    school: employeeRecord.employees.school_full_name,
+    dor: employeeRecord.service_history.date_of_retirement,
+    ref: coverInfo.letterhead.full.split('\n')[0],
+  };
+
+  const whatsappText = `*CASE REPORT - RPMS*\n\n` +
+    `*Employee:* ${qrData.name}\n` +
+    `*Designation:* ${qrData.designation}\n` +
+    `*School:* ${qrData.school}\n` +
+    `*Retirement Date:* ${qrData.dor || 'N/A'}\n\n` +
+    `*Office:* ${qrData.ref}\n` +
+    `*App:* Clerk Pro RPMS\n` +
+    `*Developer:* Fazal Ali (+923432900419)`;
+
+  const qrValue = `https://wa.me/923432900419?text=${encodeURIComponent(whatsappText)}`;
 
   return (
     <div className="flex justify-between items-start mb-1 w-full">
@@ -88,13 +103,13 @@ export const Letterhead: React.FC<LetterheadProps> = ({ employeeRecord }) => {
       </div>
 
       {/* Right contact + QR */}
-      <div className="text-[10px] w-auto min-w-[150px] pt-2 font-serif leading-snug text-right">
-        <p>
+      <div className="text-[10px] w-16 flex-shrink-0 pt-1 font-serif leading-snug text-right">
+        <div className="flex justify-end">
+          <QRCode value={qrValue} size={64} />
+        </div>
+        <p className="mt-1 whitespace-nowrap">
           <span className="font-bold">Tel:</span> {office.tel}
         </p>
-        <div className="flex justify-end mt-2">
-          <QRCode value={qrValue} size={60} />
-        </div>
       </div>
 
     </div>

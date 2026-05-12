@@ -19,13 +19,16 @@ interface LetterFormState {
   fromOffice: string;
   to: string;
   toEmail: string;
+  toLabel: string;
   subject: string;
+  subjectLabel: string;
   reference: string;
   letterDate: string;
   body: string;
   tags: string;
   signatureName: string;
   signatureTitle: string;
+  salutationLabel: string;
   forwardedTo: string;
   enclosures: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
@@ -70,13 +73,16 @@ const initialFormState: LetterFormState = {
   fromOffice: '',
   to: '',
   toEmail: '',
+  toLabel: 'To',
   subject: '',
+  subjectLabel: 'Subject',
   reference: '',
   letterDate: new Date().toISOString().slice(0, 10),
   body: '',
   tags: '',
   signatureName: '',
   signatureTitle: '',
+  salutationLabel: 'Respected',
   forwardedTo: '',
   enclosures: '',
   priority: 'normal',
@@ -120,13 +126,16 @@ function letterFormReducer(state: LetterFormState, action: LetterFormAction): Le
         fromOffice: action.letter.fromOffice,
         to: action.letter.to,
         toEmail: action.letter.toEmail || '',
+        toLabel: (action.letter as any).toLabel || 'To',
         subject: action.letter.subject,
+        subjectLabel: (action.letter as any).subjectLabel || 'Subject',
         reference: action.letter.reference,
         letterDate: action.letter.letterDate,
         body: action.letter.body,
         tags: action.letter.tags.join(', '),
         signatureName: action.letter.signatureName,
         signatureTitle: action.letter.signatureTitle,
+        salutationLabel: (action.letter as any).salutationLabel || 'Respected',
         forwardedTo: action.letter.forwardedTo.join('\n'),
         enclosures: action.letter.enclosures || '',
         priority: action.letter.priority,
@@ -215,20 +224,37 @@ export function useLetterComposer() {
     };
   }, [formState.institutionName]);
 
+  // Sync department rules to form state when institutionName changes
+  // but only if not explicitly loading a letter
+  useEffect(() => {
+    if (formState.institutionName && !formState.editingId) {
+      dispatch({ 
+        type: 'SET_MULTIPLE', 
+        fields: {
+          letterheadLines: '', // Clear overrides so resolvedValues uses departmentRules
+          fromOffice: '',
+          signatureTitle: ''
+        } 
+      });
+    }
+  }, [formState.institutionName]);
+
   // Resolved values — prefer formState if user has edited or loaded a profile
   const resolvedValues = useMemo(() => {
     const info = getDepartmentInfo(formState.institutionName || 'Office');
+    
+    // Logic: If user has explicitly typed in the letterhead/signature fields, 
+    // we keep their text. If they are empty, we use the auto-detected rules.
     return {
       departmentType: info.departmentType,
-      // Use formState if present, otherwise fallback to department rules
-      lhLine1: formState.letterheadLines?.trim() || departmentRules.lhLine1,
-      lhLine2: formState.fromOffice?.trim() || departmentRules.lhLine2,
+      lhLine1: formState.letterheadLines?.trim() ? formState.letterheadLines : departmentRules.lhLine1,
+      lhLine2: formState.fromOffice?.trim() ? formState.fromOffice : departmentRules.lhLine2,
       lhLine3: departmentRules.lhLine3,
       // Legacy compat
-      letterhead: formState.letterheadLines?.trim() || departmentRules.lhLine1,
-      fromOffice: formState.fromOffice?.trim() || departmentRules.lhLine2,
+      letterhead: formState.letterheadLines?.trim() ? formState.letterheadLines : departmentRules.lhLine1,
+      fromOffice: formState.fromOffice?.trim() ? formState.fromOffice : departmentRules.lhLine2,
       // Signature: user override takes priority, else always use auto-detected
-      signatureTitle: formState.signatureTitle?.trim() || departmentRules.title,
+      signatureTitle: formState.signatureTitle?.trim() ? formState.signatureTitle : departmentRules.title,
       recipientGender: departmentRules.gender,
       // Salutation: detect (F) in recipient as Madam, otherwise default to Sir
       salutation: (() => {
@@ -243,7 +269,7 @@ export function useLetterComposer() {
         return 'Sir';
       })(),
     };
-  }, [formState, departmentRules]);
+  }, [formState.institutionName, formState.letterheadLines, formState.fromOffice, formState.signatureTitle, formState.to, formState.salutation, departmentRules]);
 
   // Format letter preview
   const formattedLetter = useMemo(() => {

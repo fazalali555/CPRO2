@@ -535,6 +535,31 @@ export const LetterComposer: React.FC = () => {
             error={validationErrors.subject}
             placeholder="e.g. Sanction of GPF Case"
           />
+
+          <div className="flex items-center gap-2 mb-2 mt-4">
+            <span className="material-symbols-outlined text-primary/70 text-[18px]">settings_suggest</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Label Customization (Optional)</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <TextField
+              label="To Label"
+              value={formState.toLabel}
+              onChange={e => setField('toLabel', e.target.value)}
+              placeholder="Default: To"
+            />
+            <TextField
+              label="Subject Label"
+              value={formState.subjectLabel}
+              onChange={e => setField('subjectLabel', e.target.value)}
+              placeholder="Default: Subject"
+            />
+            <TextField
+              label="Salutation Label"
+              value={formState.salutationLabel}
+              onChange={e => setField('salutationLabel', e.target.value)}
+              placeholder="Default: Respected"
+            />
+          </div>
         </div>
 
         {/* ── Block 3: Content ── */}
@@ -705,8 +730,6 @@ export const LetterComposer: React.FC = () => {
               >
                 {/* Letterhead */}
                 {(() => {
-                  const isOfficeOrder = (formState.subject || '').toUpperCase().includes('OFFICE ORDER');
-                  
                   let line1 = resolvedValues.lhLine1;
                   let line2 = resolvedValues.lhLine2 || officeProfile.district_line || '';
 
@@ -737,28 +760,44 @@ export const LetterComposer: React.FC = () => {
                         <div className="text-[8.5pt] w-[100px] pt-2 font-serif leading-snug text-right">
                           {officeProfile.tel && <p><strong>Tel:</strong> {officeProfile.tel}</p>}
                           <div className="flex justify-end mt-2">
-                            <QRCode value={formState.reference || 'draft'} size={45} />
+                            <QRCode value={formState.reference || 'draft'} size={64} />
                           </div>
                         </div>
                       </div>
                       <div style={{ borderTop: '4px double #000', margin: '8px 0 20px 0' }} />
 
                       {/* Ref / Date */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '11pt', marginBottom: 20 }}>
-                        <div>No. <span style={{ borderBottom: '1px solid #000', minWidth: 80, display: 'inline-block', textAlign: 'center', padding: '0 8px' }}>{formState.reference || ''}</span> /</div>
-                        <div>Dated: {(() => {
-                          const d = formState.letterDate ? new Date(formState.letterDate) : null;
-                          if (d && !isNaN(d.getTime())) {
-                            return `${d.getDate().toString().padStart(2, '0')} / ${(d.getMonth() + 1).toString().padStart(2, '0')} / ${d.getFullYear()}`;
-                          }
-                          return `___ / ___ / ${new Date().getFullYear()}`;
-                        })()}</div>
-                      </div>
+                      {(formState.reference || formState.letterDate) && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '11pt', marginBottom: 20 }}>
+                          <div>
+                            {formState.reference && (
+                              <>
+                                <span>No. </span>
+                                <span style={{ borderBottom: '1px solid #000', minWidth: 80, display: 'inline-block', textAlign: 'center', padding: '0 8px' }}>{formState.reference}</span>
+                              </>
+                            )}
+                          </div>
+                          <div>
+                            {(() => {
+                              const d = formState.letterDate ? new Date(formState.letterDate) : null;
+                              if (d && !isNaN(d.getTime())) {
+                                return (
+                                  <>
+                                    <span>Dated: </span>
+                                    {`${d.getDate().toString().padStart(2, '0')} / ${(d.getMonth() + 1).toString().padStart(2, '0')} / ${d.getFullYear()}`}
+                                  </>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        </div>
+                      )}
 
-                      {/* Recipient - Hidden for Office Orders */}
-                      {!isOfficeOrder && (
+                      {/* Recipient */}
+                      {(formState.to || '').trim().length > 0 && (
                         <div style={{ marginBottom: 20, fontSize: '11pt', display: 'flex' }}>
-                          <div style={{ fontWeight: 700, width: '45px' }}>To</div>
+                          <div style={{ fontWeight: 700, width: '45px' }}>{formState.toLabel || 'To'}</div>
                           <div style={{ fontWeight: 700, lineHeight: 1.6, flex: 1 }}>
                             {(formState.to || 'Recipient').split('\n').filter(Boolean).map((l, i) => (
                               <div key={i}>{l.trim()}</div>
@@ -768,25 +807,26 @@ export const LetterComposer: React.FC = () => {
                       )}
 
                       {/* Subject */}
-                      <div style={{ display: 'flex', justifyContent: isOfficeOrder ? 'center' : 'flex-start', marginBottom: 20, fontSize: '11pt', textAlign: 'justify' }}>
-                        {!isOfficeOrder && <span style={{ fontWeight: 700, marginRight: 10, flexShrink: 0 }}>Subject:</span>}
-                        <span style={{ 
-                          fontWeight: 700, 
-                          textTransform: 'uppercase', 
-                          textDecoration: 'underline', 
-                          textUnderlineOffset: '4px', 
-                          lineHeight: 1.45, 
-                          textAlign: isOfficeOrder ? 'center' : 'left',
-                          fontSize: isOfficeOrder ? '13pt' : '11pt'
-                        }}>
-                          {formState.subject || 'Subject'}
-                        </span>
-                      </div>
+                      {formState.subject && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 20, fontSize: '11pt', textAlign: 'justify' }}>
+                          <span style={{ fontWeight: 700, marginRight: 10, flexShrink: 0 }}>{formState.subjectLabel || 'Subject'}:</span>
+                          <span style={{ 
+                            fontWeight: 700, 
+                            textDecoration: 'underline', 
+                            textUnderlineOffset: '4px', 
+                            lineHeight: 1.45, 
+                            textAlign: 'left',
+                            fontSize: '11pt'
+                          }}>
+                            {formState.subject}
+                          </span>
+                        </div>
+                      )}
 
-                      {/* Salutation - Hidden for Office Orders */}
-                      {!isOfficeOrder && (
+                      {/* Salutation */}
+                      {(formState.to || '').trim().length > 0 && (
                         <div style={{ fontWeight: 700, fontSize: '11pt', marginBottom: 12 }}>
-                          Respected {resolvedValues.salutation || 'Sir'},
+                          {formState.salutationLabel || 'Respected'} {resolvedValues.salutation || 'Sir'},
                         </div>
                       )}
 
@@ -794,12 +834,7 @@ export const LetterComposer: React.FC = () => {
                       <div className="official-body text-black text-justify" style={{ fontSize: '11pt' }}>
                         {(() => {
                           const html = formState.body || '';
-                          const hasTable = html.includes('<table') || html.includes('</table>') || html.includes('| --- |') || html.includes('---');
                           
-                          if (hasTable) {
-                             return <div className="space-y-4" dangerouslySetInnerHTML={{ __html: html.replace(/<p>/i, `<p style="text-indent: 4em;">${openingStatement} `) }} />;
-                          }
-
                           // Split by paragraph and break tags
                           const rawParagraphs = html
                             .split(/<\/p>|<br\s*\/?>/i)
@@ -810,25 +845,15 @@ export const LetterComposer: React.FC = () => {
                             })
                             .filter(p => p.length > 1);
                           
-                          if (rawParagraphs.length === 0) return <div style={{ textIndent: '4em' }}>{openingStatement} ...</div>;
+                          if (rawParagraphs.length === 0) return null;
 
                           return (
                             <div className="space-y-5">
-                              <div style={{ textIndent: '4em', lineHeight: 1.6 }}>
-                                {rawParagraphs[0].toLowerCase().includes(openingStatement.toLowerCase().substring(0, 30)) ? '' : openingStatement + ' '}
-                                {rawParagraphs[0]}
-                              </div>
-                              {rawParagraphs.slice(1).map((text, i) => {
-                                const displayIndex = i + 2;
-                                const startsWithAnyNumber = /^\d+[\.\)]/.test(text);
+                              {rawParagraphs.map((text, i) => {
+                                const isFirst = i === 0;
                                 return (
-                                  <div key={i} className="flex gap-4" style={{ lineHeight: 1.6 }}>
-                                    <span style={{ width: '1.5em', flexShrink: 0, fontWeight: 700 }}>
-                                      {startsWithAnyNumber ? '' : `${displayIndex}.`}
-                                    </span>
-                                    <div className="flex-1 text-justify">
-                                      {text}
-                                    </div>
+                                  <div key={i} className="text-justify leading-relaxed" style={isFirst ? { textIndent: '4em' } : {}}>
+                                    {text}
                                   </div>
                                 );
                               })}

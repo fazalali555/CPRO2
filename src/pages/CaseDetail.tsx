@@ -523,7 +523,7 @@ export const CaseDetail: React.FC = () => {
     if (!emp) return;
     
     // Calculate gross salary from financials
-    const gross = (emp.financials.last_basic_pay || 0) + 
+    const gross = (emp.financials.basic_pay || 0) + 
                   (emp.financials.hra || 0) + 
                   (emp.financials.ca || 0) + 
                   (emp.financials.ma || 0) + 
@@ -884,6 +884,7 @@ export const CaseDetail: React.FC = () => {
        { id: 'checklist', title: 'Checklist (Benevolent Fund)', route: 'checklist-bf', Component: <BenevolentFundChecklist employee={employee} caseRecord={caseRec} /> },
        { id: 'cover', title: 'Application / Cover Letter', route: 'cover-bf', Component: <BenevolentFundApplication employee={employee} caseRecord={caseRec} /> },
        { id: 'cert', title: 'Non-Drawal Certificate', route: 'cert-nondrawal-bf', Component: <NonDrawalCertificate employee={employee} type="Benevolent Fund" /> },
+       { id: 'contribution_cert', title: 'Contribution Certificate', route: 'cert-contribution-bf', Component: <NonDrawalCertificate employee={employee} type="Contribution" /> },
        { id: 'application_official', title: 'Official Application Form', route: 'bf-application', Component: <BenevolentFundOfficialForm employee={employee} caseRecord={caseRec} /> }
      );
   } else if (caseRec.case_type === 'eef') {
@@ -947,6 +948,7 @@ export const CaseDetail: React.FC = () => {
      // 4. BF
      documentsList.push(
        { id: 'bf_cover', title: 'BF Application / Cover', route: 'cover-bf', Component: <BenevolentFundApplication employee={employee} caseRecord={caseRec} /> },
+       { id: 'bf_cert', title: 'BF Contribution Certificate', route: 'cert-contribution-bf', Component: <NonDrawalCertificate employee={employee} type="Contribution" /> },
        { id: 'bf_official', title: 'BF Official Form', route: 'bf-application', Component: <BenevolentFundOfficialForm employee={employee} caseRecord={caseRec} /> }
      );
 
@@ -1078,7 +1080,7 @@ export const CaseDetail: React.FC = () => {
                         <TextField label="Purpose of Advance" value={caseRec.extras?.purpose} onChange={e => updateExtra('purpose', e.target.value)} placeholder="e.g. House Repair, Marriage" />
                         
                         <div className="grid grid-cols-2 gap-4">
-                           <TextField label="Basic Pay Override" type="number" value={caseRec.extras?.basic_pay} onChange={e => updateExtra('basic_pay', Number(e.target.value))} placeholder={String(employee.financials.last_basic_pay)} />
+                           <TextField label="Basic Pay Override" type="number" value={caseRec.extras?.basic_pay} onChange={e => updateExtra('basic_pay', Number(e.target.value))} placeholder={String(employee.financials.basic_pay)} />
                            <TextField label="Net Pay" type="number" value={caseRec.extras?.net_pay} onChange={e => updateExtra('net_pay', Number(e.target.value))} />
                         </div>
 

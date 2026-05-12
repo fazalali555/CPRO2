@@ -946,6 +946,34 @@ const ExpenditureTab = () => {
   const [workingRows, setWorkingRows] = useState<ExpenditureRowData[] | null>(null);
   const [isImportingXlsx, setIsImportingXlsx] = useState(false);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [selectedBulkMonths, setSelectedBulkMonths] = useState<string[]>([]);
+
+  const handleBulkPrintAction = () => {
+    if (selectedBulkMonths.length === 0) return;
+    
+    // Give React a moment to render the hidden container if it wasn't already
+    setTimeout(() => {
+      const el = document.getElementById('bulk-print-container');
+      if (!el) {
+        alert('Print container not found');
+        return;
+      }
+      
+      openPrintPreview({
+        title: 'Bulk Monthly Expenditure Statements',
+        html: el.innerHTML,
+        pageCss: '@page { size: A4 portrait; margin: 10mm; } .bulk-page { break-after: page; page-break-after: always; } .bulk-page:last-child { break-after: auto; page-break-after: auto; }'
+      });
+      setIsBulkModalOpen(false);
+    }, 300);
+  };
+
+  const toggleBulkMonth = (mKey: string) => {
+    setSelectedBulkMonths(prev => 
+      prev.includes(mKey) ? prev.filter(k => k !== mKey) : [...prev, mKey]
+    );
+  };
 
   useEffect(() => {
     ensureExpenditureYearFolder(currentYear);
@@ -1109,6 +1137,8 @@ const ExpenditureTab = () => {
       }
 
       setDetailMap(map);
+      setSelectedStatementId(null);
+      setWorkingRows(null);
       setImportNotice(`Successfully imported ${Object.keys(map).length} budget codes`);
       setTimeout(() => setImportNotice(null), 4000);
     } catch (e) {
@@ -1123,15 +1153,14 @@ const ExpenditureTab = () => {
   const monthTitle = `${monthLabel.toUpperCase()} ${monthYear}`;
   const fiscalYearLabel = `${fiscalYearStart}-${String(fiscalYearStart + 1).slice(-2)}`;
 
-  // Build detail rows
-  const detailRows = useMemo(() => {
-    const monthIndex = MONTH_KEYS.indexOf(monthKey as any);
+  const getRowsForMonth = (mKey: string, dMap: DetailMap, fyStart: number) => {
+    const monthIndex = MONTH_KEYS.indexOf(mKey as any);
     const prevKeys = monthIndex > 0 ? MONTH_KEYS.slice(0, monthIndex) : [];
 
     const calcForCode = (code: string): ExpenditureCalc => {
-      const data = detailMap[code];
+      const data = dMap[code];
       const budget = data?.budget || 0;
-      const expMonth = data?.months?.[monthKey] || 0;
+      const expMonth = data?.months?.[mKey] || 0;
       const prevExp = prevKeys.reduce((sum, key) => sum + (data?.months?.[key] || 0), 0);
       const totalExp = expMonth + prevExp;
       const { balance, excess } = calcBalanceExcess(budget, totalExp);
@@ -1170,7 +1199,12 @@ const ExpenditureTab = () => {
       buildTotalRow('TOTAL NON SALARY', totalNon, { isYellow: false, isBold: true }),
       buildTotalRow('GRAND TOTAL', grandTotal),
     ];
-  }, [detailMap, monthKey]);
+  };
+
+  // Build detail rows
+  const detailRows = useMemo(() => {
+    return getRowsForMonth(monthKey, detailMap, fiscalYearStart);
+  }, [detailMap, monthKey, fiscalYearStart]);
 
   // Recalculate rows after edits
   const recalcRows = (rows: ExpenditureRowData[]): ExpenditureRowData[] => {
@@ -1343,6 +1377,14 @@ const ExpenditureTab = () => {
           </button>
 
           <button
+            onClick={() => setIsBulkModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-outline-variant/40 bg-surface text-on-surface font-medium text-sm hover:bg-surface-container-high hover:border-primary/40 transition-all duration-200"
+          >
+            <AppIcon name="print_connect" size={18} />
+            Bulk Print
+          </button>
+
+          <button
             onClick={handlePrintStatement}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-on-primary font-semibold text-sm shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
           >
@@ -1378,7 +1420,15 @@ const ExpenditureTab = () => {
                 placeholder="2025"
               />
               <button
-                onClick={handleCreateYear}
+                onClick={() => {
+                  const year = Number(yearInput);
+                  if (!Number.isFinite(year) || year < 2000) return;
+                  ensureExpenditureYearFolder(year);
+                  setYears(listExpenditureYears());
+                  setFiscalYearStart(year);
+                  setSelectedStatementId(null);
+                  setWorkingRows(null);
+                }}
                 className="px-3 py-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-on-primary transition-all"
               >
                 <AppIcon name="add" size={18} />
@@ -1393,7 +1443,11 @@ const ExpenditureTab = () => {
             <div className="relative">
               <select
                 value={monthKey}
-                onChange={e => setMonthKey(e.target.value)}
+                onChange={e => {
+                  setMonthKey(e.target.value);
+                  setSelectedStatementId(null);
+                  setWorkingRows(null);
+                }}
                 className="w-full appearance-none px-4 py-2.5 pr-10 rounded-xl border border-outline-variant/40 bg-surface text-on-surface text-sm font-medium cursor-pointer hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
               >
                 {MONTH_OPTIONS.map(opt => (
@@ -1467,7 +1521,11 @@ const ExpenditureTab = () => {
                 return (
                   <button
                     key={year}
-                    onClick={() => setFiscalYearStart(year)}
+                    onClick={() => {
+                      setFiscalYearStart(year);
+                      setSelectedStatementId(null);
+                      setWorkingRows(null);
+                    }}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       fiscalYearStart === year
                         ? 'bg-primary text-on-primary shadow-md'
@@ -1566,6 +1624,82 @@ const ExpenditureTab = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Print Modal */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface rounded-2xl border border-outline-variant/30 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-outline-variant/20">
+              <h3 className="text-xl font-bold text-on-surface">Bulk Print Monthly Statements</h3>
+              <p className="text-sm text-on-surface-variant mt-1">Select months to include in the bulk print</p>
+            </div>
+            
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                {MONTH_OPTIONS.map(opt => {
+                  const isSelected = selectedBulkMonths.includes(opt.key);
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => toggleBulkMonth(opt.key)}
+                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-primary/10 border-primary text-primary font-bold shadow-sm' 
+                          : 'bg-surface border-outline-variant/40 text-on-surface hover:bg-surface-container hover:border-outline-variant'
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded flex items-center justify-center border ${
+                        isSelected ? 'bg-primary border-primary text-on-primary' : 'border-outline-variant'
+                      }`}>
+                        {isSelected && <AppIcon name="check" size={14} />}
+                      </div>
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="p-6 bg-surface-container-low flex justify-end gap-3">
+              <button
+                onClick={() => setIsBulkModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl text-on-surface font-semibold hover:bg-surface-container-high transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkPrintAction}
+                disabled={selectedBulkMonths.length === 0}
+                className="px-6 py-2.5 rounded-xl bg-primary text-on-primary font-bold shadow-lg shadow-primary/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale transition-all flex items-center gap-2"
+              >
+                <AppIcon name="print" size={18} />
+                Print {selectedBulkMonths.length} Statements
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Bulk Print Container */}
+      <div id="bulk-print-container" className="hidden">
+        {selectedBulkMonths.map((mKey) => {
+          const mLabel = MONTH_OPTIONS.find(m => m.key === mKey)?.label || 'Month';
+          const mYear = ['JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].includes(mKey) ? fiscalYearStart : fiscalYearStart + 1;
+          const mTitle = `${mLabel.toUpperCase()} ${mYear}`;
+          const rows = getRowsForMonth(mKey, detailMap, fiscalYearStart);
+          return (
+            <div key={mKey} className="bulk-page">
+              <MonthlyExpenditureStatement
+                officeName={officeName}
+                monthTitle={mTitle}
+                ddoCode={ddoCode}
+                fiscalYearLabel={fiscalYearLabel}
+                rows={rows}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

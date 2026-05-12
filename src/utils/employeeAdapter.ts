@@ -335,8 +335,7 @@ export const unflattenEmployee = (
 
     financials: {
       ...existing?.financials,
-      basic_pay: num('basic_pay') ?? existing?.financials.basic_pay ?? existing?.financials.last_basic_pay ?? 0,
-      last_basic_pay: num('last_basic_pay') ?? existing?.financials.last_basic_pay ?? 0,
+      basic_pay: num('basic_pay') ?? num('last_basic_pay') ?? existing?.financials.basic_pay ?? 0,
       last_pay_with_increment: num('last_pay_with_increment') ?? existing?.financials.last_pay_with_increment ?? 0,
       p_pay: num('p_pay') ?? existing?.financials.p_pay ?? 0,
       hra: num('hra') ?? existing?.financials.hra ?? 0,

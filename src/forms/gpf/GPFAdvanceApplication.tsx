@@ -50,7 +50,7 @@ export const GPFAdvanceApplication: React.FC<Props> = ({ employeeRecord, caseRec
   }
 
   // Priority: Case Extra > Employee Financial > 0
-  const basicPay = Number(extras.basic_pay) || financials.last_basic_pay || 0;
+  const basicPay = Number(extras.basic_pay) || financials.basic_pay || 0;
   
   // Calculate Net Pay dynamically if not overridden in extras
   let netPay = Number(extras.net_pay);

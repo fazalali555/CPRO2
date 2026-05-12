@@ -39,8 +39,6 @@ export const LetterPrint: React.FC = () => {
     return {};
   }, []);
 
-  const isOfficeOrder = (letter?.subject || '').toUpperCase().includes('OFFICE ORDER');
-
   const deptInfo = useMemo(() => 
     getDepartmentInfo(letter?.institutionName?.split('\n')[0] || 'Office'), 
     [letter?.institutionName, getDepartmentInfo]
@@ -65,7 +63,7 @@ export const LetterPrint: React.FC = () => {
     return (typeof to === 'string' ? to : '').split('\n').map((l: string) => l.trim()).filter(Boolean);
   }, [letter?.to]);
 
-  const subjectText = (letter?.subject || 'Subject').toUpperCase();
+  const subjectText = letter?.subject || 'Subject';
   
   const toUpper = (letter?.to || '').toString().toUpperCase();
   const salText = /\(F\)|\(FEMALE\)|\(GIRLS\)/.test(toUpper) ? 'Madam' : 'Sir';
@@ -74,14 +72,6 @@ export const LetterPrint: React.FC = () => {
     const org = deptInfo.organizationType;
     return org === 'directorate' || org === 'education_office' || org === 'police_office' || org === 'finance_office';
   }, [deptInfo]);
-
-  const openingStatement = useMemo(() => {
-    if (isHigherOffice) {
-      return "I am directed to refer to the subject noted above and to state that";
-    } else {
-      return "I have the honor to refer to the subject cited above and to state that";
-    }
-  }, [isHigherOffice]);
 
   // Safe forwarding items
   const fwdItems = useMemo(() => {
@@ -97,57 +87,13 @@ export const LetterPrint: React.FC = () => {
     return [];
   }, [letter?.enclosures]);
 
-  // Component to render refined body with numbering
   const RefinedBody = ({ html }: { html: string }) => {
     if (!html) return null;
-
-    // If it contains a table, render as-is but maybe inject opening statement to first para
-    const hasTable = html.includes('<table') || html.includes('</table>') || html.includes('| --- |') || html.includes('---');
-    
-    if (hasTable) {
-       return (
-         <div className="space-y-4" dangerouslySetInnerHTML={{ __html: html.replace(/<p>/i, `<p style="text-indent: 4em;">${openingStatement} `) }} />
-       );
-    }
-
-    // Extract paragraphs more robustly by splitting on both <p> and <br>
-    const rawParagraphs = html
-      .split(/<\/p>|<br\s*\/?>/i)
-      .map(p => {
-        const tmp = document.createElement('div');
-        tmp.innerHTML = p;
-        return tmp.textContent?.trim() || '';
-      })
-      .filter(p => p.length > 1); // Only keep content-rich lines
-    
-    if (rawParagraphs.length === 0) return <div className="text-justify indent-[4em] leading-[1.6]">{openingStatement} ...</div>;
-
     return (
-      <div className="space-y-5">
-        {/* Paragraph 1: Unnumbered with Opening Statement */}
-        <div className="text-justify indent-[4em] leading-[1.6]">
-          {rawParagraphs[0].toLowerCase().includes(openingStatement.toLowerCase().substring(0, 30)) 
-            ? '' 
-            : openingStatement + ' '} 
-          {rawParagraphs[0]}
-        </div>
-
-        {/* Paragraph 2+: Auto-numbering */}
-        {rawParagraphs.slice(1).map((text, i) => {
-          const displayIndex = i + 2;
-          const startsWithAnyNumber = /^\d+[\.\)]/.test(text);
-          return (
-            <div key={i} className="flex gap-4 leading-[1.6]">
-              <span className="w-[1.5em] shrink-0 font-bold">
-                {startsWithAnyNumber ? '' : `${displayIndex}.`}
-              </span>
-              <div className="flex-1 text-justify">
-                {text}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <div 
+        className="official-body-content text-justify leading-[1.6]" 
+        dangerouslySetInnerHTML={{ __html: html }} 
+      />
     );
   };
 
@@ -246,7 +192,6 @@ export const LetterPrint: React.FC = () => {
         }
         .subject-text {
           font-weight: bold;
-          text-transform: uppercase;
           text-decoration: underline;
           text-underline-offset: 4px;
           line-height: 1.4;
@@ -311,29 +256,52 @@ export const LetterPrint: React.FC = () => {
               {lhLine2 && <h2 className="header-dept">{lhLine2}</h2>}
               {lhLine3 && <h3 className="header-govt">{lhLine3}</h3>}
             </div>
-            <div className="w-[105px] text-right pt-2">
-              {officeProfile.tel && <div className="text-[9.5pt]"><strong>Tel:</strong> {officeProfile.tel}</div>}
-              <div className="mt-3 flex justify-end">
-                <QRCode value={letter?.reference || 'draft'} size={55} />
+            <div className="w-[105px] text-right pt-1 flex flex-col items-end">
+              <div className="mb-2">
+                <QRCode value={
+                  `https://wa.me/923432900419?text=${encodeURIComponent(
+                    `*LETTER REPORT - Clerk Pro*\n\n` +
+                    `*Subject:* ${letter?.subject || 'N/A'}\n` +
+                    `*Reference:* ${letter?.reference || 'draft'}\n` +
+                    `*Date:* ${letter?.letterDate || 'N/A'}\n` +
+                    `*Office:* ${lhLine1}\n\n` +
+                    `*App:* Clerk Pro RPMS\n` +
+                    `*Developer:* Fazal Ali (+923432900419)`
+                  )}`
+                } size={64} />
               </div>
+              {officeProfile.tel && <div className="text-[9pt] leading-tight"><strong>Tel:</strong> {officeProfile.tel}</div>}
             </div>
           </div>
 
           <div className="double-divider"></div>
 
           {/* Reference & Date */}
-          <div className="ref-date-row">
-            <div>No. <span className="inline-block border-b border-black min-w-[80px] text-center px-2">{letter.reference || ''}</span> /</div>
-            <div>Dated: {parsedDate && !isNaN(parsedDate.getTime()) 
-              ? `${parsedDate.getDate().toString().padStart(2, '0')} / ${(parsedDate.getMonth() + 1).toString().padStart(2, '0')} / ${year}`
-              : `___ / ___ / ${year}`
-            }</div>
-          </div>
+          {(letter.reference || letter.letterDate) && (
+            <div className="ref-date-row">
+              <div>
+                {letter.reference && (
+                  <>
+                    <span className="font-bold">No. </span>
+                    <span className="inline-block border-b border-black min-w-[80px] text-center px-2">{letter.reference}</span>
+                  </>
+                )}
+              </div>
+              <div>
+                {parsedDate && !isNaN(parsedDate.getTime()) && (
+                  <>
+                    <span className="font-bold">Dated: </span>
+                    {parsedDate.getDate().toString().padStart(2, '0')} / {(parsedDate.getMonth() + 1).toString().padStart(2, '0')} / {year}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
-          {/* To (Recipient) - Hidden for Office Orders */}
-          {!isOfficeOrder && (
+          {/* To (Recipient) */}
+          {recipientLines.length > 0 && (
             <div className="to-block">
-              <div className="to-label">To</div>
+              {(letter as any).toLabel && <div className="to-label">{(letter as any).toLabel}</div>}
               <div className="to-content">
                 {recipientLines.map((line, i) => (
                   <div key={i}>{line}</div>
@@ -343,13 +311,19 @@ export const LetterPrint: React.FC = () => {
           )}
 
           {/* Subject */}
-          <div className="subject-row" style={isOfficeOrder ? { justifyContent: 'center' } : {}}>
-            <span className={isOfficeOrder ? 'hidden' : 'subject-label'}>Subject:</span>
-            <span className="subject-text" style={isOfficeOrder ? { textAlign: 'center', fontSize: '13pt' } : {}}>{subjectText}</span>
-          </div>
+          {letter.subject && (
+            <div className="subject-row">
+              {(letter as any).subjectLabel && <span className="subject-label">{(letter as any).subjectLabel}:</span>}
+              <span className="subject-text">{subjectText}</span>
+            </div>
+          )}
 
-          {/* Salutation - Hidden for Office Orders */}
-          {!isOfficeOrder && <div className="salutation">Respected {salText},</div>}
+          {/* Salutation */}
+          {recipientLines.length > 0 && (
+            <div className="salutation">
+              {((letter as any).salutationLabel || '').trim() ? `${(letter as any).salutationLabel} ` : ''}{salText},
+            </div>
+          )}
 
           {/* Letter Body */}
           <div className="body-container">

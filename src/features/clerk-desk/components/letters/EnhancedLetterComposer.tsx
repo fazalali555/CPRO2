@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Card, Button, Badge, TextField, SelectField, TextArea, Checkbox } from '../../../../components/M3';
-import { useToast } from '../../../../contexts/ToastContext';
+import { Card, Button, Badge, TextField, SelectField, TextArea, Checkbox } from '@/components/M3';
+import { useToast } from '@/contexts/ToastContext';
 import { PrintService } from '../../services/PrintService';
 import { ReferenceService } from '../../services/ReferenceService';
 import { AIService } from '../../services/AIService';
@@ -14,131 +14,25 @@ import {
   ENHANCED_TEMPLATES,
   DEFAULT_PRINT_SETTINGS,
 } from '../../constants/letter-constants';
-import { 
-  EnhancedLetter, 
-  PrintSettings,
-  LetterParty,
-  Enclosure,
-  ForwardEntry,
-  LetterCategory,
-} from '../../types/letter';
+import { EditorProvider, useEditorContext } from '../wordpro/contexts/EditorContext';
+import { DocumentEditor as WordEditor } from '../wordpro/components/DocumentEditor';
+import { Ribbon } from '../wordpro/components/Ribbon';
 
-// Rich Text Editor Toolbar Component
-const RichTextToolbar: React.FC<{
-  onFormat: (command: string, value?: string) => void;
-}> = ({ onFormat }) => {
-  return (
-    <div className="flex flex-wrap gap-1 p-2 bg-surface-variant/20 rounded-t-xl border-b border-outline/20">
-      <button
-        type="button"
-        onClick={() => onFormat('bold')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Bold (Ctrl+B)"
-      >
-        <span className="material-symbols-outlined text-sm">format_bold</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onFormat('italic')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Italic (Ctrl+I)"
-      >
-        <span className="material-symbols-outlined text-sm">format_italic</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onFormat('underline')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Underline (Ctrl+U)"
-      >
-        <span className="material-symbols-outlined text-sm">format_underlined</span>
-      </button>
-      
-      <div className="w-px bg-outline/30 mx-1" />
-      
-      <button
-        type="button"
-        onClick={() => onFormat('insertUnorderedList')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Bullet List"
-      >
-        <span className="material-symbols-outlined text-sm">format_list_bulleted</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onFormat('insertOrderedList')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Numbered List"
-      >
-        <span className="material-symbols-outlined text-sm">format_list_numbered</span>
-      </button>
-      
-      <div className="w-px bg-outline/30 mx-1" />
-      
-      <button
-        type="button"
-        onClick={() => onFormat('justifyLeft')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Align Left"
-      >
-        <span className="material-symbols-outlined text-sm">format_align_left</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onFormat('justifyCenter')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Align Center"
-      >
-        <span className="material-symbols-outlined text-sm">format_align_center</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onFormat('justifyRight')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Align Right"
-      >
-        <span className="material-symbols-outlined text-sm">format_align_right</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onFormat('justifyFull')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Justify"
-      >
-        <span className="material-symbols-outlined text-sm">format_align_justify</span>
-      </button>
-      
-      <div className="w-px bg-outline/30 mx-1" />
-      
-      <button
-        type="button"
-        onClick={() => onFormat('indent')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Increase Indent"
-      >
-        <span className="material-symbols-outlined text-sm">format_indent_increase</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onFormat('outdent')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Decrease Indent"
-      >
-        <span className="material-symbols-outlined text-sm">format_indent_decrease</span>
-      </button>
-      
-      <div className="w-px bg-outline/30 mx-1" />
-      
-      <button
-        type="button"
-        onClick={() => onFormat('removeFormat')}
-        className="p-2 hover:bg-surface-variant rounded"
-        title="Clear Formatting"
-      >
-        <span className="material-symbols-outlined text-sm">format_clear</span>
-      </button>
-    </div>
-  );
+// Bridge to sync wordpro editor state with letter form state
+const EditorStateBridge: React.FC<{ value: string }> = ({ value }) => {
+  const { editor, loadContent, getHTML } = useEditorContext();
+
+  // Sync from formState to editor ONLY when content changes externally
+  useEffect(() => {
+    if (editor && value !== getHTML()) {
+      // If the editor is not focused, it's likely an external change (AI or loading)
+      if (!editor.isFocused || getHTML() === '<p></p>' || getHTML() === '') {
+        loadContent(value);
+      }
+    }
+  }, [value, editor, loadContent, getHTML]);
+
+  return null;
 };
 
 // Recipient Form Component
@@ -523,9 +417,9 @@ const PrintSettingsPanel: React.FC<{
 // Main Enhanced Letter Composer Component
 export const EnhancedLetterComposer: React.FC = () => {
   const { showToast } = useToast();
-  const editorRef = useRef<HTMLDivElement>(null);
-  
+
   // State
+
   const [activeTab, setActiveTab] = useState<'compose' | 'recipient' | 'enclosures' | 'forward' | 'print'>('compose');
   const [templateId, setTemplateId] = useState(ENHANCED_TEMPLATES[0].id);
   const [category, setCategory] = useState<LetterCategory>('official');
@@ -596,24 +490,17 @@ export const EnhancedLetterComposer: React.FC = () => {
   // Apply template
   const handleApplyTemplate = useCallback(() => {
     if (!currentTemplate) return;
-    
+
     let processedBody = currentTemplate.body;
-    
+
     // Replace placeholders with values
     Object.entries(placeholderValues).forEach(([key, value]) => {
       processedBody = processedBody.replace(new RegExp(`{{${key}}}`, 'g'), value || `[${key}]`);
     });
-    
+
     setBody(processedBody);
     showToast('Template applied', 'success');
   }, [currentTemplate, placeholderValues, showToast]);
-
-  // Format command for rich text
-  const handleFormat = useCallback((command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-  }, []);
-
   // AI Generate
   const handleAIGenerate = useCallback(async () => {
     if (!aiPrompt.trim()) {
@@ -973,16 +860,19 @@ export const EnhancedLetterComposer: React.FC = () => {
               />
 
               {/* Rich Text Editor */}
-              <div>
-                <label className="text-sm font-medium text-on-surface mb-2 block">Letter Body</label>
-                <RichTextToolbar onFormat={handleFormat} />
-                <div
-                  ref={editorRef}
-                  contentEditable
-                  className="min-h-[300px] p-4 border border-outline/20 rounded-b-xl focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
-                  onInput={e => setBody(e.currentTarget.innerHTML)}
-                  dangerouslySetInnerHTML={{ __html: body }}
-                />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-on-surface block">Letter Body</label>
+                <div className="border border-outline/20 rounded-2xl overflow-hidden bg-white shadow-sm flex flex-col min-h-[500px]">
+                  <EditorProvider onChange={(html) => setBody(html)}>
+                    <EditorStateBridge value={body} />
+                    <div className="bg-gray-50 border-b border-outline/10">
+                      <Ribbon />
+                    </div>
+                    <div className="flex-1 overflow-hidden relative">
+                      <WordEditor className="flex-1" />
+                    </div>
+                  </EditorProvider>
+                </div>
               </div>
 
               {/* AI Assistant */}

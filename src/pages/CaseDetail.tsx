@@ -14,13 +14,13 @@ import {
   getOfficialRetirementChecklist, 
   getOfficialPensionChecklist,
   getOfficialGPFChecklist, 
-  getFamilyPensionChecklist,
   getRBDCChecklist,
   getBenevolentFundChecklist,
   getEEFChecklist,
   getLPRChecklist,
   getFinancialAssistanceChecklist,
   getGPFEligibilityWarnings,
+  getPensionEligibility,
   formatCurrency,
   isClassIV,
   isBpsGreaterThan4,
@@ -46,7 +46,7 @@ import { GPFApplicationForSanction } from '../forms/gpf/GPFApplicationForSanctio
 import { PAYF05TemporaryLoan } from '../forms/gpf/PAYF05TemporaryLoan';
 import { PAYF06PermanentLoan } from '../forms/gpf/PAYF06PermanentLoan';
 import { GPFClaimVerificationProforma } from '../forms/gpf/GPFClaimVerificationProforma';
-import { DocumentThumbnail } from '../components/DocumentThumbnail';
+// import { DocumentThumbnail } from '../components/DocumentThumbnail';
 import { FamilyPensionTitlePage } from '../forms/family-pension/FamilyPensionTitlePage';
 import { FamilyPensionApplication } from '../forms/family-pension/FamilyPensionApplication';
 import { Affidavit1 } from '../forms/family-pension/Affidavit1';
@@ -121,8 +121,12 @@ export const CaseDetail: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
+  const [selectedEmpForPayroll, setSelectedEmpForPayroll] = useState('');
+
   const caseRec = cases.find(c => c.id === id);
   const employee = caseRec ? employees.find(e => e.id === caseRec.employee_id) : null;
+
+  const pensionEligibility = employee ? getPensionEligibility(employee) : null;
 
   const isRetirement = caseRec?.case_type === 'retirement';
   const isGPF = caseRec?.case_type?.startsWith('gpf');
@@ -176,7 +180,7 @@ export const CaseDetail: React.FC = () => {
       showToast(`Generating ${template.name}...`, 'info');
       
       // Update case with manual fields if provided
-      let updatedCase = { ...caseRec };
+      const updatedCase = { ...caseRec };
       if (fieldValues) {
         const newExtras = { ...caseRec.extras };
         Object.entries(fieldValues).forEach(([field, value]) => {
@@ -186,7 +190,7 @@ export const CaseDetail: React.FC = () => {
       }
       
       // The generateFilledPdf utility handles the mapping logic
-      const pdfBytes = await generateFilledPdf(data as any, employee, updatedCase);
+      const pdfBytes = await generateFilledPdf(data as Uint8Array, employee, updatedCase);
       
       const fileId = `doc_${Date.now()}`;
       await saveFileToIDB(fileId, pdfBytes);
@@ -373,7 +377,7 @@ export const CaseDetail: React.FC = () => {
     }
   }, [caseRec?.id, employee?.id]); 
 
-  if (!caseRec || !employee) return <div className="p-8 text-center">Case not found</div>;
+  // --- Handlers Moved Below ---
 
   const updateStatus = (s: CaseStatus) => {
     onUpdateCase({ ...caseRec, status: s, updatedAt: new Date().toISOString() });
@@ -515,7 +519,6 @@ export const CaseDetail: React.FC = () => {
   };
 
   // --- Payroll Entry Management ---
-  const [selectedEmpForPayroll, setSelectedEmpForPayroll] = useState('');
   
   const addPayrollEntry = () => {
     if (!selectedEmpForPayroll) return;
@@ -760,22 +763,22 @@ export const CaseDetail: React.FC = () => {
      );
      
      // 2. Application for Sanction (BPS > 4) - For Refundable/Non-Ref only
-     if (isBpsGreaterThan4(employee.employees.bps) && isAdvance) {
+     if (isBpsGreaterThan4(employee?.employees?.bps) && isAdvance) {
         documentsList.push({
            id: 'gpf_app_sanction',
            title: 'Application for Sanction',
            route: 'gpf-application-for-sanction',
-           Component: <GPFApplicationForSanction employeeRecord={employee} caseRecord={caseRec} />
+           Component: <GPFApplicationForSanction employeeRecord={employee!} caseRecord={caseRec!} />
         });
      }
      
      // 3. Sanction Order (Class-IV Only) - For Refundable/Non-Ref only
-     if (isClassIV(employee.employees.bps) && isAdvance) {
+     if (isClassIV(employee?.employees?.bps) && isAdvance) {
         documentsList.push({
            id: 'gpf_sanction_order',
            title: 'Sanction Order (Class IV)',
            route: 'gpf-sanction-order',
-           Component: <GPFSanctionOrderClassIV employeeRecord={employee} caseRecord={caseRec} />
+           Component: <GPFSanctionOrderClassIV employeeRecord={employee!} caseRecord={caseRec!} />
         });
      }
 
@@ -970,6 +973,19 @@ export const CaseDetail: React.FC = () => {
       { id: 'payroll_source2', title: 'Source II - Payroll Amendment (Single)', route: 'payroll-source-forms/source2', Component: <PayrollAmendmentSingleForm employeeRecord={employee} amendments={caseRec.extras?.amendments || []} /> },
       { id: 'payroll_source3', title: 'Source III - Payroll Amendment (Multi)', route: 'payroll-source-forms/source3', Component: <PayrollAmendmentMultiForm officeName={employee?.employees.office_name} ddoCode={employee?.employees.ddo_code} entries={caseRec.extras?.payroll_entries || []} /> }
     ];
+  }
+
+  // --- Pension Eligibility Filter ---
+  const eligibleForPension = pensionEligibility?.isEligibleForPension ?? true;
+  if (isPension && !eligibleForPension) {
+    // Keep only non-pension documents (like succession cert or checklists if they are generic)
+    // but the prompt says don't print pension papers.
+    documentsList = documentsList.filter(d => 
+      (d.id.endsWith('_checklist')) || // Keep checklists
+      (!d.id.startsWith('fp_') && 
+       !d.id.startsWith('rp_') && 
+       !['title', 'app', 'packet', 'packet_print', 'cover'].includes(d.id))
+    );
   }
 
   return (
@@ -1376,6 +1392,22 @@ export const CaseDetail: React.FC = () => {
          {activeTab === 'documents' && (
            <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
               
+              {/* Eligibility Warning */}
+              {isPension && pensionEligibility && !pensionEligibility.isEligibleForPension && (
+                <Card variant="outlined" className="bg-error-container/10 border-error/20 border-l-4 border-l-error">
+                   <div className="flex items-start gap-4 p-4">
+                      <div className="p-3 bg-error-container text-on-error-container rounded-xl shrink-0">
+                         <AppIcon name="warning" size={24} />
+                      </div>
+                      <div>
+                         <h3 className="font-bold text-error text-lg mb-1">Pension Eligibility Warning</h3>
+                         <p className="text-on-surface-variant text-sm">{pensionEligibility.message}</p>
+                         <p className="text-on-surface-variant text-xs mt-2 italic font-medium">Standard monthly pension documents have been disabled for this case as they are not admissible under KPK Government rules.</p>
+                      </div>
+                   </div>
+                </Card>
+              )}
+
               {/* Header Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-surface-container-low rounded-xl border border-outline-variant/30">
                  <div>
@@ -1492,16 +1524,41 @@ export const CaseDetail: React.FC = () => {
                       
                       {/* Thumbnail Card */}
                       {expandedDocId !== doc.id && (
-                        <DocumentThumbnail
-                          title={doc.title}
-                          orientation={doc.orientation as any}
-                          onPreview={() => handlePreviewDocument(doc.id)}
-                          onPrint={() => handlePrintDocument(doc.id, doc.route)}
-                          isExpanded={expandedDocId === doc.id}
+                        <Card 
+                          variant="outlined" 
+                          className="p-4 hover:border-primary transition-colors cursor-pointer group" 
+                          onClick={() => handlePreviewDocument(doc.id)}
                         >
-                          {doc.Component}
-                        </DocumentThumbnail>
+                           <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                 <div className="p-2 bg-primary-container text-primary rounded-lg">
+                                    <AppIcon name="description" size={20} />
+                                 </div>
+                                 <h4 className="font-bold text-sm truncate max-w-[150px]">{doc.title}</h4>
+                              </div>
+                              <Button 
+                                variant="text" 
+                                icon="print" 
+                                onClick={(e) => { e.stopPropagation(); handlePrintDocument(doc.id, doc.route); }} 
+                                className="h-8 w-8 px-0" 
+                              />
+                           </div>
+                           <div className="aspect-[3/4] bg-surface-variant/10 border border-outline-variant/30 rounded overflow-hidden relative">
+                              <div className={clsx(
+                                "absolute top-4 left-1/2 -translate-x-1/2 origin-top pointer-events-none bg-white shadow-sm",
+                                doc.orientation === 'landscape' ? "scale-[0.15] w-[297mm]" : "scale-[0.18] w-[210mm]"
+                              )}>
+                                 {doc.Component}
+                              </div>
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-on-primary px-3 py-1 rounded-full text-[10px] font-bold shadow-elevation-2">
+                                    Click to Preview
+                                 </div>
+                              </div>
+                           </div>
+                        </Card>
                       )}
+
                    </React.Fragment>
                  ))}
               </div>
@@ -1537,14 +1594,12 @@ export const CaseDetail: React.FC = () => {
                              <div className="mb-4 space-y-2">
                                <p className="text-[10px] font-bold text-primary uppercase">Manual Inputs Required:</p>
                                {manualFields.map(field => (
-                                 <TextField 
+                                 <TextField
                                    key={field}
                                    label={field}
-                                   dense
                                    value={(caseRec.extras?.[`field_${field}`] as string) || ''}
                                    onChange={e => updateExtra(`field_${field}`, e.target.value)}
-                                 />
-                               ))}
+                                 />                               ))}
                              </div>
                            )}
 

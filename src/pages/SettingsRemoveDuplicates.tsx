@@ -177,7 +177,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ group, allEmployees, allCases
     if (!keptOriginal) return;
 
     // 1. Prepare Merged Record
-    let finalRecord = JSON.parse(JSON.stringify(keptOriginal)); // Deep copy
+    const finalRecord = JSON.parse(JSON.stringify(keptOriginal)); // Deep copy
 
     if (merge) {
        records.forEach(source => {

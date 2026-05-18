@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { PrintLayout } from '../../../../components/PrintLayout';
-import { useAutoPrint } from '../../../../utils/print';
+import { PrintLayout } from '@/components/PrintLayout';
+import { useAutoPrint } from '@/utils/print';
 import { useLetterComposer } from '../../hooks/useLetterComposer';
-import { OfficialLogo } from '../../../../components/OfficialLogo';
-import { QRCode } from '../../../../components/QRCode';
-import { APP_NAME, APP_AUTHOR, DEVELOPER } from '../../../../config/branding';
+import { OfficialLogo } from '@/components/OfficialLogo';
+import { QRCode } from '@/components/QRCode';
+import { APP_NAME, APP_AUTHOR, DEVELOPER } from '@/config/branding';
 
 export const LetterPrint: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -172,8 +172,9 @@ export const LetterPrint: React.FC = () => {
           display: flex;
         }
         .to-label {
-          width: 45px;
+          width: 80px;
           font-weight: bold;
+          flex-shrink: 0;
         }
         .to-content {
           flex: 1;
@@ -186,11 +187,12 @@ export const LetterPrint: React.FC = () => {
           text-align: justify;
         }
         .subject-label {
+          width: 80px;
           font-weight: bold;
-          margin-right: 12px;
           flex-shrink: 0;
         }
         .subject-text {
+          flex: 1;
           font-weight: bold;
           text-decoration: underline;
           text-underline-offset: 4px;
@@ -203,6 +205,13 @@ export const LetterPrint: React.FC = () => {
         .body-container {
           margin-bottom: 15px;
           text-align: justify;
+        }
+        .official-body-content p {
+          text-indent: 4em;
+          margin-bottom: 1.25rem;
+        }
+        .official-body-content p:last-child {
+          margin-bottom: 0;
         }
         .signature-section {
           display: flex;
@@ -301,7 +310,7 @@ export const LetterPrint: React.FC = () => {
           {/* To (Recipient) */}
           {recipientLines.length > 0 && (
             <div className="to-block">
-              {(letter as any).toLabel && <div className="to-label">{(letter as any).toLabel}</div>}
+              <div className="to-label">To:</div>
               <div className="to-content">
                 {recipientLines.map((line, i) => (
                   <div key={i}>{line}</div>
@@ -313,7 +322,7 @@ export const LetterPrint: React.FC = () => {
           {/* Subject */}
           {letter.subject && (
             <div className="subject-row">
-              {(letter as any).subjectLabel && <span className="subject-label">{(letter as any).subjectLabel}:</span>}
+              <span className="subject-label">Subject:</span>
               <span className="subject-text">{subjectText}</span>
             </div>
           )}
@@ -321,7 +330,7 @@ export const LetterPrint: React.FC = () => {
           {/* Salutation */}
           {recipientLines.length > 0 && (
             <div className="salutation">
-              {((letter as any).salutationLabel || '').trim() ? `${(letter as any).salutationLabel} ` : ''}{salText},
+              Respected {salText},
             </div>
           )}
 

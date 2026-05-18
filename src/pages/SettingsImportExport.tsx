@@ -1221,7 +1221,7 @@ export const SettingsImportExport: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <AppIcon name="view_column" size={20} />
                     <span className="font-medium">Column Mapping</span>
-                    <Badge variant={headerMappings.filter(h => h.matched).length > 10 ? 'default' : 'destructive'}>
+                    <Badge color={headerMappings.filter(h => h.matched).length > 10 ? 'success' : 'error'}>
                       {headerMappings.filter(h => h.matched).length}/{headerMappings.length} matched
                     </Badge>
                   </div>

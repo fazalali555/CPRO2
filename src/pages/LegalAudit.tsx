@@ -136,9 +136,17 @@ const CourtCasesTab = ({ onGenerateDraft }: { onGenerateDraft: (data: any) => vo
 
   const getStatusBadge = (status: CourtCaseRecord['status']) => {
     switch (status) {
-      case 'Decided': return <Badge variant="success" label={status} />;
-      case 'Stay Order': return <Badge variant="error" label={status} />;
-      default: return <Badge variant="primary" label={status} />;
+      case 'Decided': return <Badge color="success" label={status} />;
+      case 'Stay Order': return <Badge color="error" label={status} />;
+      default: return <Badge color="primary" label={status} />;
+    }
+  };
+
+  const getParaStatusBadge = (status: AuditParaRecord['status']) => {
+    switch (status) {
+      case 'Settled': return <Badge color="success" label={status} />;
+      case 'DAC Level': return <Badge color="warning" label={status} />;
+      default: return <Badge color="error" label={status} />;
     }
   };
 
@@ -225,12 +233,16 @@ const AuditParasTab = ({ onGenerateDraft }: { onGenerateDraft: (data: any) => vo
       description: isUrdu 
         ? 'تقرری کے احکامات کی تصدیق کے بغیر عملے کو تنخواہوں کی بے قاعدہ ادائیگی۔'
         : 'Irregular payment of salaries to staff without verified appointment orders.',
+      subject: isUrdu ? 'تقرری کے احکامات کی تصدیق' : 'Verification of Appointment Orders',
       amount_involved: 1250000,
       status: 'Pending',
       deadline: '2025-03-01',
       school_name: 'GGPS Hayatabad Peshawar', // Added school name (Girls)
       replies: [],
-      history: []
+      history: [],
+      documents: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }
   ]);
 

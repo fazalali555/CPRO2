@@ -17,7 +17,7 @@ export interface ParsedLetter {
   signatureTitle?: string;
 }
 
-import { getDepartmentInfo } from '../../../utils/departmentDetector';
+import { getDepartmentInfo } from '@/utils/departmentDetector';
 
 export const parseOfficialLetter = (text: string): ParsedLetter => {
   if (!text) return { body: '' };

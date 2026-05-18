@@ -12,6 +12,7 @@ import { TabId } from './types';
 
 // Lazy load tab components for better performance
 const LetterComposer = lazy(() => import('./components/letters/LetterComposer'));
+const WordProEditor = lazy(() => import('./components/wordpro/pages/Editor'));
 const DocumentFiling = lazy(() => import('./components/filing/DocumentFiling'));
 const CorrespondenceTracker = lazy(() => import('./components/correspondence/CorrespondenceTracker'));
 const AppointmentScheduler = lazy(() => import('./components/appointments/AppointmentScheduler'));
@@ -55,6 +56,7 @@ export const ClerkDesk: React.FC = () => {
   const renderTabContent = useCallback(() => {
     const components: Record<TabId, React.ReactNode> = {
       letters: <LetterComposer />,
+      wordpro: <WordProEditor />,
       filing: <DocumentFiling />,
       correspondence: <CorrespondenceTracker />,
       appointments: <AppointmentScheduler />,

@@ -2,7 +2,7 @@
 
 import { Letter, Document, ExportOptions } from '../types';
 import { formatLetterToText } from '../utils/formatters';
-import { getDepartmentLogoPath, detectDepartment } from '../../../utils';
+import { getDepartmentLogoPath, detectDepartment } from '@/utils';
 
 class ExportServiceClass {
   /**

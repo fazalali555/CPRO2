@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmployeeRecord, CaseRecord } from '../types';
 import { AppIcon } from '../components/AppIcon';
-import { Card, Button, EmptyState, TextField } from '../components/M3';
+import { Card, Button, EmptyState, TextField, Badge } from '../components/M3';
 import { format, isAfter, isBefore, addDays, isValid, startOfToday } from 'date-fns';
 import { auditService, securityService } from '../services/SecurityService';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,7 +28,7 @@ const itemVariants = {
     opacity: 1,
     transition: { type: 'spring', stiffness: 300, damping: 24 }
   }
-};
+} as const;
 
 const Dashboard: React.FC = () => {
   const { employees, cases } = useEmployeeContext();

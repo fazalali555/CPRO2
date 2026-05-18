@@ -282,7 +282,7 @@ export interface ExportOptions {
   orientation: 'portrait' | 'landscape';
 }
 
-export type TabId = 'letters' | 'filing' | 'correspondence' | 'appointments' | 'records' | 'reports' | 'contacts' | 'tasks';
+export type TabId = 'letters' | 'wordpro' | 'filing' | 'correspondence' | 'appointments' | 'records' | 'reports' | 'contacts' | 'tasks';
 
 export interface TabConfig {
   id: TabId;

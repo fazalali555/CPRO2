@@ -296,22 +296,22 @@ export const Cases: React.FC = () => {
               isLoading={isLoading}
               onRowClick={(c) => navigate(`/cases/${c.id}`)}
               columns={[
-                { header: 'Title', accessor: c => (
-                  <div className="flex flex-col">
-                    <div className="font-bold text-on-surface">{c.title}</div>
-                    <div className="text-[10px] text-on-surface-variant font-mono">ID: {c.id}</div>
-                  </div>
-                )},
-                { header: 'Type', accessor: c => <Badge label={typeLabels[c.case_type] || c.case_type} /> },
-                { header: 'Employee', accessor: c => {
+                { header: 'Case / Employee', accessor: c => {
                   const emp = getEmployee(c.employee_id);
+                  const initials = emp?.employees.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?';
                   return (
-                    <div className="flex flex-col">
-                      <div className="font-medium">{emp?.employees.name || 'Unknown'}</div>
-                      <div className="text-[10px] text-on-surface-variant">{emp?.employees.personal_no || 'No Personnel No'}</div>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-sm shrink-0 shadow-sm border border-primary/10">
+                        {initials}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="font-bold text-on-surface truncate">{c.title}</div>
+                        <div className="text-[10px] text-on-surface-variant font-mono truncate">ID: {c.id} • {emp?.employees.name || 'Unknown'}</div>
+                      </div>
                     </div>
                   );
                 }},
+                { header: 'Type', accessor: c => <Badge label={typeLabels[c.case_type] || c.case_type} /> },
                 { header: 'Priority', accessor: c => (
                   <Badge 
                     label={c.priority?.toUpperCase() || 'MEDIUM'} 

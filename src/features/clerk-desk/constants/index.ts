@@ -208,6 +208,7 @@ export const LEAVE_TYPES = [
 
 export const TAB_CONFIG: TabConfig[] = [
   { id: 'letters', label: 'Letters', icon: 'mail' },
+  { id: 'wordpro', label: 'WordPro', icon: 'edit_document' },
   { id: 'filing', label: 'Filing', icon: 'folder' },
   { id: 'correspondence', label: 'Correspondence', icon: 'forum' },
   { id: 'appointments', label: 'Appointments', icon: 'event' },

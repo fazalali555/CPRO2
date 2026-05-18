@@ -5,8 +5,8 @@ import { Letter, LetterTemplate, OfficeProfile, LetterVersion } from '../types';
 import { useLocalStorageCollection } from './useLocalStorage';
 import { STORAGE_KEYS, DEFAULT_TEMPLATES, DEFAULT_OFFICE_PROFILES, SCHOOL_TYPES } from '../constants';
 import { formatLetterToText } from '../utils/formatters';
-import { securityService, auditService } from '../../../services/SecurityService';
-import { getDepartmentInfo } from '../../../utils/departmentDetector';
+import { securityService, auditService } from '@/services/SecurityService';
+import { getDepartmentInfo } from '@/utils/departmentDetector';
 
 // State shape
 interface LetterFormState {

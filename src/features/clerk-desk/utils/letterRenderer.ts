@@ -6,7 +6,7 @@
  */
 
 import { Letter } from '../types';
-import { getDepartmentInfo } from '../../../utils/departmentDetector';
+import { getDepartmentInfo } from '@/utils/departmentDetector';
 
 export interface RenderOptions {
   useOfficialNumbering?: boolean;

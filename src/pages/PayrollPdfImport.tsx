@@ -10,8 +10,20 @@ import { CSV_HEADERS, unflattenEmployee } from '../utils/employeeAdapter';
 
 type ParsedRow = Record<string, string>;
 
-const dynamicImport = (url: string) => (new Function('u', 'return import(u)'))(url) as Promise<any>;
-const loadPdfJs = async () => {
+const dynamicImport = (url: string) => (new Function('u', 'return import(u)'))(url) as Promise<unknown>;
+
+interface PdfJsLib {
+  getDocument: (options: { data: ArrayBuffer }) => { promise: any };
+  GlobalWorkerOptions: { workerSrc: string };
+}
+
+declare global {
+  interface Window {
+    pdfjsLib?: PdfJsLib;
+  }
+}
+
+const loadPdfJs = async (): Promise<PdfJsLib> => {
   const esmCandidates = [
     {
       base: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.10.111/build/',
@@ -46,7 +58,7 @@ const loadPdfJs = async () => {
   ];
   for (const c of esmCandidates) {
     try {
-      const lib = await dynamicImport(c.base + c.main);
+      const lib = await dynamicImport(c.base + c.main) as PdfJsLib;
       if (lib && lib.GlobalWorkerOptions) {
         lib.GlobalWorkerOptions.workerSrc = c.base + c.worker;
       }
@@ -84,7 +96,7 @@ const loadPdfJs = async () => {
         s.onerror = () => reject(new Error('UMD load error'));
         document.head.appendChild(s);
       });
-      const lib = (window as any).pdfjsLib;
+      const lib = window.pdfjsLib;
       if (lib && lib.GlobalWorkerOptions) {
         lib.GlobalWorkerOptions.workerSrc = c.base + c.worker;
       }
@@ -305,7 +317,7 @@ export const PayrollPdfImport: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="Payroll PDF Import" description="Extract official payroll PDF and update employees directly" />
+      <PageHeader title="Payroll PDF Import" subtitle="Extract official payroll PDF and update employees directly" />
       <Card variant="outlined" className="p-6 bg-surface-container-low space-y-4">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-tertiary-container text-on-tertiary-container rounded-full">

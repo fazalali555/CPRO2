@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
       strictPort: false,
       host: true,
       cors: true,
-      hmr: false,
+      hmr: true,
     },
     css: {
       postcss: './postcss.config.js',
@@ -20,17 +20,18 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        '@wordpro': path.resolve(__dirname, './src/features/clerk-desk/wordpro/client/src')
       },
     },
     build: {
       outDir: 'dist',
       sourcemap: false,
-      minify: 'terser',
       rollupOptions: {
         output: {
           manualChunks: {
             'vendor': ['react', 'react-dom', 'react-router-dom'],
-            'ui': ['framer-motion', 'lucide-react'],
+            'ui-vendor': ['framer-motion', 'lucide-react', 'recharts', 'sonner'],
+            'export-vendor': ['xlsx', 'pdf-lib', 'html2canvas', 'jspdf'],
           },
         },
       },

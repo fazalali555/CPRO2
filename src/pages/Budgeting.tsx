@@ -232,7 +232,7 @@ type BudgetMap = Record<string, {
   budget: number;
   modified: number;
   months: Record<string, number>;
-  desc: string;
+  desc?: string;
   anticipated?: number;
 }>;
 
@@ -1716,6 +1716,7 @@ const TokenManagementTab = () => {
       token_no: '202501001',
       submission_date: '2025-01-15',
       amount: 450000,
+      description: 'Monthly Salary Bill (GHS No. 1)',
       status: 'Encashed',
       encashment_date: '2025-01-20',
       reconciliation_status: 'Matched',
@@ -1726,6 +1727,7 @@ const TokenManagementTab = () => {
       token_no: '202501045',
       submission_date: '2025-01-28',
       amount: 125000,
+      description: 'TA Bill - Seniority Case',
       status: 'Objected',
       reconciliation_status: 'Unmatched',
       objection_codes: ['74', '102']

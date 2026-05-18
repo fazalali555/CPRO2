@@ -1,25 +1,46 @@
 // components/letters/LetterComposer.tsx
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Card, Button, Badge, TextField, SelectField, TextArea } from '../../../../components/M3';
-import { RichTextEditor } from '../../../../components/RichTextEditor';
-import { OfficialLogo } from '../../../../components/OfficialLogo';
-import { QRCode } from '../../../../components/QRCode';
+import { Card, Button, Badge, TextField, SelectField, TextArea } from '@/components/M3';
+import { DocumentEditor as WordEditor } from '../wordpro/components/DocumentEditor';
+import { EditorProvider, useEditorContext } from '../wordpro/contexts/EditorContext';
+import { Ribbon } from '../wordpro/components/Ribbon';
+import { StatusBar } from '../wordpro/components/StatusBar';
+import { OfficialLogo } from '@/components/OfficialLogo';
+import { QRCode } from '@/components/QRCode';
 import { useLetterComposer } from '../../hooks/useLetterComposer';
 import { useClerkDeskShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { AIService } from '../../services/AIService';
 import { ExportService } from '../../services/ExportService';
-import { useToast } from '../../../../contexts/ToastContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useConfirmDialog } from '../common/ConfirmDialog';
 import { SearchBar } from '../common/SearchBar';
 import { EmptyState } from '../common/EmptyState';
 import { PRIORITY_OPTIONS } from '../../constants';
 import { formatDate, formatStatus, formatPriority } from '../../utils/formatters';
 import { validateLetter } from '../../utils/validators';
-import { getDepartmentLogoPath } from '../../../../utils';
+import { getDepartmentLogoPath } from '@/utils';
 import { parseOfficialLetter, ParsedLetter } from '../../utils/smartLetterParser';
-import { APP_NAME, APP_AUTHOR, DEVELOPER } from '../../../../config/branding';
-import type { OfficeProfile } from '../../../../types';
+import { APP_NAME, APP_AUTHOR, DEVELOPER } from '@/config/branding';
+import type { OfficeProfile } from '@/types';
+
+// Bridge to sync wordpro editor state with letter form state
+const EditorStateBridge: React.FC<{ value: string }> = ({ value }) => {
+  const { editor, loadContent, getHTML } = useEditorContext();
+
+  // Sync from formState to editor ONLY when content changes externally
+  useEffect(() => {
+    if (editor && value !== getHTML()) {
+      // If the editor is not focused, it's likely an external change (AI or loading)
+      // Or if the editor is empty, we should load the initial value
+      if (!editor.isFocused || getHTML() === '<p></p>') {
+        loadContent(value);
+      }
+    }
+  }, [value, editor, loadContent, getHTML]);
+
+  return null;
+};
 
 export const LetterComposer: React.FC = () => {
   const { showToast } = useToast();
@@ -535,31 +556,6 @@ export const LetterComposer: React.FC = () => {
             error={validationErrors.subject}
             placeholder="e.g. Sanction of GPF Case"
           />
-
-          <div className="flex items-center gap-2 mb-2 mt-4">
-            <span className="material-symbols-outlined text-primary/70 text-[18px]">settings_suggest</span>
-            <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Label Customization (Optional)</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <TextField
-              label="To Label"
-              value={formState.toLabel}
-              onChange={e => setField('toLabel', e.target.value)}
-              placeholder="Default: To"
-            />
-            <TextField
-              label="Subject Label"
-              value={formState.subjectLabel}
-              onChange={e => setField('subjectLabel', e.target.value)}
-              placeholder="Default: Subject"
-            />
-            <TextField
-              label="Salutation Label"
-              value={formState.salutationLabel}
-              onChange={e => setField('salutationLabel', e.target.value)}
-              placeholder="Default: Respected"
-            />
-          </div>
         </div>
 
         {/* ── Block 3: Content ── */}
@@ -620,14 +616,19 @@ export const LetterComposer: React.FC = () => {
               </div>
             )}
             
-            <div className="rounded-2xl border border-outline/20 overflow-hidden bg-surface-container-lowest transition-all focus-within:border-primary/40 focus-within:shadow-md">
-              <RichTextEditor
-                value={formState.body}
-                onChange={html => setField('body', html)}
-                onPaste={text => parsePastedLetter(text)}
-                error={validationErrors.body}
-                minHeight="320px"
-              />
+            <div className="rounded-2xl border border-outline/20 overflow-hidden bg-surface-container-lowest transition-all focus-within:border-primary/40 focus-within:shadow-md min-h-[500px] flex flex-col">
+              <EditorProvider onChange={(html) => {
+                setField('body', html);
+              }}>
+                <EditorStateBridge value={formState.body} />
+                <div className="bg-white border-b border-outline/10">
+                  <Ribbon />
+                </div>
+                <div className="flex-1 overflow-hidden flex flex-col relative">
+                  <WordEditor className="flex-1" />
+                  <StatusBar />
+                </div>
+              </EditorProvider>
             </div>
           </div>
         </div>
@@ -730,8 +731,8 @@ export const LetterComposer: React.FC = () => {
               >
                 {/* Letterhead */}
                 {(() => {
-                  let line1 = resolvedValues.lhLine1;
-                  let line2 = resolvedValues.lhLine2 || officeProfile.district_line || '';
+                  const line1 = resolvedValues.lhLine1;
+                  const line2 = resolvedValues.lhLine2 || officeProfile.district_line || '';
 
                   return (
                     <>
@@ -797,7 +798,7 @@ export const LetterComposer: React.FC = () => {
                       {/* Recipient */}
                       {(formState.to || '').trim().length > 0 && (
                         <div style={{ marginBottom: 20, fontSize: '11pt', display: 'flex' }}>
-                          <div style={{ fontWeight: 700, width: '45px' }}>{formState.toLabel || 'To'}</div>
+                          <div style={{ fontWeight: 700, width: '80px', flexShrink: 0 }}>To:</div>
                           <div style={{ fontWeight: 700, lineHeight: 1.6, flex: 1 }}>
                             {(formState.to || 'Recipient').split('\n').filter(Boolean).map((l, i) => (
                               <div key={i}>{l.trim()}</div>
@@ -809,14 +810,15 @@ export const LetterComposer: React.FC = () => {
                       {/* Subject */}
                       {formState.subject && (
                         <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 20, fontSize: '11pt', textAlign: 'justify' }}>
-                          <span style={{ fontWeight: 700, marginRight: 10, flexShrink: 0 }}>{formState.subjectLabel || 'Subject'}:</span>
+                          <span style={{ fontWeight: 700, width: '80px', flexShrink: 0 }}>Subject:</span>
                           <span style={{ 
                             fontWeight: 700, 
                             textDecoration: 'underline', 
                             textUnderlineOffset: '4px', 
                             lineHeight: 1.45, 
                             textAlign: 'left',
-                            fontSize: '11pt'
+                            fontSize: '11pt',
+                            flex: 1
                           }}>
                             {formState.subject}
                           </span>
@@ -826,7 +828,7 @@ export const LetterComposer: React.FC = () => {
                       {/* Salutation */}
                       {(formState.to || '').trim().length > 0 && (
                         <div style={{ fontWeight: 700, fontSize: '11pt', marginBottom: 12 }}>
-                          {formState.salutationLabel || 'Respected'} {resolvedValues.salutation || 'Sir'},
+                          Respected {resolvedValues.salutation || 'Sir'},
                         </div>
                       )}
 
@@ -850,9 +852,8 @@ export const LetterComposer: React.FC = () => {
                           return (
                             <div className="space-y-5">
                               {rawParagraphs.map((text, i) => {
-                                const isFirst = i === 0;
                                 return (
-                                  <div key={i} className="text-justify leading-relaxed" style={isFirst ? { textIndent: '4em' } : {}}>
+                                  <div key={i} className="text-justify leading-relaxed" style={{ textIndent: '4em' }}>
                                     {text}
                                   </div>
                                 );

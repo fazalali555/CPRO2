@@ -69,7 +69,7 @@ const itemVariants = {
       stiffness: 100,
     },
   },
-};
+} as const;
 
 // ============================================================================
 // CONSTANTS
@@ -307,7 +307,7 @@ const DynamicMapEditor = React.memo(
                   {k.replace(/_/g, ' ')}
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono font-bold">{formatCurrency(Number(v))}</span>
+                  <span className="font-mono font-bold">{formatCurrency(v)}</span>
                   <button
                     type="button"
                     onClick={() => remove(k)}
@@ -325,13 +325,13 @@ const DynamicMapEditor = React.memo(
           <TextField
             label="Name (e.g. Adhoc 2026)"
             value={key}
-            onChange={(e) => setKey(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKey(e.target.value)}
             className="flex-1"
           />
           <TextField
             label="Amount"
             value={val}
-            onChange={(e) => setVal(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVal(e.target.value)}
             type="number"
             className="w-32"
           />
@@ -715,7 +715,7 @@ const EmployeeFilterPanel: React.FC<{
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-6">
               <FilterSection label="Employment Status" icon="how_to_reg">
-                <SelectField value={local.status} onChange={(e: any) => update('status', e.target.value)}>
+                <SelectField label="Status" value={local.status} onChange={(e: any) => update('status', e.target.value)}>
                   <option value="All">All Statuses</option>
                   <option value="Active">Active Duty</option>
                   <option value="Retired">Inactive / Retired</option>
@@ -726,7 +726,7 @@ const EmployeeFilterPanel: React.FC<{
               </FilterSection>
 
               <FilterSection label="Retirement Target" icon="event_busy">
-                <TextField value={local.retiringYear} onChange={(e) => update('retiringYear', e.target.value)} placeholder="e.g. 2026" />
+                <TextField label="Target Year" value={local.retiringYear} onChange={(e) => update('retiringYear', e.target.value)} placeholder="e.g. 2026" />
               </FilterSection>
 
               <FilterSection label="Jurisdiction" icon="map">
@@ -766,7 +766,7 @@ const EmployeeFilterPanel: React.FC<{
               </FilterSection>
 
               <FilterSection label="Staff Classification" icon="badge">
-                 <SelectField value={local.staffType} onChange={(e: any) => update('staffType', e.target.value)}>
+                 <SelectField label="Type" value={local.staffType} onChange={(e: any) => update('staffType', e.target.value)}>
                     <option value="all">All Types</option>
                     <option value="teaching">Teaching / Professional</option>
                     <option value="non_teaching">Non-Teaching / Support</option>
@@ -924,11 +924,13 @@ export const Employees: React.FC = () => {
     },
     financials: {
       basic_pay: 0,
+      last_pay_with_increment: 0,
       p_pay: 0,
       hra: 0,
       ca: 0,
       ma: 0,
       uaa: 0,
+      spl_allow: 0,
       spl_allow_2021: 0,
       teaching_allow: 0,
       spl_allow_female: 0,
@@ -937,19 +939,24 @@ export const Employees: React.FC = () => {
       charge_allow: 0,
       wa: 0,
       dress_allow: 0,
+      computer_allow: 0,
+      mphil_allow: 0,
+      entertainment_allow: 0,
+      science_teaching_allow: 0,
+      weather_allow: 0,
+      special_allow_non_teaching: 0,
       adhoc_2013: 0,
       adhoc_2015: 0,
+      adhoc_2016: 0,
+      adhoc_2022: 0,
+      adhoc_10pct: 0,
       adhoc_2022_ps17: 0,
       dra_2022kp: 0,
       adhoc_2023_35: 0,
       adhoc_2024_25: 0,
       adhoc_2025_10: 0,
       dra_2025_15: 0,
-      computer_allow: 0,
-      mphil_allow: 0,
-      entertainment_allow: 0,
-      science_teaching_allow: 0,
-      weather_allow: 0,
+      other: 0,
       arrears: {},
       gpf: 0,
       gpf_sub: 0,

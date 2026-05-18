@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Card, Button, Badge, TextArea } from '../../../../components/M3';
-import { AppIcon } from '../../../../components/AppIcon';
+import { Card, Button, Badge, TextArea } from '@/components/M3';
+import { AppIcon } from '@/components/AppIcon';
 import { parseOfficialLetter, ParsedLetter } from '../../utils/smartLetterParser';
 
 interface AIImportModalProps {

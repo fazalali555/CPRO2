@@ -10,7 +10,7 @@ import React, {
   ReactNode 
 } from 'react';
 import { PageHeader } from '../components/PageHeader';
-import { Button } from '../components/M3';
+import { Button, Badge } from '../components/M3';
 import { ProjectLogo } from '../components/ProjectLogo';
 import { APP_NAME, APP_TAGLINE, DEVELOPER, APP_VERSION } from '../config/branding';
 import { useNavigate } from 'react-router-dom';

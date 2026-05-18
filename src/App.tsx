@@ -10,7 +10,7 @@ import { APP_NAME } from './config/branding';
 
 // Components
 import { SplashGate } from './components/SplashGate';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Services
 import { BackupService } from './services/BackupService';

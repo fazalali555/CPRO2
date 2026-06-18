@@ -15,7 +15,8 @@ export const PayrollSourceFormsPrint: React.FC<Props> = ({ employees, cases }) =
   const { caseId, formType } = useParams();
   
   const caseRecord = cases.find(c => c.id === caseId);
-  const employee = caseRecord ? employees.find(e => e.id === caseRecord.employee_id) : employees[0];
+  const employeeRecord = caseRecord ? employees.find(e => e.id === caseRecord.employee_id) : employees[0];
+  const employee = employeeRecord !== undefined ? employeeRecord : null;
 
   const amendments = caseRecord?.extras?.amendments || [];
   const payrollEntries = caseRecord?.extras?.payroll_entries || [];
@@ -24,7 +25,7 @@ export const PayrollSourceFormsPrint: React.FC<Props> = ({ employees, cases }) =
     <PrintLayout orientation={formType === 'source3' ? 'landscape' : 'portrait'} caseId={caseId} documentId={formType}>
       <div className="flex flex-col gap-8 py-8 print:p-0">
         {formType === 'source1' && <Form1 employeeRecord={employee} />}
-        {formType === 'source2' && <PayrollAmendmentSingleForm employeeRecord={employee} amendments={amendments} />}
+        {formType === 'source2' && <PayrollAmendmentSingleForm employeeRecord={employee || undefined} amendments={amendments} />}
         {formType === 'source3' && (
           <PayrollAmendmentMultiForm 
             officeName={employee?.employees.office_name || "DISTRICT EDUCATION OFFICE"} 
@@ -38,7 +39,7 @@ export const PayrollSourceFormsPrint: React.FC<Props> = ({ employees, cases }) =
           <>
             <Form1 employeeRecord={employee} />
             <div className="page-break" />
-            <PayrollAmendmentSingleForm employeeRecord={employee} amendments={amendments} />
+            <PayrollAmendmentSingleForm employeeRecord={employee || undefined} amendments={amendments} />
             <div className="page-break" />
             <PayrollAmendmentMultiForm 
               officeName={employee?.employees.office_name || "DISTRICT EDUCATION OFFICE"} 

@@ -10,7 +10,7 @@ import { APP_NAME } from './config/branding';
 
 // Components
 import { SplashGate } from './components/SplashGate';
-import ErrorBoundary from './components/ErrorBoundary';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Services
 import { BackupService } from './services/BackupService';
@@ -41,7 +41,12 @@ import {
   RetirementSuitePortraitPrintWrapper,
   RetirementSuiteLandscapePrintWrapper,
   RetirementSuiteAffidavitsPrintWrapper,
-  LetterPrintWrapper
+  LetterPrintWrapper,
+  LPRPacketPrintWrapper,
+  BenevolentFundPacketPrintWrapper,
+  EEFPacketPrintWrapper,
+  RBDCPacketPrintWrapper,
+  FinancialAssistancePacketPrintWrapper
 } from './components/PrintWrappers';
 
 // Lazy Loaded Pages
@@ -224,6 +229,12 @@ const App: React.FC = () => {
               <Route path="/print/eef-application/:caseId" element={<OfficialApplicationsPrintWrapper kind="eef" />} />
               <Route path="/print/financial-assistance-application/:caseId" element={<UniversalCoverPrintWrapper type="financial-assistance" />} />
               <Route path="/print/lpr-pay-form/:caseId" element={<LPRPayFormPrintWrapper />} />
+
+              <Route path="/print/lpr-packet/:caseId" element={<LPRPacketPrintWrapper />} />
+              <Route path="/print/bf-packet/:caseId" element={<BenevolentFundPacketPrintWrapper />} />
+              <Route path="/print/eef-packet/:caseId" element={<EEFPacketPrintWrapper />} />
+              <Route path="/print/rbdc-packet/:caseId" element={<RBDCPacketPrintWrapper />} />
+              <Route path="/print/financial-assistance-packet/:caseId" element={<FinancialAssistancePacketPrintWrapper />} />
 
               <Route path="/print/cert-nondrawal-bf/:caseId" element={<NonDrawalPrintWrapper type="Benevolent Fund" />} />
               <Route path="/print/cert-contribution-bf/:caseId" element={<NonDrawalPrintWrapper type="Contribution" />} />

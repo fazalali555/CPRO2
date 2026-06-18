@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AppIcon } from './AppIcon';
 import { QRCode } from './QRCode';
@@ -6,7 +5,8 @@ import { QRCode } from './QRCode';
 interface PrintLayoutProps {
   children: React.ReactNode;
   orientation?: 'portrait' | 'landscape';
-  pageSize?: 'A4' | 'Legal';
+  pageSize?: 'A4' | 'Legal' | 'Letter';
+  margins?: { top: number; bottom: number; left: number; right: number };
   caseId?: string;
   documentId?: string;
 }
@@ -15,6 +15,7 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
   children, 
   orientation = 'portrait', 
   pageSize = 'A4',
+  margins,
   caseId,
   documentId
 }) => {
@@ -28,6 +29,11 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
   const verificationUrl = caseId 
     ? `${window.location.origin}/#/verify/${caseId}${documentId ? `?doc=${documentId}` : ''}`
     : '';
+
+  const marginTop = margins ? `${margins.top}mm` : null;
+  const marginRight = margins ? `${margins.right}mm` : null;
+  const marginBottom = margins ? `${margins.bottom}mm` : null;
+  const marginLeft = margins ? `${margins.left}mm` : null;
 
   const css = `
     @page { 
@@ -47,10 +53,10 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
         display: none !important;
       }
       .print-page {
-        width: ${orientation === 'landscape' ? '297mm' : (pageSize === 'Legal' ? '216mm' : '210mm')} !important;
-        height: auto !important; /* Allow height to adjust */
-        min-height: ${orientation === 'landscape' ? '210mm' : (pageSize === 'Legal' ? '356mm' : '297mm')} !important;
-        overflow: visible !important; /* Allow content to flow */
+        width: ${orientation === 'landscape' ? (pageSize === 'Legal' ? '356mm' : (pageSize === 'Letter' ? '279.4mm' : '297mm')) : (pageSize === 'Legal' ? '216mm' : (pageSize === 'Letter' ? '215.9mm' : '210mm'))} !important;
+        height: ${orientation === 'landscape' ? (pageSize === 'Legal' ? '216mm' : (pageSize === 'Letter' ? '215.9mm' : '210mm')) : (pageSize === 'Legal' ? '356mm' : (pageSize === 'Letter' ? '279.4mm' : '297mm'))} !important;
+        min-height: ${orientation === 'landscape' ? (pageSize === 'Legal' ? '216mm' : (pageSize === 'Letter' ? '215.9mm' : '210mm')) : (pageSize === 'Legal' ? '356mm' : (pageSize === 'Letter' ? '279.4mm' : '297mm'))} !important;
+        overflow: hidden !important; /* Enforce single page fitting */
         page-break-inside: avoid !important;
         margin: 0 auto !important;
         box-shadow: none !important;
@@ -63,11 +69,17 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
         color-adjust: exact !important;
         transform: scale(1) !important;
         transform-origin: top left !important;
+        
+        /* Apply dynamic padding margins only if passed */
+        ${marginTop !== null ? `padding-top: ${marginTop} !important;` : ''}
+        ${marginRight !== null ? `padding-right: ${marginRight} !important;` : ''}
+        ${marginBottom !== null ? `padding-bottom: ${marginBottom} !important;` : ''}
+        ${marginLeft !== null ? `padding-left: ${marginLeft} !important;` : ''}
       }
       
       /* Ensure single page fit if needed */
       .fit-page {
-        height: ${orientation === 'landscape' ? '210mm' : (pageSize === 'Legal' ? '356mm' : '297mm')} !important;
+        height: ${orientation === 'landscape' ? (pageSize === 'Legal' ? '216mm' : '210mm') : (pageSize === 'Legal' ? '356mm' : '297mm')} !important;
         overflow: hidden !important;
       }
       .print-page:not(:last-child) {
@@ -134,20 +146,15 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
              <span className="font-bold">Print Preview ({pageSize} - {orientation})</span>
           </div>
           <div className="flex items-center gap-3">
-            <button 
+             <button 
               type="button"
               onClick={handlePrint}
               className="bg-white text-slate-900 px-6 py-2 font-bold text-sm hover:bg-slate-200 transition-colors shadow-sm active:scale-95 flex items-center gap-2"
-            >
-               <AppIcon name="print" size={18} /> Print Document
-             </button>
-             <button 
-               type="button"
-               onClick={() => window.close()}
-               className="text-white/70 hover:text-white p-2 hover:bg-white/10 transition-colors"
-               title="Close"
              >
-               <AppIcon name="close" />
+                <AppIcon name="print" size={18} /> Print Document
+             </button>
+             <button type="button" onClick={() => window.close()} className="text-white/70 hover:text-white p-2 hover:bg-white/10 transition-colors" title="Close">
+                <AppIcon name="close" />
              </button>
           </div>
        </div>
@@ -155,13 +162,11 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
        {/* Spacer for fixed header */}
        <div className="h-20 no-print"></div>
        
-      <div className="block pb-20 print:pb-0">
+       <div className="block pb-20 print:pb-0">
           {children}
        </div>
 
-       {/* Verification QR - Moved inside a hidden div that only shows in print if needed, 
-           but actually it's better to let each page handle its own if needed, 
-           or keep it absolute to the first page. */}
+       {/* Verification QR */}
        {verificationUrl && (
          <div className="hidden print:block verification-qr opacity-80">
            <div className="flex flex-col items-center gap-1">

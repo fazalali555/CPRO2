@@ -11,7 +11,7 @@ import { TAB_CONFIG } from './constants';
 import { TabId } from './types';
 
 // Lazy load tab components for better performance
-const LetterComposer = lazy(() => import('./components/letters/LetterComposer'));
+const LetterComposer = lazy(() => import('./components/wordpro/letters/LetterComposer'));
 const WordProEditor = lazy(() => import('./components/wordpro/pages/Editor'));
 const DocumentFiling = lazy(() => import('./components/filing/DocumentFiling'));
 const CorrespondenceTracker = lazy(() => import('./components/correspondence/CorrespondenceTracker'));

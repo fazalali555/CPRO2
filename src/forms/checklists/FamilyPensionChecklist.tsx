@@ -2,7 +2,7 @@
 import React from 'react';
 import { EmployeeRecord, CaseRecord } from '../../types';
 import { ChecklistLayout } from './ChecklistLayout';
-import { getOfficialPensionChecklist } from '../../utils';
+import { getFamilyPensionChecklist } from '../../utils';
 
 interface Props {
   employee: EmployeeRecord;
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export const FamilyPensionChecklist: React.FC<Props> = ({ employee, caseRecord }) => {
-  const items = getOfficialPensionChecklist(employee, caseRecord);
+  const items = getFamilyPensionChecklist();
   
   return (
     <ChecklistLayout 

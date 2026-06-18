@@ -10,7 +10,8 @@ interface Props {
 }
 
 export const FinancialAssistanceChecklist: React.FC<Props> = ({ employee, caseRecord }) => {
-  const items = getFinancialAssistanceChecklist();
+  const isDeath = employee?.employees?.status === 'deceased' || String(caseRecord?.extras?.nature_of_retirement || '').toLowerCase().includes('death');
+  const items = getFinancialAssistanceChecklist(isDeath);
   
   return (
     <ChecklistLayout 

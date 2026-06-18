@@ -410,7 +410,7 @@ export const LoansTab: React.FC = () => {
               title: 'Loan Details',
               icon: 'payments',
               fields: [
-                { label: 'Type', value: selectedLoan.loanType, type: 'badge', variant: 'primary' },
+                { label: 'Type', value: selectedLoan.loanType, type: 'badge', variant: 'default' },
                 { label: 'Amount', value: selectedLoan.amount, type: 'currency' },
                 { label: 'Purpose', value: selectedLoan.purpose },
                 { label: 'Installments', value: `${(selectedLoan as any).installments || 60} months` },

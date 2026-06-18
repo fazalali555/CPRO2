@@ -14,7 +14,7 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { CharacterCount } from "@tiptap/extension-character-count";
 import { Comment } from "../lib/CommentExtension";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
 
 interface TiptapEditorProps {
   content?: string;

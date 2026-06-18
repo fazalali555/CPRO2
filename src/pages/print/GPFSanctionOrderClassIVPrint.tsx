@@ -24,7 +24,7 @@ export const GPFSanctionOrderClassIVPrint: React.FC<Props> = ({ employees, cases
     }
   }, [caseRecord, employee]);
 
-  const isValidClassIV = employee && isClassIV(employee.employees.bps);
+  const isValidClassIV = !!(employee && isClassIV(employee.employees.bps));
 
   useAutoPrint(!!caseRecord && !!employee && isValidClassIV);
 

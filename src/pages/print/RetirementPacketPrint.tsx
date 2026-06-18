@@ -56,7 +56,7 @@ export const RetirementPacketPrint: React.FC<Props> = ({ employees, cases }) => 
       <div className="flex flex-col items-center print:block">
         {pages.map((page, index) => (
           <React.Fragment key={index}>
-            <div className="print-page mb-8 print:mb-0 print:break-after-page last:print:break-after-auto">
+            <div className="mb-8 print:mb-0">
               {page}
             </div>
           </React.Fragment>

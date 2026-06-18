@@ -13,6 +13,8 @@ export const STORAGE_KEYS = {
   TEMPLATES: 'clerk_pro_clerk_templates',
   OFFICE_PROFILES: 'clerk_pro_clerk_office_profiles',
   PREFERENCES: 'clerk_pro_clerk_preferences',
+  COMPOSER_MAXIMIZED: 'clerk_pro_composer_maximized',
+  REFERENCE_COUNTERS: 'clerk_pro_clerk_ref_counters',
 } as const;
 
 export const DEFAULT_TEMPLATES: LetterTemplate[] = [
@@ -208,7 +210,6 @@ export const LEAVE_TYPES = [
 
 export const TAB_CONFIG: TabConfig[] = [
   { id: 'letters', label: 'Letters', icon: 'mail' },
-  { id: 'wordpro', label: 'WordPro', icon: 'edit_document' },
   { id: 'filing', label: 'Filing', icon: 'folder' },
   { id: 'correspondence', label: 'Correspondence', icon: 'forum' },
   { id: 'appointments', label: 'Appointments', icon: 'event' },

@@ -11,7 +11,7 @@ import {
   User,
   Plus,
 } from "lucide-react";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
 
 interface ReviewPanelProps {
   onClose?: () => void;
@@ -98,7 +98,7 @@ export function ReviewPanel({ onClose }: ReviewPanelProps) {
                 <p className="text-xs text-gray-500 font-medium tracking-tight">No comments in this document.</p>
               </div>
             ) : (
-              comments.map((comment) => (
+              comments.map((comment: any) => (
                 <Card
                   key={comment.id}
                   className={cn(

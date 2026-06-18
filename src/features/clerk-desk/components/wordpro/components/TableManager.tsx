@@ -1,134 +1,71 @@
 import React, { useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../components/ui/dialog";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../components/ui/popover";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Table, Plus, Trash2 } from "lucide-react";
-
-interface TableData {
-  rows: string[][];
-}
+import { Table } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TableManagerProps {
   onInsertTable?: (rows: number, cols: number) => void;
 }
 
 /**
- * Table insertion and management component
+ * Table insertion and management component with 10x8 grid hover selector
  */
 export function TableManager({ onInsertTable }: TableManagerProps) {
-  const [rows, setRows] = useState(3);
-  const [cols, setCols] = useState(3);
   const [open, setOpen] = useState(false);
+  const [hoveredCell, setHoveredCell] = useState<{ r: number; c: number } | null>(null);
 
-  const handleInsert = () => {
-    onInsertTable?.(rows, cols);
+  const maxRows = 8;
+  const maxCols = 10;
+
+  const handleInsert = (r: number, c: number) => {
+    onInsertTable?.(r + 1, c + 1);
     setOpen(false);
+    setHoveredCell(null);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1">
           <Table className="h-4 w-4" />
           <span className="text-xs">Table</span>
         </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Insert Table</DialogTitle>
-          <DialogDescription>
-            Specify the number of rows and columns for your table.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="rows">Rows</Label>
-            <Input
-              id="rows"
-              type="number"
-              min="1"
-              max="50"
-              value={rows}
-              onChange={(e) => setRows(Math.max(1, parseInt(e.target.value) || 1))}
-            />
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-3">
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-semibold text-center mb-1">
+            {hoveredCell ? `${hoveredCell.c + 1}x${hoveredCell.r + 1} Table` : "Insert Table"}
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="cols">Columns</Label>
-            <Input
-              id="cols"
-              type="number"
-              min="1"
-              max="20"
-              value={cols}
-              onChange={(e) => setCols(Math.max(1, parseInt(e.target.value) || 1))}
-            />
+          <div 
+            className="flex flex-col gap-1"
+            onMouseLeave={() => setHoveredCell(null)}
+          >
+            {Array.from({ length: maxRows }).map((_, r) => (
+              <div key={r} className="flex gap-1">
+                {Array.from({ length: maxCols }).map((_, c) => {
+                  const isHighlighted = hoveredCell && r <= hoveredCell.r && c <= hoveredCell.c;
+                  return (
+                    <div
+                      key={c}
+                      className={cn(
+                        "w-4 h-4 border border-gray-300 rounded-sm cursor-pointer",
+                        isHighlighted ? "bg-blue-200 border-blue-400" : "bg-white"
+                      )}
+                      onMouseEnter={() => setHoveredCell({ r, c })}
+                      onClick={() => handleInsert(r, c)}
+                    />
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleInsert}>Insert Table</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
- * Table component for rendering tables in the editor
- */
-export function EditorTable({
-  rows,
-  cols,
-  onDelete,
-}: {
-  rows: number;
-  cols: number;
-  onDelete?: () => void;
-}) {
-  return (
-    <div className="my-4 overflow-x-auto">
-      <table className="w-full border-collapse border border-gray-300">
-        <tbody>
-          {Array.from({ length: rows }).map((_, rowIdx) => (
-            <tr key={rowIdx}>
-              {Array.from({ length: cols }).map((_, colIdx) => (
-                <td
-                  key={`${rowIdx}-${colIdx}`}
-                  className="border border-gray-300 p-2 min-w-20"
-                  contentEditable
-                  suppressContentEditableWarning
-                >
-                  {rowIdx === 0 && colIdx === 0 ? "Header" : ""}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {onDelete && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onDelete}
-          className="mt-2 gap-1"
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete Table
-        </Button>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useEditorContext } from "../contexts/EditorContext";
-import { trpc } from "../lib/trpc";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import {
@@ -16,7 +15,9 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { AIService } from "../../../services/AIService";
 
 interface CopilotMessage {
   id: string;
@@ -34,14 +35,9 @@ export function CopilotSidebar() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
 
   const content = getContent();
-
-  // tRPC mutations
-  const draftTextMutation = trpc.copilot.draftText.useMutation();
-  const rewriteTextMutation = trpc.copilot.rewriteText.useMutation();
-  const summarizeMutation = trpc.copilot.summarizeDocument.useMutation();
-  const suggestMutation = trpc.copilot.suggestImprovements.useMutation();
 
   const handleDraftText = async () => {
     if (!input.trim()) return;
@@ -51,14 +47,16 @@ export function CopilotSidebar() {
     setInput("");
 
     try {
-      const result = await draftTextMutation.mutateAsync({
-        prompt: userMessage,
-      });
+      const response = await AIService.chat(userMessage, content);
+      if (response.error) {
+        toast.error(response.error);
+        return;
+      }
 
       setMessages((prev) => [
         ...prev,
         { id: Date.now().toString(), role: "user", content: userMessage, timestamp: Date.now() },
-        { id: (Date.now() + 1).toString(), role: "assistant", content: String(result.content), timestamp: Date.now() },
+        { id: (Date.now() + 1).toString(), role: "assistant", content: response.text, timestamp: Date.now() },
       ]);
     } catch (error) {
       console.error("Error:", error);
@@ -79,15 +77,16 @@ export function CopilotSidebar() {
 
     setIsLoading(true);
     try {
-      const result = await rewriteTextMutation.mutateAsync({
-        text: selectedText,
-        style: "formal",
-      });
+      const response = await AIService.rewriteText(selectedText, "formal");
+      if (response.error) {
+        toast.error(response.error);
+        return;
+      }
 
       setMessages((prev) => [
         ...prev,
         { id: Date.now().toString(), role: "user", content: `Rewrite: "${selectedText}"`, timestamp: Date.now() },
-        { id: (Date.now() + 1).toString(), role: "assistant", content: String(result.content), timestamp: Date.now() },
+        { id: (Date.now() + 1).toString(), role: "assistant", content: response.text, timestamp: Date.now() },
       ]);
     } catch (error) {
       console.error("Error:", error);
@@ -105,15 +104,16 @@ export function CopilotSidebar() {
 
     setIsLoading(true);
     try {
-      const result = await summarizeMutation.mutateAsync({
-        content,
-        length: "medium",
-      });
+      const response = await AIService.generateSummary(content, 150);
+      if (response.error) {
+        toast.error(response.error);
+        return;
+      }
 
       setMessages((prev) => [
         ...prev,
         { id: Date.now().toString(), role: "user", content: "Summarize the document", timestamp: Date.now() },
-        { id: (Date.now() + 1).toString(), role: "assistant", content: String(result.content), timestamp: Date.now() },
+        { id: (Date.now() + 1).toString(), role: "assistant", content: response.text, timestamp: Date.now() },
       ]);
     } catch (error) {
       console.error("Error:", error);
@@ -131,14 +131,16 @@ export function CopilotSidebar() {
 
     setIsLoading(true);
     try {
-      const result = await suggestMutation.mutateAsync({
-        text: content,
-      });
+      const response = await AIService.suggestImprovements(content);
+      if (response.error) {
+        toast.error(response.error);
+        return;
+      }
 
       setMessages((prev) => [
         ...prev,
         { id: Date.now().toString(), role: "user", content: "Suggest improvements", timestamp: Date.now() },
-        { id: (Date.now() + 1).toString(), role: "assistant", content: String(result.content), timestamp: Date.now() },
+        { id: (Date.now() + 1).toString(), role: "assistant", content: response.text, timestamp: Date.now() },
       ]);
     } catch (error) {
       console.error("Error:", error);
@@ -167,7 +169,12 @@ export function CopilotSidebar() {
   };
 
   return (
-    <div className="w-80 border-l bg-white flex flex-col h-full shadow-premium">
+    <motion.div 
+      initial={{ x: 300 }}
+      animate={{ x: 0 }}
+      transition={{ type: "spring", stiffness: 100, damping: 20 }}
+      className="w-80 border-l bg-white flex flex-col h-full shadow-premium"
+    >
       {/* Header */}
       <div className="border-b p-4 bg-blue-50/50">
         <div className="flex items-center gap-2 mb-4">
@@ -222,46 +229,76 @@ export function CopilotSidebar() {
           messages.map((msg) => (
             <div
               key={msg.id}
+              onMouseEnter={() => setHoveredMessageId(msg.id)}
+              onMouseLeave={() => setHoveredMessageId(null)}
               className={cn(
-                "rounded-2xl p-3 text-sm transition-all",
+                "relative rounded-2xl p-3 text-sm transition-all group",
                 msg.role === "user"
                   ? "bg-blue-600 text-white ml-6 rounded-tr-none shadow-md"
-                  : "bg-gray-100 text-gray-900 mr-6 rounded-tl-none border border-gray-200"
+                  : "bg-gradient-to-br from-blue-50/50 to-white text-gray-900 mr-6 rounded-tl-none border border-blue-100/50 shadow-sm"
               )}
             >
               <div className="flex flex-col gap-2">
                 <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                 {msg.role === "assistant" && (
-                  <div className="flex items-center justify-end gap-1 mt-1 border-t border-gray-200 pt-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-[10px] px-2 hover:bg-blue-100"
-                      onClick={() => handleApplyToEditor(msg.content)}
-                    >
-                      Apply to Doc
-                    </Button>
-                    <button
-                      onClick={() => handleCopyMessage(msg.content, msg.id)}
-                      className="p-1 hover:bg-gray-200 rounded transition-colors"
-                      title="Copy to clipboard"
-                    >
-                      {copiedId === msg.id ? (
-                        <Check className="h-3 w-3 text-green-600" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                    </button>
-                  </div>
+                  <AnimatePresence>
+                    {hoveredMessageId === msg.id && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute -top-4 right-2 flex items-center gap-1 bg-white border border-blue-100 rounded-full px-2 py-1 shadow-lg z-10"
+                      >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 rounded-full hover:bg-blue-50 text-blue-600"
+                          onClick={() => handleApplyToEditor(msg.content)}
+                          title="Apply to Doc"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 rounded-full hover:bg-blue-50 text-blue-600"
+                          onClick={() => handleCopyMessage(msg.content, msg.id)}
+                          title="Copy to clipboard"
+                        >
+                          {copiedId === msg.id ? (
+                            <Check className="h-3.5 w-3.5 text-green-600" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 )}
               </div>
             </div>
           ))
         )}
         {isLoading && (
-          <div className="flex items-center gap-3 text-xs text-blue-600 font-medium animate-pulse p-2 bg-blue-50 rounded-lg">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Thinking...</span>
+          <div className="flex flex-col items-center justify-center py-4">
+            <motion.div
+              animate={{
+                scale: [1, 1.05, 1],
+                opacity: [0.5, 0.8, 0.5],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="relative flex items-center justify-center"
+            >
+              <div className="absolute inset-0 bg-blue-400 rounded-full blur-xl opacity-20" />
+              <div className="flex items-center gap-3 text-xs text-blue-600 font-medium p-3 bg-blue-50/80 rounded-2xl border border-blue-100/50 relative z-10 shadow-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Copilot is thinking...</span>
+              </div>
+            </motion.div>
           </div>
         )}
       </div>
@@ -289,13 +326,18 @@ export function CopilotSidebar() {
           size="sm"
         >
           {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            >
+              <Loader2 className="h-4 w-4" />
+            </motion.div>
           ) : (
             <Send className="h-4 w-4" />
           )}
           {isLoading ? "Thinking..." : "Send Request"}
         </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

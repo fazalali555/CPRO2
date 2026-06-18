@@ -24,7 +24,7 @@ export const GPFApplicationForSanctionPrint: React.FC<Props> = ({ employees, cas
     }
   }, [caseRecord, employee]);
 
-  const isValidBPS = employee && isBpsGreaterThan4(employee.employees.bps);
+  const isValidBPS = !!(employee && isBpsGreaterThan4(employee.employees.bps));
 
   useAutoPrint(!!caseRecord && !!employee && isValidBPS);
 

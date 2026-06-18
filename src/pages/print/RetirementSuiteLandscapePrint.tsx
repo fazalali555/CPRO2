@@ -73,7 +73,7 @@ export const RetirementSuiteLandscapePrint: React.FC<Props> = ({ employees, case
     <PrintLayout caseId={caseId} documentId="suite-landscape" orientation="landscape">
       <div className="flex flex-col items-center print:block">
         {pages.map((page, index) => (
-          <div key={index} className="print-page mb-8 print:mb-0 print:break-after-page last:print:break-after-auto">
+          <div key={index} className="mb-8 print:mb-0">
             {page}
           </div>
         ))}

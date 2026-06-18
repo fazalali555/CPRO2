@@ -16,7 +16,7 @@ export function ReferencesTab({ isMobile = false }: ReferencesTabProps) {
 
     // Generate TOC HTML from headings
     const headings: { text: string; level: number }[] = [];
-    editor.state.doc.descendants((node) => {
+    editor.state.doc.descendants((node: any) => {
       if (node.type.name === "heading") {
         headings.push({
           text: node.textContent,

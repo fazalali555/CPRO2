@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 
-import { cn } from "../../features/clerk-desk/components/wordpro/lib/utils";
+import { cn } from "@/lib/utils";
 
 function ScrollArea({
   className,

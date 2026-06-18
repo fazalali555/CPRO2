@@ -1,6 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../_core/hooks/useAuth";
-import { EditorProvider } from "../contexts/EditorContext";
+import { EditorProvider } from "@/contexts/EditorContext";
+import { useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { Underline } from "@tiptap/extension-underline";
+import { TextAlign } from "@tiptap/extension-text-align";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
+import { FontFamily } from "@tiptap/extension-font-family";
+import { Highlight } from "@tiptap/extension-highlight";
+import { Image } from "@tiptap/extension-image";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { CharacterCount } from "@tiptap/extension-character-count";
+import { Comment } from "../lib/CommentExtension";
+import FontSize from "tiptap-extension-font-size";
+import LineHeight from "tiptap-extension-line-height";
+import Placeholder from "@tiptap/extension-placeholder";
+import Typography from "@tiptap/extension-typography";
+
 import { Ribbon } from "../components/Ribbon";
 import { DocumentEditor } from "../components/DocumentEditor";
 import { StatusBar } from "../components/StatusBar";
@@ -12,25 +32,9 @@ import { Save, Sparkles, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { saveDocumentToStorage, loadDocumentFromStorage } from "../lib/localStorage";
 import { nanoid } from "nanoid";
+import { cn } from "@/lib/utils";
 
 import { DocumentMap } from "../components/DocumentMap";
-
-/**
- * Bridge to load initial content into Tiptap
- */
-const EditorInitialLoadBridge: React.FC<{ initialContent: string }> = ({ initialContent }) => {
-  const { loadContent, getHTML } = useEditorContext();
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    if (initialContent && !loaded && getHTML() === '<p></p>') {
-      loadContent(initialContent);
-      setLoaded(true);
-    }
-  }, [initialContent, loadContent, getHTML, loaded]);
-
-  return null;
-};
 
 /**
  * WordPro Editor Component for Clerk Desk
@@ -47,6 +51,86 @@ export default function Editor() {
   const [content, setContent] = useState("");
   const [initialLoadContent, setInitialLoadContent] = useState("");
 
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
+        bulletList: { keepMarks: true, keepAttributes: true },
+        orderedList: { keepMarks: true, keepAttributes: true },
+      }),
+      Underline,
+      TextStyle,
+      Color,
+      FontFamily.configure({
+        types: ['textStyle'],
+      }),
+      FontSize,
+      LineHeight.configure({
+        types: ['paragraph', 'heading'],
+        defaultLineHeight: '1.5',
+      }),
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+        alignments: ['left', 'center', 'right', 'justify'],
+        defaultAlignment: 'left',
+      }),
+      Image.configure({
+        allowBase64: true,
+        inline: true,
+      }),
+      Table.configure({
+        resizable: true,
+        handleWidth: 5,
+        cellMinWidth: 25,
+        lastColumnResizable: true,
+        allowTableNodeSelection: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      CharacterCount,
+      Comment,
+      Placeholder.configure({
+        placeholder: 'Start typing your official letter...',
+      }),
+      Typography,
+    ],
+    content: initialLoadContent,
+    onUpdate: ({ editor }) => {
+      setContent(editor.getHTML());
+    },
+  });
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return
+    switch(e.key) {
+      case 's': e.preventDefault(); handleSave(); break
+      case 'p': e.preventDefault(); window.print(); break
+      case 'a': e.preventDefault();
+        editor?.commands.selectAll(); break
+      case 'z': e.preventDefault();
+        editor?.commands.undo(); break
+      case 'y': e.preventDefault();
+        editor?.commands.redo(); break
+      case 'b': e.preventDefault();
+        editor?.chain().focus().toggleBold().run(); break
+      case 'i': e.preventDefault();
+        editor?.chain().focus().toggleItalic().run(); break
+      case 'u': e.preventDefault();
+        editor?.chain().focus().toggleUnderline().run(); break
+      case ']': e.preventDefault();
+        editor?.commands.sinkListItem('listItem'); break
+      case '[': e.preventDefault();
+        editor?.commands.liftListItem('listItem'); break
+    }
+  }
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [editor])
+
   // Check if mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -57,6 +141,21 @@ export default function Editor() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Fix 2: Enable pinch zoom meta tag
+  useEffect(() => {
+    if (isMobile) {
+      const viewport = document.querySelector('meta[name="viewport"]');
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=5.0, user-scalable=yes');
+      }
+      return () => {
+        if (viewport) {
+          viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+        }
+      };
+    }
+  }, [isMobile]);
+
   // Load last document or a specific one if needed
   useEffect(() => {
     const lastDoc = loadDocumentFromStorage(documentId);
@@ -64,8 +163,9 @@ export default function Editor() {
       setDocumentTitle(lastDoc.title);
       setInitialLoadContent(lastDoc.content);
       setContent(lastDoc.content);
+      editor?.commands.setContent(lastDoc.content);
     }
-  }, [documentId]);
+  }, [documentId, editor]);
 
   const handleSave = async () => {
     try {
@@ -98,11 +198,10 @@ export default function Editor() {
   }
 
   return (
-    <EditorProvider onChange={(html) => setContent(html)}>
-      <EditorInitialLoadBridge initialContent={initialLoadContent} />
+    <EditorProvider editorInstance={editor}>
       <div className={cn(
         "flex flex-col bg-surface border border-outline/20 rounded-2xl overflow-hidden shadow-premium transition-all duration-500",
-        focusMode ? "fixed inset-0 z-50 rounded-none h-screen" : "h-[800px]"
+        focusMode ? "fixed inset-0 z-50 rounded-none h-screen" : "min-h-[85vh] h-auto"
       )}>
         {/* Toolbar Header */}
         <div className={cn("border-b bg-surface-container-low px-4 py-2 flex items-center justify-between", focusMode && "hidden")}>

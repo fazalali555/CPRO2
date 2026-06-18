@@ -78,7 +78,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePersistFn } from "../features/clerk-desk/components/wordpro/hooks/usePersistFn";
-import { cn } from "../features/clerk-desk/components/wordpro/lib/utils";
+import { cn } from "@/lib/utils";
 
 declare global {
   interface Window {

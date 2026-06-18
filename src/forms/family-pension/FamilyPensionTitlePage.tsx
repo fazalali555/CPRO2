@@ -3,6 +3,8 @@ import React from 'react';
 import { EmployeeRecord } from '../../types';
 import { format, parseISO } from 'date-fns';
 
+import { getCoverLetterInfo } from '../../utils';
+
 interface Props {
   employee: EmployeeRecord;
 }
@@ -14,6 +16,7 @@ const formatDate = (dateStr?: string) => {
 
 export const FamilyPensionTitlePage: React.FC<Props> = ({ employee }) => {
   const { employees, service_history } = employee;
+  const { department } = getCoverLetterInfo(employee);
   const isDeceased = employees.status === 'Deceased';
   const dateValue = isDeceased 
     ? formatDate(service_history.date_of_death || service_history.date_of_retirement)
@@ -62,7 +65,7 @@ export const FamilyPensionTitlePage: React.FC<Props> = ({ employee }) => {
                 </tr>
                 <tr className="border-b-2 border-black">
                   <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">Department</td>
-                  <td className="p-5 text-2xl font-bold uppercase text-center">EDUCATION</td>
+                  <td className="p-5 text-2xl font-bold uppercase text-center">{department}</td>
                 </tr>
                 <tr className="border-b-2 border-black">
                   <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">Place of Posting</td>

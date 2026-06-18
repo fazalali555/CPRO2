@@ -2157,7 +2157,7 @@ export function getDepartmentInfo(
     authorityTitle,
     institutionName,
     district: districtClean,
-    tehsil:   tehsilClean,
+    tehsil:   tehsilClean || (extractedLocation ? extractedLocation.charAt(0) + extractedLocation.slice(1).toLowerCase() : ''),
     letterhead,
   };
 }

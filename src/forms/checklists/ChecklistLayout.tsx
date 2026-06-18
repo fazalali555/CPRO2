@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { EmployeeRecord, CaseRecord, CaseChecklistItem } from '../../types';
-import { calculateServiceDuration, getRetirementType, getDepartmentInfo, detectDepartment } from '../../utils';
+import { calculateServiceDuration, getRetirementType, getDepartmentInfo, detectDepartment, getCoverLetterInfo } from '../../utils';
 import { OfficialLogo } from '../../components/OfficialLogo';
 import { Letterhead } from '../../components/Letterhead';
 import { format } from 'date-fns';
@@ -50,6 +50,7 @@ const TableRow: React.FC<TableRowProps> = ({ no, text, rowHeight }) => (
 );
 
 export const ChecklistLayout: React.FC<ChecklistLayoutProps> = ({ employee, caseRecord, title, items }) => {
+  const { signatureTitle } = getCoverLetterInfo(employee);
   const service = calculateServiceDuration(
     employee.service_history.date_of_appointment,
     employee.service_history.date_of_retirement,
@@ -205,7 +206,7 @@ export const ChecklistLayout: React.FC<ChecklistLayoutProps> = ({ employee, case
                 marginTop: '12mm', // Reduced space for actual signature
               }}
             ></div>
-            <div>{employee.employees.office_name || 'Sub Divisional Education Officer'}</div>
+            <div className="whitespace-pre-line leading-tight">{signatureTitle || 'Sub Divisional Education Officer'}</div>
           </div>
         </div>
 

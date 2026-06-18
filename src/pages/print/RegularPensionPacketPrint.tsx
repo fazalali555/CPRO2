@@ -43,81 +43,72 @@ export const RegularPensionPacketPrint: React.FC<Props> = ({ employees, cases })
     return <div className="p-10 text-center text-red-600 font-bold">Error: Case or Employee not found.</div>;
   }
 
-  // Strict A4
-  const pageStyle: React.CSSProperties = {
-    height: '297mm',
-    width: '210mm',
-    overflow: 'hidden',
-    pageBreakAfter: 'always',
-    marginBottom: '0'
-  };
-
   return (
     <PrintLayout orientation="portrait" pageSize="A4">
       <div className="flex flex-col items-center bg-gray-100 print:bg-white print:block">
         
         {/* Page 0: Checklist */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <RetirementChecklist employee={employee} caseRecord={caseRecord} />
         </div>
 
         {/* Page 1: Title Page */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <RegularTitlePage employee={employee} />
         </div>
 
         {/* Page 2: Forwarding Letter */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <RegularCoverLetter employee={employee} caseRecord={caseRecord} />
         </div>
 
         {/* Page 3: Application */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <PensionApplication employee={employee} />
         </div>
 
         {/* Page 4: Undertaking */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <PensionUndertaking employee={employee} />
         </div>
 
         {/* Page 5: Sanction 1 */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <PensionSanctionOrder employee={employee} />
         </div>
 
         {/* Page 6: Sanction 2 */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <PensionSanctionOrderPage2 employee={employee} />
         </div>
 
         {/* Page 7: Specimen */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <SpecimenSignaturePage employee={employee} />
         </div>
 
         {/* Page 8: Certificates A */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <PensionCertificatesA employee={employee} />
         </div>
 
         {/* Page 9: LPC Front */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <LastPayCertificate employee={employee} />
         </div>
 
         {/* Page 10: LPC Back */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <LastPayCertificateReverse employee={employee} />
         </div>
 
         {/* Page 11: Certificates B */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <PensionCertificatesB employee={employee} />
         </div>
 
         {/* Page 12: DCS Option */}
-        <div style={pageStyle} className="print-page bg-white mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <RegularDCSOption employee={employee} />
         </div>
 

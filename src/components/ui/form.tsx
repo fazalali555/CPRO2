@@ -13,7 +13,7 @@ import {
   type FieldValues,
 } from "react-hook-form";
 
-import { cn } from "../../features/clerk-desk/components/wordpro/lib/utils";
+import { cn } from "@/lib/utils";
 import { Label } from "../../features/clerk-desk/components/wordpro/components/ui/label";
 
 const Form = FormProvider;

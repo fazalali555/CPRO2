@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "../../features/clerk-desk/components/wordpro/lib/utils";
+import { cn } from "@/lib/utils";
 
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (

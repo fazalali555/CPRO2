@@ -6,7 +6,7 @@ type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];
 
 class StorageServiceClass {
   private cache: Map<string, any> = new Map();
-  private saveQueue: Map<string, NodeJS.Timeout> = new Map();
+  private saveQueue: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private readonly DEBOUNCE_MS = 500;
 
   /**

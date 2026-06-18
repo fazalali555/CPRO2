@@ -198,7 +198,7 @@ export interface SendMethod {
 export interface LetterVersion {
   id: string;
   version: number;
-  content: Partial<EnhancedLetter>;
+  content: any;
   createdAt: string;
   createdBy: string;
   changeNote?: string;

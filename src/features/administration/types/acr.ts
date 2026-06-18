@@ -15,6 +15,7 @@ export interface ACRPersonalInfo {
   domicile: string;
   home_district: string;
   present_post: string;
+  designation: string;
   bps: number;
   date_of_appointment: string;
   date_of_present_post: string;

@@ -1,6 +1,6 @@
 import React from "react";
 import { useEditorContext } from "../contexts/EditorContext";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
 import { ChevronRight, List } from "lucide-react";
 
 /**
@@ -14,7 +14,7 @@ export function DocumentMap() {
   // Extract all headings from the editor
   const headings: { text: string; level: number; pos: number }[] = [];
   
-  editor.state.doc.descendants((node, pos) => {
+  editor.state.doc.descendants((node: any, pos: number) => {
     if (node.type.name === "heading") {
       headings.push({
         text: node.textContent,

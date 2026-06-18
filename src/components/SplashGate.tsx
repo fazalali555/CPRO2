@@ -268,7 +268,7 @@ const LogoWithGlow = memo<{ className?: string }>(({ className }) => {
       
       {/* Rotating Border */}
       <motion.div
-        className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-primary via-tertiary to-secondary"
+        className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-primary via-cyan-400 to-primary"
         animate={reducedMotion ? {} : { rotate: 360 }}
         transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
         style={{ padding: '2px' }}
@@ -365,7 +365,7 @@ const LoadingProgress = memo<{
       {/* Progress Bar */}
       <div className="relative h-1.5 bg-surface-variant/30 rounded-full overflow-hidden mb-4">
         <motion.div
-          className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary via-tertiary to-secondary rounded-full"
+          className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary via-cyan-400 to-primary rounded-full"
           initial={{ width: '0%' }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -437,6 +437,7 @@ const DeveloperCard = memo<{ show: boolean }>(({ show }) => {
   return (
     <motion.div
       variants={cardVariants}
+      whileHover={{ scale: 1.02, transition: { duration: 0.3 } }}
       initial="hidden"
       animate="visible"
       className="relative w-full max-w-sm perspective-1000"
@@ -449,7 +450,7 @@ const DeveloperCard = memo<{ show: boolean }>(({ show }) => {
       />
 
       {/* Main Card */}
-      <div className="relative bg-white/80 dark:bg-surface-container/80 backdrop-blur-xl rounded-[2rem] border border-white/50 dark:border-white/10 shadow-2xl overflow-hidden">
+      <div className="relative bg-gradient-to-br from-white/90 to-white/70 dark:from-surface-container/90 dark:to-surface-container/70 backdrop-blur-2xl rounded-[2rem] border border-white/60 dark:border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden">
         {/* Decorative Header */}
         <div className="h-20 bg-gradient-to-r from-primary via-primary/80 to-tertiary relative overflow-hidden">
           <motion.div
@@ -492,7 +493,7 @@ const DeveloperCard = memo<{ show: boolean }>(({ show }) => {
           >
             {/* Rotating Ring */}
             <motion.div
-              className="absolute -inset-1 rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary"
+              className="absolute -inset-1 rounded-full bg-gradient-to-r from-primary via-cyan-400 to-primary"
               animate={reducedMotion ? {} : { rotate: 360 }}
               transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
             />
@@ -615,7 +616,13 @@ Greeting.displayName = 'Greeting';
 // ============================================================================
 
 export const SplashGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [show, setShow] = useState(true);
+  const [show, setShow] = useState(() => {
+    try {
+      return sessionStorage.getItem('clerk_pro_splash_shown') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -628,6 +635,10 @@ export const SplashGate: React.FC<{ children: React.ReactNode }> = ({ children }
   // Loading sequence
   useEffect(() => {
     setIsInitialized(true);
+
+    if (!show) {
+      return;
+    }
 
     let elapsed = 0;
     let stepIndex = 0;
@@ -655,6 +666,9 @@ export const SplashGate: React.FC<{ children: React.ReactNode }> = ({ children }
 
       if (elapsed >= TOTAL_DURATION) {
         clearInterval(interval);
+        try {
+          sessionStorage.setItem('clerk_pro_splash_shown', 'true');
+        } catch {}
         setTimeout(() => setShow(false), 300);
       }
     }, 50);
@@ -663,7 +677,7 @@ export const SplashGate: React.FC<{ children: React.ReactNode }> = ({ children }
       clearInterval(interval);
       clearTimeout(cardTimer);
     };
-  }, []);
+  }, [show]);
 
   if (!isInitialized) return null;
 
@@ -679,6 +693,22 @@ export const SplashGate: React.FC<{ children: React.ReactNode }> = ({ children }
             className="fixed inset-0 z-[9999] bg-surface dark:bg-surface-dark flex flex-col items-center justify-center p-6 overflow-hidden select-none"
             style={{ touchAction: 'none' }}
           >
+            {/* Skip Button */}
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              whileHover={{ opacity: 1, scale: 1.05 }}
+              onClick={() => {
+                try {
+                  sessionStorage.setItem('clerk_pro_splash_shown', 'true');
+                } catch {}
+                setShow(false);
+              }}
+              className="absolute top-6 right-6 px-4 py-2 rounded-full border border-outline-variant/30 text-xs font-semibold hover:bg-surface-container transition-all cursor-pointer z-[100] text-on-surface"
+            >
+              Skip
+            </motion.button>
+
             {/* Animated Background */}
             <div className="absolute inset-0 overflow-hidden">
               {/* Gradient Orbs */}

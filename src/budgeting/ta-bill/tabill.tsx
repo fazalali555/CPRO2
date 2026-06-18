@@ -68,7 +68,7 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
     @media print {
       @page { 
         size: A4 landscape; 
-        margin: 5mm; 
+        margin: 7mm 9mm; 
       }
       
       html, body {
@@ -86,18 +86,19 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
         min-height: auto !important;
       }
       
-      .print-page {
+      .ta-print-page {
         width: 100% !important;
         height: auto !important;
         min-height: auto !important;
         max-height: none !important;
         box-shadow: none !important;
         margin: 0 !important;
+        padding: 0 !important;
         page-break-after: always;
         page-break-inside: avoid;
       }
       
-      .print-page:last-child {
+      .ta-print-page:last-child {
         page-break-after: avoid;
       }
       
@@ -108,6 +109,11 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
     
     .font-arial { font-family: 'Arimo', Arial, Helvetica, sans-serif; }
     .tbl-main, .tbl-main th, .tbl-main td { border: 1px solid black; border-collapse: collapse; }
+    .tbl-main th, .tbl-main td { 
+      padding: 2.5px 5px !important; 
+      font-size: 9px !important;
+      line-height: 1.2 !important; 
+    }
   `;
 
   const fmt = (n: number | string | undefined) => {
@@ -156,7 +162,7 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
         } else {
           // Track DA rate from non-hotel rows
           if (row.daRate > 0) daRate = row.daRate;
-          
+
           if (row.daDays === 0.5) {
             totalHalfDays += 1;
           } else if (row.daDays === 1) {
@@ -170,20 +176,20 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
       const totalMileageAmount = pageRows.reduce((s, r) => s + (r.mileageAmount || 0), 0);
       const totalMileageRate = summary.totalMileageRate || 3.75;
       const grandTotal = pageRows.reduce((s, r) => s + (r.total || 0), 0);
-      
-      return { 
-        totalDays, 
-        totalHalfDays, 
-        totalNights, 
-        totalNightsRate, 
-        totalNightsAmount, 
-        totalMileageKm, 
-        totalMileageRate, 
-        totalMileageAmount, 
+
+      return {
+        totalDays,
+        totalHalfDays,
+        totalNights,
+        totalNightsRate,
+        totalNightsAmount,
+        totalMileageKm,
+        totalMileageRate,
+        totalMileageAmount,
         grandTotal,
-        totalDaAmount, 
-        totalHotelAmount, 
-        totalOtherAmount: 0, 
+        totalDaAmount,
+        totalHotelAmount,
+        totalOtherAmount: 0,
         lessDeduction: 0,
         daRate: daRate || summary.daRate || 1440
       };
@@ -229,7 +235,7 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
   };
 
   return (
-    <div className="bg-gray-200 min-h-screen p-4 font-arial text-black print-wrapper">
+    <div className="bg-slate-200 min-h-screen p-4 font-arial text-black print-wrapper">
       <style>{printStyles}</style>
 
       {pagesData.map((page, pageIndex) => {
@@ -242,80 +248,85 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
         return (
           <React.Fragment key={pageIndex}>
             {/* Page 1 - Main Table */}
-            <div 
-              className={`print-page bg-white mx-auto relative shadow-xl ${pageIndex > 0 ? 'page-break mt-8' : ''}`}
-              style={{ width: '297mm', minHeight: '200mm', padding: '8mm 10mm', boxSizing: 'border-box' }}
+            <div
+              className={`ta-print-page bg-white mx-auto relative shadow-xl ${pageIndex > 0 ? 'page-break mt-8' : ''}`}
+              style={{ width: '297mm', minHeight: '196mm', padding: '7mm 9mm', boxSizing: 'border-box' }}
             >
               <HeaderSection />
-              
+
               {/* Employee Info */}
-              <div className="w-full border-b border-black mb-1 flex text-[9px] pb-1 pt-3">
+              <div className="w-full border-b border-black mb-1 flex text-[12px] pb-1 pt-1">
                 <div className="w-[30%]">
                   <div className="font-bold">Employee Name:</div>
-                  <div className="mt-0.5 font-bold">{header.employeeName}</div>
-                  <div className="font-bold underline mt-0.5">IBAN NO: {header.iban}</div>
+                  <div className="mt-0.5 font-bold text-[16px] text-blue-900">{header.employeeName}</div>
+                  <div className="font-bold underline mt-0.5 text-[12px]">IBAN NO: {header.iban}</div>
                 </div>
                 <div className="w-[25%] text-center">
                   <div className="font-bold">Employee Designation / Grade</div>
-                  <div className="mt-0.5 font-bold">{header.designation}</div>
+                  <div className="mt-0.5 font-bold text-[13.5px]">{header.designation}</div>
                 </div>
                 <div className="w-[15%] text-center">
                   <div className="font-bold">Employee Code</div>
-                  <div className="mt-0.5 font-bold">{header.employeeCode}</div>
+                  <div className="mt-0.5 font-bold text-[13.5px]">{header.employeeCode}</div>
                 </div>
                 <div className="w-[15%] text-center">
                   <div className="font-bold">Pay Scale:</div>
-                  <div className="mt-0.5 font-bold">{header.gradeLabel}</div>
+                  <div className="mt-0.5 font-bold text-[13.5px]">{header.gradeLabel}</div>
                 </div>
                 <div className="w-[15%] text-left pl-4">
                   <div className="font-bold">Employee Basic Pay</div>
-                  <div className="mt-0.5 font-bold">{fmt(header.basicPay)}</div>
+                  <div className="mt-0.5 font-bold text-[13.5px]">{fmt(header.basicPay)}</div>
                 </div>
               </div>
-              
-              <div className="text-right text-[9px] font-bold mb-0.5 pr-12">Date</div>
-              
+
+              <div className="text-right text-[9px] font-bold mb-0.5 pr-12">
+                Date: {(() => {
+                  const lastRowWithDate = [...page.rows].reverse().find(r => r.date);
+                  return lastRowWithDate ? formatDate(lastRowWithDate.date) : '';
+                })()}
+              </div>
+
               {/* Main Table */}
               <div className="w-full mb-1">
                 <table className="w-full text-[9px] text-center table-fixed tbl-main">
                   <colgroup>
-                    <col style={{width: '18mm'}} />
-                    <col style={{width: '40mm'}} />
-                    <col style={{width: '40mm'}} />
-                    <col style={{width: '18mm'}} />
-                    <col style={{width: '12mm'}} />
-                    <col style={{width: '12mm'}} />
-                    <col style={{width: '15mm'}} />
-                    <col style={{width: '12mm'}} />
-                    <col style={{width: '12mm'}} />
-                    <col style={{width: '15mm'}} />
-                    <col style={{width: '15mm'}} />
-                    <col style={{width: 'auto'}} />
+                    <col style={{ width: '18mm' }} />
+                    <col style={{ width: '38mm' }} />
+                    <col style={{ width: '38mm' }} />
+                    <col style={{ width: '26mm' }} />
+                    <col style={{ width: '11mm' }} />
+                    <col style={{ width: '11mm' }} />
+                    <col style={{ width: '14mm' }} />
+                    <col style={{ width: '11mm' }} />
+                    <col style={{ width: '11mm' }} />
+                    <col style={{ width: '14mm' }} />
+                    <col style={{ width: '14mm' }} />
+                    <col style={{ width: 'auto' }} />
                   </colgroup>
                   <thead>
                     <tr className="h-5">
                       <th colSpan={3} className="font-bold border-b border-black">Particulars of Journey and Halt</th>
-                      <th rowSpan={2} className="font-bold border-b border-black">Mode of<br/>Travel</th>
+                      <th rowSpan={2} className="font-bold border-b border-black">Mode of<br />Travel</th>
                       <th colSpan={3} className="font-bold border-b border-black">Journey by Road</th>
                       <th colSpan={3} className="font-bold border-b border-black">Daily/Night Allowances</th>
                       <th rowSpan={2} className="font-bold border-b border-black">Total</th>
-                      <th rowSpan={2} className="font-bold border-b border-black">Purpose /<br/>Remarks</th>
+                      <th rowSpan={2} className="font-bold border-b border-black">Purpose /<br />Remarks</th>
                     </tr>
                     <tr className="h-8 align-middle">
                       <th className="font-bold">Date</th>
                       <th className="font-bold">From</th>
                       <th className="font-bold">To</th>
-                      <th className="font-bold">No. of<br/>KMs</th>
+                      <th className="font-bold">No. of<br />KMs</th>
                       <th className="font-bold">Rates</th>
                       <th className="font-bold">Amount</th>
-                      <th className="font-bold">No. of<br/>Days/<br/>Nights</th>
+                      <th className="font-bold">No. of<br />Days/<br />Nights</th>
                       <th className="font-bold">Rates</th>
                       <th className="font-bold">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {page.rows.map((row, i) => (
-                      <tr key={i} className="h-[5mm]">
+                      <tr key={i} className="h-[5.2mm]">
                         {row.isHotel ? (
                           // Hotel/Night row with "Stayed at Hotel" in merged cells
                           <>
@@ -349,9 +360,9 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
                         )}
                       </tr>
                     ))}
-                    
+
                     {/* Total Row */}
-                    <tr className="font-bold h-6">
+                    <tr className="font-bold h-[5.2mm]">
                       <td colSpan={4} className="text-center border-none">Total</td>
                       <td className="text-center">{fmt(page.summary.totalMileageKm)}</td>
                       <td className="text-center border-none"></td>
@@ -363,16 +374,16 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Summary Table & Signature */}
               <div className="w-full flex justify-between mt-1">
                 <div className="w-[60%] border border-black">
-                  <table className="w-full text-[10px] tbl-main" style={{ border: 'none' }}>
+                  <table className="w-full text-[9.5px] tbl-main" style={{ border: 'none' }}>
                     <colgroup>
-                      <col style={{width: '45%'}} />
-                      <col style={{width: '15%'}} />
-                      <col style={{width: '20%'}} />
-                      <col style={{width: '20%'}} />
+                      <col style={{ width: '45%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '20%' }} />
                     </colgroup>
                     <thead>
                       <tr className="h-5">
@@ -416,7 +427,7 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
                 </div>
                 <div className="w-[38%] flex items-end justify-end pb-2 pr-4">
                   <div className="text-center">
-                    <div className="h-[12mm]"></div>
+                    <div className="h-[8mm]"></div>
                     <div className="border-t border-black w-44 pt-1 text-[10px] font-bold">
                       Signature Officer / Official
                     </div>
@@ -426,14 +437,14 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
             </div>
 
             {/* Page 2 - Certificate & Summary */}
-            <div 
-              className="page-break bg-white mx-auto relative shadow-lg mt-8 print-page" 
-              style={{ width: '297mm', minHeight: '200mm', padding: '8mm 15mm', boxSizing: 'border-box' }}
+            <div
+              className="page-break bg-white mx-auto relative shadow-lg mt-8 ta-print-page"
+              style={{ width: '297mm', minHeight: '196mm', padding: '7mm 9mm', boxSizing: 'border-box' }}
             >
               <HeaderSection />
 
               <div className="w-full flex gap-10 mt-3 text-[10px]">
-                
+
                 {/* Left Column */}
                 <div className="w-1/2 flex flex-col gap-3">
                   <div>
@@ -520,7 +531,7 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
                           <div className="border-t border-black w-28 pt-1 text-[8px]">ASST: ACCOUNT OFFICER</div>
                         </div>
                       </div>
-                      
+
                       <div className="text-center mt-3 mx-auto w-44">
                         <div className="border-t border-black pt-1 text-[8px]">ASST: ACCOUNTANT GENERAL / ACCOUNTS OFFICER</div>
                       </div>
@@ -610,6 +621,123 @@ export const TravelAllowanceBill: React.FC<TravelAllowanceBillProps> = ({ header
           </React.Fragment>
         );
       })}
+    </div>
+  );
+};
+
+export interface AttendanceCertificatesProps {
+  header: TABillHeader;
+  rows: TABillRow[];
+}
+
+export const AttendanceCertificates: React.FC<AttendanceCertificatesProps> = ({ header, rows }) => {
+  const station = header.station || '';
+  // Filter for outward journeys (destination is not home station)
+  const certRows = rows.filter(r => !r.isHotel && r.to && r.to.toLowerCase() !== station.toLowerCase());
+
+  // Group into pages of 3 certificates each
+  const certPages: TABillRow[][] = [];
+  for (let i = 0; i < certRows.length; i += 3) {
+    certPages.push(certRows.slice(i, i + 3));
+  }
+
+  const printStyles = `
+    @import url('https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap');
+    
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 5mm 5mm;
+      }
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+      }
+      .cert-page {
+        page-break-after: always;
+        page-break-inside: avoid;
+      }
+      .cert-page:last-child {
+        page-break-after: avoid;
+      }
+    }
+  `;
+
+  return (
+    <div className="bg-slate-100 p-4 font-sans text-black min-h-screen">
+      <style>{printStyles}</style>
+
+      {certPages.length === 0 ? (
+        <div className="bg-white p-8 text-center border border-dashed border-gray-400 rounded-lg max-w-xl mx-auto mt-12">
+          <p className="text-gray-500">No outward journeys found to generate attendance certificates.</p>
+        </div>
+      ) : (
+        certPages.map((pageCerts, pageIdx) => (
+          <div
+            key={pageIdx}
+            className="cert-page bg-white mx-auto shadow-lg p-4 mb-8 flex flex-col justify-between"
+            style={{ width: '210mm', height: '287mm', boxSizing: 'border-box' }}
+          >
+            {pageCerts.map((cert, certIdx) => {
+              const dateStr = cert.date ? (() => {
+                const d = new Date(cert.date);
+                if (isNaN(d.getTime())) return cert.date;
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return `${day}-${month}-${year}`;
+              })() : '________';
+
+              return (
+                <div
+                  key={certIdx}
+                  className="relative border-4 border-double border-gray-800 p-6 flex flex-col justify-between"
+                  style={{ height: '88mm', boxSizing: 'border-box', margin: '2mm 0' }}
+                >
+                  <div className="text-center">
+                    <h2 className="text-lg font-bold uppercase tracking-wider underline mb-4">Attendance Certificate</h2>
+                    <p className="text-sm leading-relaxed text-justify px-4">
+                      It is certified that <u><strong>Mr. {header.employeeName}</strong></u>, <u><strong>{header.designation}</strong></u> (<u><strong>{header.gradeLabel}</strong></u>), <u><strong>{header.station}</strong></u>, has attended this office <u><strong>{cert.to}</strong></u> for <u><strong>{cert.remarks || 'Official Duty'}</strong></u> on dated <u><strong>{dateStr}</strong></u>.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-between items-end px-4 mt-4">
+                    <div className="text-xs text-gray-500">
+                      Date: {dateStr}
+                    </div>
+                    <div className="text-center w-56">
+                      <div className="border-t border-black pt-1 text-xs font-bold">
+                        Signature & Stamp of DDO / Head of Office
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cut line separator */}
+                  {certIdx < pageCerts.length - 1 && (
+                    <div className="absolute -bottom-4 left-0 right-0 flex items-center justify-between pointer-events-none z-10">
+                      <div className="w-full border-t border-dashed border-gray-400"></div>
+                      <span className="text-xs text-gray-400 px-2">✂</span>
+                      <div className="w-full border-t border-dashed border-gray-400"></div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Pad empty space if page has fewer than 3 certificates to maintain layout spacing */}
+            {pageCerts.length < 3 && Array.from({ length: 3 - pageCerts.length }).map((_, emptyIdx) => (
+              <div
+                key={`empty-${emptyIdx}`}
+                className="border-4 border-dashed border-gray-200 p-6 flex items-center justify-center text-gray-300"
+                style={{ height: '88mm', boxSizing: 'border-box', margin: '2mm 0' }}
+              >
+                [Empty Certificate Space]
+              </div>
+            ))}
+          </div>
+        ))
+      )}
     </div>
   );
 };

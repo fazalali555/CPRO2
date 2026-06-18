@@ -387,7 +387,7 @@ export const unflattenEmployee = (
       edu_rop: num('edu_rop') ?? existing?.financials.edu_rop ?? 0,
       hba_loan_instal: num('hba_loan_instal') ?? existing?.financials.hba_loan_instal ?? 0,
       gpf_loan_instal: num('gpf_loan_instal') ?? existing?.financials.gpf_loan_instal ?? 0,
-    },
+    } as any,
 
     family_members: existing?.family_members || [],
   };

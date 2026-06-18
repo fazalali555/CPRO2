@@ -215,7 +215,7 @@ function useReducedMotion(): boolean {
 
 function useIntersectionObserver<T extends HTMLElement>(
   options: { threshold?: number; triggerOnce?: boolean } = {}
-): [RefObject<T>, boolean] {
+): [RefObject<T | null>, boolean] {
   const { threshold = 0.1, triggerOnce = true } = options;
   const ref = useRef<T>(null);
   const [isIntersecting, setIsIntersecting] = useState(false);

@@ -69,7 +69,7 @@ export const MonthlyExpenditureStatement: React.FC<MonthlyExpenditureStatementPr
         height: auto !important;
       }
       
-      th, td { padding: 1px 2px; font-size: 7.6px; }
+      th, td { padding: 0.8px 1.5px; font-size: 7.2px; }
       table, tr, td, th, .no-page-break { page-break-inside: avoid; }
       
       .bg-header-gray { background-color: #BFBFBF !important; }
@@ -79,7 +79,7 @@ export const MonthlyExpenditureStatement: React.FC<MonthlyExpenditureStatementPr
     .font-arial { font-family: 'Arimo', Arial, sans-serif; }
     
     table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid black; padding: 2px 4px; font-size: 10px; }
+    th, td { border: 1px solid black; padding: 1.5px 3px; font-size: 9px; }
     .no-page-break { page-break-inside: avoid; }
     .page-frame { height: 287mm; display: flex; flex-direction: column; }
     .page-body { flex: 1 1 auto; }
@@ -140,7 +140,7 @@ export const MonthlyExpenditureStatement: React.FC<MonthlyExpenditureStatementPr
                 <col style={{ width: '11%' }} />
               </colgroup>
               <thead>
-                <tr className="bg-header-gray text-center h-[12mm]">
+                <tr className="bg-header-gray text-center h-[9mm]">
                   <th className="align-middle">Heads</th>
                   <th className="align-middle">
                     Budget<br />Estimate<br />{fiscalYearLabel || '2025-26'}
@@ -226,10 +226,9 @@ export const MonthlyExpenditureStatement: React.FC<MonthlyExpenditureStatementPr
           </div>
         </div>
 
-        {/* Signatures - proper spacing using marginTop */}
         <div 
           className="flex justify-between items-end text-[9px] font-bold no-page-break"
-          style={{ marginTop: 'auto', paddingTop: '36mm' }}
+          style={{ marginTop: 'auto', paddingTop: '10mm' }}
         >
           <div>
             <span>Prepared By:</span>

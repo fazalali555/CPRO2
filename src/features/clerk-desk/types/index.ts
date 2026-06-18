@@ -1,12 +1,18 @@
 // types/index.ts - Complete Type Definitions
 
-export type LetterStatus = 'draft' | 'final' | 'sent' | 'archived';
-export type Priority = 'low' | 'normal' | 'high' | 'urgent';
+import { LetterStatus, Priority, LetterVersion, LetterCategory } from './letter';
+export * from './letter';
+
 export type Direction = 'incoming' | 'outgoing';
-export type ContactType = 'internal' | 'external';
-export type RecordType = 'dispatch' | 'receipt' | 'attendance' | 'stock' | 'expense' | 'general';
-export type CorrespondenceStatus = 'pending' | 'replied' | 'closed' | 'escalated';
-export type DocumentCategory = 'general' | 'orders' | 'notices' | 'accounts' | 'personnel' | 'procurement' | 'meetings' | 'legal';
+
+
+export type CorrespondenceStatus = 'pending' | 'active' | 'closed' | 'archived' | 'replied' | 'escalated';
+
+export type DocumentCategory = 'official' | 'personal' | 'financial' | 'legal' | 'policy' | 'other';
+
+export type RecordType = 'file' | 'register' | 'log' | 'report' | 'dispatch' | 'receipt' | 'attendance' | 'stock' | 'expense' | 'other';
+
+export type ContactType = 'colleague' | 'official' | 'department' | 'internal' | 'external' | 'vendor' | 'other';
 
 export interface BaseEntity {
   id: string;
@@ -44,6 +50,8 @@ export interface Letter extends BaseEntity {
   recipientGender: 'Male' | 'Female';
   salutation: string;
   letterheadLines: string;
+  fromOffice: string;
+  to: string;
   toEmail?: string;
   toLabel?: string;
   subject: string;
@@ -63,15 +71,6 @@ export interface Letter extends BaseEntity {
   attachments: Attachment[];
   sentAt?: string;
   sentTo?: string[];
-}
-
-export interface LetterVersion {
-  id: string;
-  version: number;
-  content: Partial<Letter>;
-  createdAt: string;
-  createdBy: string;
-  changeNote?: string;
 }
 
 export interface Attachment {

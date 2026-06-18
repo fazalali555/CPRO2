@@ -90,6 +90,7 @@ export const ACRForm: React.FC<ACRFormProps> = ({ onClose, onSave, editingACR })
         date_of_birth: selectedEmployee.employees.date_of_birth || '',
         domicile: selectedEmployee.employees.domicile || '',
         home_district: selectedEmployee.employees.home_district || '',
+        designation: selectedEmployee.employees.designation || '',
         present_post: selectedEmployee.employees.designation || '',
         bps: selectedEmployee.employees.bps || 0,
         date_of_appointment: selectedEmployee.service_history.date_of_appointment || '',

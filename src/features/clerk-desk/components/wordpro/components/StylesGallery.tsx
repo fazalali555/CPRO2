@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from "../components/ui/popover";
 import { Palette } from "lucide-react";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
 
 interface StylePreset {
   id: string;
@@ -90,12 +90,12 @@ const STYLE_PRESETS: StylePreset[] = [
  * Styles gallery component for quick paragraph style application
  */
 export function StylesGallery() {
-  const editor = useEditorContext();
+  const { applyHeading, applyFormat } = useEditorContext();
   const [open, setOpen] = useState(false);
 
   const handleApplyStyle = (style: StylePreset) => {
-    editor.applyHeading(style.level);
-    editor.applyFormat({
+    applyHeading?.(style.level);
+    applyFormat?.({
       fontSize: style.fontSize,
       bold: style.fontWeight === "bold",
       color: style.color,

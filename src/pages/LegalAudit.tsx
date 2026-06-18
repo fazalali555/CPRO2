@@ -93,7 +93,9 @@ const CourtCasesTab = ({ onGenerateDraft }: { onGenerateDraft: (data: any) => vo
       next_hearing: '2025-03-15',
       comments_deadline: '2025-02-10',
       school_name: 'GHS No. 1 Peshawar', // Added school name
-      history: []
+      compliance_status: 'Pending comments',
+      documents: [],
+      updates: []
     }
   ]);
 
@@ -229,7 +231,7 @@ const AuditParasTab = ({ onGenerateDraft }: { onGenerateDraft: (data: any) => vo
       id: '1',
       audit_year: '2023-24',
       para_no: '5.2',
-      category: 'Financial Irregularity',
+      category: 'External',
       description: isUrdu 
         ? 'تقرری کے احکامات کی تصدیق کے بغیر عملے کو تنخواہوں کی بے قاعدہ ادائیگی۔'
         : 'Irregular payment of salaries to staff without verified appointment orders.',

@@ -78,6 +78,7 @@ export interface Translations {
     tokenNo: string;
     submissionDate: string;
     amount: string;
+    status: string;
     objectionCodes: string;
     encashmentDate: string;
     matched: string;
@@ -299,6 +300,7 @@ export const translations: Record<Language, Translations> = {
       tokenNo: 'Token No',
       submissionDate: 'Submission Date',
       amount: 'Amount',
+      status: 'Status',
       objectionCodes: 'Objection Codes',
       encashmentDate: 'Encashment Date',
       matched: 'Matched',
@@ -518,6 +520,7 @@ export const translations: Record<Language, Translations> = {
       tokenNo: 'ٹوکن نمبر',
       submissionDate: 'جمع کرانے کی تاریخ',
       amount: 'رقم',
+      status: 'حالت',
       objectionCodes: 'اعتراض کوڈز',
       encashmentDate: 'کیش کرانے کی تاریخ',
       matched: 'میچ شدہ',

@@ -63,55 +63,46 @@ export const GPFPacketPrint: React.FC<Props> = ({ employees, cases }) => {
       <div className="flex flex-col items-center">
         
         {/* 1. Checklist (Portrait) - Common to all */}
-        <div className="print-page mb-8 print:mb-0">
+        <div className="mb-8 print:mb-0">
           <GPFChecklist employee={employee} caseRecord={caseRecord} />
         </div>
-        <div className="print-break" />
 
         {/* --- ADVANCE CASES --- */}
         {(isRefundable || isNonRefundable) && (
           <>
             {/* Advance Application */}
-            <div className="print-page mb-8 print:mb-0">
+            <div className="mb-8 print:mb-0">
               <GPFAdvanceApplication employeeRecord={employee} caseRecord={caseRecord} />
             </div>
-            <div className="print-break" />
 
             {/* PAYF05 (Refundable) */}
             {isRefundable && (
-              <>
-                <div className="print-page mb-8 print:mb-0">
-                  <PAYF05TemporaryLoan employeeRecord={employee} caseRecord={caseRecord} />
-                </div>
-                <div className="print-break" />
-              </>
+              <div className="mb-8 print:mb-0">
+                <PAYF05TemporaryLoan employeeRecord={employee} caseRecord={caseRecord} />
+              </div>
             )}
 
             {/* PAYF06 (Non-Refundable) - Landscape */}
             {isNonRefundable && (
-              <>
-                <div className="print-page landscape-page mb-8 print:mb-0" style={{ width: '297mm' }}>
-                  <PAYF06PermanentLoan employeeRecord={employee} caseRecord={caseRecord} />
-                </div>
-                <div className="print-break" />
-              </>
+              <div className="landscape-page mb-8 print:mb-0" style={{ width: '297mm' }}>
+                <PAYF06PermanentLoan employeeRecord={employee} caseRecord={caseRecord} />
+              </div>
             )}
 
             {/* GCVP - Landscape */}
-            <div className="print-page landscape-page mb-8 print:mb-0" style={{ width: '297mm' }}>
+            <div className="landscape-page mb-8 print:mb-0" style={{ width: '297mm' }}>
                <GPFClaimVerificationProforma employeeRecord={employee} caseRecord={caseRecord} />
             </div>
-            <div className="print-break" />
 
             {/* Sanction Documents (Portrait) */}
             {isClassIV(bps) && (
-               <div className="print-page mb-8 print:mb-0">
+               <div className="mb-8 print:mb-0">
                   <GPFSanctionOrderClassIV employeeRecord={employee} caseRecord={caseRecord} />
                </div>
             )}
             
             {isBpsGreaterThan4(bps) && (
-               <div className="print-page mb-8 print:mb-0">
+               <div className="mb-8 print:mb-0">
                   <GPFApplicationForSanction employeeRecord={employee} caseRecord={caseRecord} />
                </div>
             )}
@@ -120,11 +111,9 @@ export const GPFPacketPrint: React.FC<Props> = ({ employees, cases }) => {
 
         {/* --- FINAL PAYMENT CASE --- */}
         {isFinal && (
-          <>
-             <div className="print-page mb-8 print:mb-0">
-               <GPFFinalPaymentForm10 employeeRecord={employee} caseRecord={caseRecord} />
-             </div>
-          </>
+           <div className="mb-8 print:mb-0">
+             <GPFFinalPaymentForm10 employeeRecord={employee} caseRecord={caseRecord} />
+           </div>
         )}
 
       </div>

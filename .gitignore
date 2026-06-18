@@ -1,5 +1,5 @@
-
-# Environment variables
+.agents/
+node_modules/
 .env.local
 .env.*.local
 
@@ -33,3 +33,17 @@ coverage/
 # Cache
 .eslintcache
 .stylelintcache
+.agents/
+.agents/
+.env
+.env.*
+!.env.example
+*.local
+ai-setup.log
+.ai-backups/
+.agents/memory/
+playwright-report/
+test-results/
+*.sqlite
+*.sqlite3
+*.db

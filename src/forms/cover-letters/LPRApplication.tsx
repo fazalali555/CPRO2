@@ -33,7 +33,7 @@ const LPRBody: React.FC<{ employee: EmployeeRecord; caseRecord: CaseRecord }> = 
   const lprDays = service_history.lpr_days ?? 365;
   const lprAmount =
     caseRecord.extras?.lpr_amount ??
-    Math.round((basicPay / 30) * lprDays);
+    Math.round((basicPay * 12 * lprDays) / 365);
 
   return (
     <div style={{ fontSize: '10.5pt', lineHeight: '1.6' }}>

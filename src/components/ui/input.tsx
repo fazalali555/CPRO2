@@ -1,6 +1,6 @@
 import { useDialogComposition } from "../../features/clerk-desk/components/wordpro/components/ui/dialog";
 import { useComposition } from "../../features/clerk-desk/components/wordpro/hooks/useComposition";
-import { cn } from "../../features/clerk-desk/components/wordpro/lib/utils";
+import { cn } from "@/lib/utils";
 import * as React from "react";
 
 function Input({

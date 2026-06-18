@@ -142,8 +142,8 @@ export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
          As the following rates:-
       </div>
 
-      {/* Main Content Box - Uses flex-grow to fill available space */}
-      <div className="border border-black p-3 mb-3 flex-grow flex flex-col">
+      {/* Main Content Box - Uses min-height to prevent collapsing while allowing expansion for many items */}
+      <div className="border border-black p-3 mb-3 flex flex-col" style={{ minHeight: '115mm' }}>
          <h3 className="font-bold underline mb-2 text-sm shrink-0">Particulars:</h3>
          <div className="flex gap-6 items-start flex-grow">
             {/* Allowances Column */}

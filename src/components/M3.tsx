@@ -1,16 +1,31 @@
 import React, { InputHTMLAttributes, useState, useEffect, useRef } from 'react';
 import { AppIcon } from './AppIcon';
 import clsx from 'clsx';
+import { LucideIcon } from 'lucide-react';
 
 // --- BUTTONS ---
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'filled' | 'tonal' | 'outlined' | 'text' | 'fab';
-  icon?: string;
+  icon?: string | LucideIcon;
   label?: string;
+  size?: 'small' | 'medium' | 'large' | string;
+  fullWidth?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({ variant = 'filled', icon, label, className = '', children, ...props }) => {
-  const baseStyle = "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+export const Button: React.FC<ButtonProps> = ({ 
+  variant = 'filled', 
+  icon, 
+  label, 
+  size,
+  fullWidth,
+  className = '', 
+  children, 
+  ...props 
+}) => {
+  const baseStyle = clsx(
+    "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+    fullWidth && "w-full"
+  );
   const variants = {
     filled: "bg-primary text-on-primary hover:bg-opacity-90 shadow-elevation-1 hover:shadow-elevation-2 h-10 px-6",
     tonal: "bg-secondary-container text-on-secondary-container hover:bg-opacity-80 h-10 px-6",
@@ -19,13 +34,15 @@ export const Button: React.FC<ButtonProps> = ({ variant = 'filled', icon, label,
     fab: "bg-primary-container text-on-primary-container shadow-elevation-3 hover:shadow-elevation-4 h-14 w-14 rounded-2xl",
   };
 
+  const iconProps = typeof icon === 'string' ? { name: icon } : { icon: icon };
+
   return (
     <button 
       className={clsx(baseStyle, variants[variant], className)} 
       aria-label={label || (typeof children === 'string' ? children : undefined)}
       {...props}
     >
-      {icon && <AppIcon name={icon} size={variant === 'fab' ? 24 : 18} />}
+      {icon && <AppIcon {...iconProps} size={variant === 'fab' ? 24 : 18} />}
       {label && <span>{label}</span>}
       {children}
     </button>
@@ -59,7 +76,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement> & { variant?: '
 // --- INPUTS ---
 interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
-  icon?: string;
+  icon?: string | LucideIcon;
   error?: string;
 }
 
@@ -155,6 +172,8 @@ export const TextField: React.FC<TextFieldProps> = ({ label, icon, error, classN
   const isDateType = type === 'date' || type === 'time' || type === 'datetime-local';
   const isFloating = focused || hasValue || isDateType || props.placeholder;
 
+  const iconProps = typeof icon === 'string' ? { name: icon } : { icon: icon };
+
   return (
     <div className={clsx("relative group", className)}>
       <div className={clsx(
@@ -163,7 +182,7 @@ export const TextField: React.FC<TextFieldProps> = ({ label, icon, error, classN
       )}>
         {icon && (
           <div className={clsx("pl-3 transition-colors", error ? "text-error" : (focused ? "text-primary" : "text-on-surface-variant"))}>
-            <AppIcon name={icon} size={20} />
+            <AppIcon {...iconProps} size={20} />
           </div>
         )}
         <div className="relative flex-1 h-full">
@@ -201,7 +220,7 @@ export const TextField: React.FC<TextFieldProps> = ({ label, icon, error, classN
 
 interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: string;
-  icon?: string;
+  icon?: string | LucideIcon;
   error?: string;
 }
 
@@ -209,6 +228,7 @@ export const TextArea: React.FC<TextAreaProps> = ({ label, icon, error, classNam
   const [focused, setFocused] = useState(false);
   const hasValue = (props.value ?? '') !== '';
   const isFloating = focused || hasValue || props.placeholder;
+  const iconProps = typeof icon === 'string' ? { name: icon } : { icon: icon };
 
   return (
     <div className={clsx("relative group", className)}>
@@ -218,7 +238,7 @@ export const TextArea: React.FC<TextAreaProps> = ({ label, icon, error, classNam
       )}>
         {icon && (
           <div className={clsx("pl-3 pt-4 transition-colors", error ? "text-error" : (focused ? "text-primary" : "text-on-surface-variant"))}>
-            <AppIcon name={icon} size={20} />
+            <AppIcon {...iconProps} size={20} />
           </div>
         )}
         <div className="relative flex-1 h-full">
@@ -306,33 +326,50 @@ export const Checkbox: React.FC<CheckboxProps> = ({ label, className, ...props }
 };
 
 // --- BADGE ---
-export const Badge: React.FC<{ label: string; color?: 'primary' | 'secondary' | 'tertiary' | 'error' | 'success' | 'neutral' }> = ({ label, color = 'neutral' }) => {
-  const colors = {
+export const Badge: React.FC<{ 
+  label?: string; 
+  color?: 'primary' | 'secondary' | 'tertiary' | 'error' | 'success' | 'neutral' | 'info' | 'warning'; 
+  variant?: string;
+  className?: string;
+  children?: React.ReactNode;
+}> = ({ label, color = 'neutral', variant, className = '', children }) => {
+  // Use variant as color if provided (for compatibility)
+  const finalColor = (variant || color) as any;
+  
+  const colors: Record<string, string> = {
     primary: "bg-primary/10 text-primary border-primary/20",
     secondary: "bg-secondary/10 text-secondary border-secondary/20",
     tertiary: "bg-tertiary/10 text-tertiary border-tertiary/20",
     error: "bg-error/10 text-error border-error/20",
     success: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
     neutral: "bg-surface-variant/30 text-on-surface-variant border-outline-variant/30",
+    info: "bg-cyan-500/10 text-cyan-700 border-cyan-500/20",
+    warning: "bg-amber-500/10 text-amber-700 border-amber-500/20",
   };
+
+  const colorStyle = colors[finalColor] || colors.neutral;
+
   return (
-    <span className={clsx("px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border", colors[color])}>
-      {label}
+    <span className={clsx("px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border inline-flex items-center justify-center", colorStyle, className)}>
+      {label || children}
     </span>
   );
 };
 
 // --- EMPTY STATE ---
-export const EmptyState: React.FC<{ icon: string; title: string; description: string; action?: React.ReactNode }> = ({ icon, title, description, action }) => (
-  <div className="flex flex-col items-center justify-center py-20 px-6 text-center border border-dashed border-outline-variant rounded-[32px] bg-surface-container-low/30 backdrop-blur-sm">
-    <div className="w-20 h-20 bg-surface-variant/50 rounded-[24px] flex items-center justify-center text-on-surface-variant mb-6 shadow-sm">
-      <AppIcon name={icon} size={36} />
+export const EmptyState: React.FC<{ icon: string | LucideIcon; title: string; description: string; action?: React.ReactNode }> = ({ icon, title, description, action }) => {
+  const iconProps = typeof icon === 'string' ? { name: icon } : { icon: icon };
+  return (
+    <div className="flex flex-col items-center justify-center py-20 px-6 text-center border border-dashed border-outline-variant rounded-[32px] bg-surface-container-low/30 backdrop-blur-sm">
+      <div className="w-20 h-20 bg-surface-variant/50 rounded-[24px] flex items-center justify-center text-on-surface-variant mb-6 shadow-sm">
+        <AppIcon {...iconProps} size={36} />
+      </div>
+      <h3 className="text-xl font-bold text-on-surface tracking-tight">{title}</h3>
+      <p className="text-sm text-on-surface-variant mt-2 max-w-sm mx-auto mb-8 leading-relaxed">{description}</p>
+      {action}
     </div>
-    <h3 className="text-xl font-bold text-on-surface tracking-tight">{title}</h3>
-    <p className="text-sm text-on-surface-variant mt-2 max-w-sm mx-auto mb-8 leading-relaxed">{description}</p>
-    {action}
-  </div>
-);
+  );
+};
 
 // --- SKELETON ---
 export const Skeleton: React.FC<{ className?: string }> = ({ className }) => (

@@ -15,11 +15,11 @@ export function useSeniorityList() {
       if (!institutionMap.has(ddoCode)) {
         institutionMap.set(ddoCode, {
           ddo_code: ddoCode,
-          name: emp.employees.school_full_name || emp.employees.school_name || 'Unknown Institution',
+          name: emp.employees.school_full_name || emp.employees.school_full_name || 'Unknown Institution',
           type: detectInstitutionType(emp.employees.school_full_name || ''),
           head_name: '', // Will be filled from employees or manually
           head_designation: detectHeadDesignation(emp.employees.school_full_name || ''),
-          address: emp.employees.school_address || '',
+          address: emp.employees.office_name || '',
           tehsil: emp.employees.tehsil || '',
           district: emp.employees.district || 'Peshawar',
         });
@@ -124,6 +124,7 @@ export function useSeniorityList() {
 
     // Convert to SeniorityEntry
     return sorted.map((emp, index) => ({
+      id: emp.id,
       seniority_no: index + 1,
       employee_id: emp.id,
       name: emp.employees.name,

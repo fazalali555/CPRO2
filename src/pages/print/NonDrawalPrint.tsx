@@ -9,7 +9,7 @@ import { useAutoPrint } from '../../utils/print';
 interface Props {
   employees: EmployeeRecord[];
   cases: CaseRecord[];
-  type: 'Benevolent Fund' | 'Employees Education Foundation' | 'General' | 'Contribution';
+  type: string;
 }
 
 export const NonDrawalPrint: React.FC<Props> = ({ employees, cases, type }) => {

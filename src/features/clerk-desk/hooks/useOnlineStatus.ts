@@ -78,7 +78,7 @@ export function useOnlineStatus(options: UseOnlineStatusOptions = {}) {
     checkConnection();
 
     // Periodic check if pingUrl provided
-    let intervalId: NodeJS.Timeout | undefined;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
     if (pingUrl && pingInterval > 0) {
       intervalId = setInterval(checkConnection, pingInterval);
     }

@@ -14,7 +14,15 @@ export const Calendar: React.FC = () => {
 
   // Extract dates from cases
   const events = cases.flatMap(c => {
-    const list = [];
+    const list: {
+      id: string;
+      caseId: string;
+      title: string;
+      date: string;
+      type: 'deadline' | 'hearing';
+      priority: string;
+      employeeId: string;
+    }[] = [];
     
     // Deadlines
     if (c.deadline) {

@@ -344,6 +344,8 @@ export interface BeneficiaryDetails {
   account_no?: string;
   contact?: string;
   id_mark?: string;
+  dob?: string;
+  status?: string;
 }
 
 export const getBeneficiaryDetails = (
@@ -362,6 +364,8 @@ export const getBeneficiaryDetails = (
       account_no: ben.account_no || '',
       contact: ben.contact || '',
       id_mark: ben.id_mark || '',
+      dob: ben.dob || '',
+      status: ben.status || '',
     };
   }
 
@@ -385,12 +389,14 @@ export const getBeneficiaryDetails = (
       name: heir.relative_name || '',
       relation: heir.relation || '',
       cnic: heir.cnic || '',
-      age: heir.age || '',
+      age: String(heir.age || ''),
       bank_name: '',
       branch_name: '',
       account_no: '',
       contact: '',
       id_mark: '',
+      dob: heir.dob || '',
+      status: heir.status || '',
     };
   }
 
@@ -631,9 +637,9 @@ export const calculateServiceDuration = (
     }
 
     const duration = intervalToDuration({ start, end });
-    let years = duration.years || 0;
-    let months = duration.months || 0;
-    let days = duration.days || 0;
+    const years = duration.years || 0;
+    const months = duration.months || 0;
+    const days = duration.days || 0;
 
     let totalDays = years * 365 + months * 30 + days - lwpDays;
     if (totalDays < 0) totalDays = 0;
@@ -703,6 +709,42 @@ export const calculatePension = (
   };
 };
 
+export const getPensionEligibility = (
+  employee: EmployeeRecord
+): { isEligibleForPension: boolean; message: string } => {
+  const status = employee?.employees?.status || '';
+  const isDeceased = isDeceasedStatus(status);
+  
+  // Qualifying service calculation
+  const doa = employee?.service_history?.date_of_appointment || '';
+  const dor = employee?.service_history?.date_of_retirement || '';
+  const lwp = employee?.service_history?.lwp_days || 0;
+  
+  const serviceYears = calculateServiceYears(doa, dor, lwp);
+
+  if (isDeceased) {
+    // Family pension eligibility is usually more lenient or has different rules,
+    // but for the sake of this check, we assume if they died in service they are eligible.
+    return {
+      isEligibleForPension: true,
+      message: 'Eligible for Family Pension (Deceased Case).',
+    };
+  }
+
+  // Standard KPK Pension Rule: Minimum 10 years for regular pension
+  if (serviceYears < 10) {
+    return {
+      isEligibleForPension: false,
+      message: `Employee has only ${serviceYears} years of service. Minimum 10 years required for monthly pension.`,
+    };
+  }
+
+  return {
+    isEligibleForPension: true,
+    message: `Eligible for regular pension (${serviceYears} years of qualifying service).`,
+  };
+};
+
 // ============================================================================
 // CHECKLISTS
 // ============================================================================
@@ -718,7 +760,7 @@ export const getDefaultChecklist = (
   const isDeath = isDeceasedStatus(status) || retirementNature.includes('death');
 
   if (caseType === 'retirement') return getOfficialRetirementChecklist(employee as any, caseRec);
-  if (caseType === 'pension') return getOfficialPensionChecklist(employee as any, caseRec);
+  if (caseType === 'pension') return isDeath ? getFamilyPensionChecklist() : getOfficialPensionChecklist(employee as any, caseRec);
   if (caseType.startsWith('gpf')) return getOfficialGPFChecklist(caseType, employee as any);
   if (caseType === 'rbdc') return getRBDCChecklist(isDeath);
   if (caseType === 'benevolent_fund') return getBenevolentFundChecklist(isDeath);
@@ -1668,7 +1710,7 @@ export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
         gpf_loan_instal: 0,
         allowances_extra: {},
         deductions_extra: {},
-      },
+      } as any,
       family_members: Array.isArray(old.familyMembers)
         ? old.familyMembers
         : Array.isArray(old.family_members)

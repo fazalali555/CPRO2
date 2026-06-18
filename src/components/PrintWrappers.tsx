@@ -22,9 +22,14 @@ import { NonDrawalPrint } from '../pages/print/NonDrawalPrint';
 import { LPRPayFormPrint } from '../pages/print/LPRPayFormPrint';
 import { OfficialApplicationsPrint } from '../pages/print/OfficialApplicationsPrint';
 import { RetirementSuitePortraitPrint } from '../pages/print/RetirementSuitePortraitPrint';
+import { LPRPacketPrint } from '../pages/print/LPRPacketPrint';
+import { BenevolentFundPacketPrint } from '../pages/print/BenevolentFundPacketPrint';
+import { EEFPacketPrint } from '../pages/print/EEFPacketPrint';
+import { RBDCPacketPrint } from '../pages/print/RBDCPacketPrint';
+import { FinancialAssistancePacketPrint } from '../pages/print/FinancialAssistancePacketPrint';
 import { RetirementSuiteLandscapePrint } from '../pages/print/RetirementSuiteLandscapePrint';
 import { RetirementSuiteAffidavitsPrint } from '../pages/print/RetirementSuiteAffidavitsPrint';
-import { LetterPrint } from '../features/clerk-desk/components/letters/LetterPrint';
+import { LetterPrint } from '../features/clerk-desk/components/wordpro/letters/LetterPrint';
 
 export const PrintWrapper = () => <Print />;
 
@@ -45,12 +50,12 @@ export const RetirementSuiteAffidavitsPrintWrapper = () => {
   return <RetirementSuiteAffidavitsPrint employees={employees} cases={cases} />;
 };
 
-export const UniversalChecklistPrintWrapper = ({ type }: { type: any }) => {
+export const UniversalChecklistPrintWrapper = ({ type }: { type: 'retirement' | 'gpf' | 'family-pension' | 'rbdc' | 'bf' | 'eef' | 'lpr' | 'financial-assistance' }) => {
   const { employees, cases } = useEmployeeContext();
   return <UniversalChecklistPrint employees={employees} cases={cases} type={type} />;
 };
 
-export const UniversalCoverPrintWrapper = ({ type }: { type: any }) => {
+export const UniversalCoverPrintWrapper = ({ type }: { type: 'retirement' | 'rbdc' | 'bf' | 'eef' | 'lpr' | 'financial-assistance' }) => {
   const { employees, cases } = useEmployeeContext();
   return <UniversalCoverPrint employees={employees} cases={cases} type={type} />;
 };
@@ -143,4 +148,29 @@ export const LPRPayFormPrintWrapper = () => {
 export const OfficialApplicationsPrintWrapper = ({ kind }: { kind: 'rbdc' | 'bf' | 'eef' }) => {
   const { employees, cases } = useEmployeeContext();
   return <OfficialApplicationsPrint employees={employees} cases={cases} kind={kind} />;
+};
+
+export const LPRPacketPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <LPRPacketPrint employees={employees} cases={cases} />;
+};
+
+export const BenevolentFundPacketPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <BenevolentFundPacketPrint employees={employees} cases={cases} />;
+};
+
+export const EEFPacketPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <EEFPacketPrint employees={employees} cases={cases} />;
+};
+
+export const RBDCPacketPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <RBDCPacketPrint employees={employees} cases={cases} />;
+};
+
+export const FinancialAssistancePacketPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <FinancialAssistancePacketPrint employees={employees} cases={cases} />;
 };

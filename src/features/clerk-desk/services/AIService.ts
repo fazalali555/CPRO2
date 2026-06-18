@@ -5,7 +5,13 @@ import { AIGenerationRequest, AIGenerationResponse } from '../types';
 class AIServiceClass {
   private baseUrl: string;
   private healthStatus: 'checking' | 'online' | 'offline' = 'checking';
-  private apiKey: string = (import.meta.env as any)?.VITE_GEMINI_API_KEY || 'AIzaSyCIi_33sJbzFBbAhOCHQ2iB7HbXZfoGhUg';
+  private getApiKey(): string {
+    const savedKey = localStorage.getItem('clerk_pro_gemini_api_key');
+    if (savedKey && savedKey.trim()) {
+      return savedKey.trim();
+    }
+    return (import.meta.env as any)?.VITE_GEMINI_API_KEY || 'AIzaSyCIi_33sJbzFBbAhOCHQ2iB7HbXZfoGhUg';
+  }
 
   constructor() {
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
@@ -59,7 +65,7 @@ Final Paragraph (Numbered): Formal closing/action required statement (e.g., "The
 
 Output the FULL COMPLETE body text now:`;
 
-      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -106,7 +112,7 @@ ${currentBody}
 
 Output the FULL COMPLETE refined body (Para 1 unnumbered, Paras 2+ numbered):`;
 
-      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -165,15 +171,17 @@ Output the FULL COMPLETE refined body (Para 1 unnumbered, Paras 2+ numbered):`;
 Extract the following fields from the provided [Letter_Text] and return ONLY a valid JSON object.
 
 ### JSON FIELDS:
-- institutionName: The name of the office/institution the letter is from (e.g. SDEO (M) Allai).
-- to: The recipient's designation and address (one or multiple lines).
+- letterType: The type of letter (e.g. Office Order, Notification, Show Cause Notice).
+- officeName: The name of the office/institution the letter is from (e.g. SDEO (M) Allai).
+- recipient: The recipient's designation and address (one or multiple lines).
 - subject: The subject of the letter (short and uppercase if appropriate).
-- reference: The letter reference number/index.
-- letterDate: The date of the letter (convert to YYYY-MM-DD if possible).
-- body: The main content of the letter (clean text, no HTML).
-- signatureName: The name of the person signing the letter.
-- signatureTitle: The designation/title of the person signing.
-- forwardedTo: An array of strings for "Copy forwarded to" entries.
+- refNo: The letter reference number.
+- refNoSuffix: The suffix part of the reference (e.g. "DEO/BTM").
+- date: The date of the letter.
+- bodyHtml: The main content of the letter formatted in clean HTML paragraphs and lists.
+- signatoryTitle: The designation/title of the person signing.
+- signatoryArea: The area/office of the person signing.
+- copyTo: An array of strings for "Copy to" entries.
 - enclosures: An array of strings for "Enclosures" entries.
 
 ### RULES:
@@ -186,7 +194,7 @@ ${text}
 
 ### OUTPUT (JSON ONLY):`;
 
-      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -240,6 +248,94 @@ ${text}
       forwardedTo: options.forwardedTo,
     };
   }
+
+  /**
+   * AI Copilot: generic chat/draft assistant
+   */
+  async chat(prompt: string, documentContext?: string): Promise<AIGenerationResponse> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+      const promptText = `You are a helpful AI Copilot writing assistant inside Clerk Pro (WordPro), a professional administrative word clone for Khyber Pakhtunkhwa Government offices.
+Your task is to answer the user's prompt or draft text based on their request.
+
+${documentContext ? `### CURRENT DOCUMENT CONTENT:\n${documentContext}\n` : ''}
+### USER PROMPT:
+${prompt}
+
+Output your response cleanly. If the user asks you to write or draft something, output the draft content directly, ready to be copied/inserted. Do not include chat preamble unless necessary.`;
+
+      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1500 }
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+      const data = await response.json();
+      if (!response.ok || data.error) return { text: '', error: data.error?.message || 'API Error', code: 'API_ERROR' };
+      return { text: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '' };
+    } catch (error) {
+      clearTimeout(timeout);
+      return { text: '', error: 'Service unavailable.', code: 'NETWORK_ERROR' };
+    }
+  }
+
+  /**
+   * AI Copilot: rewrite text
+   */
+  async rewriteText(text: string, style: string = 'formal'): Promise<AIGenerationResponse> {
+    return this.refineLetter({
+      recipient: 'Recipient',
+      purpose: 'Rewrite Text',
+      senderTitle: 'Government Office',
+      keyPoints: [`Rewrite this text in a ${style} style: ${text}`],
+      tone: style,
+      length: { maxWords: 500 },
+      language: 'English',
+      senderName: ''
+    }, text);
+  }
+
+  /**
+   * AI Copilot: suggest improvements
+   */
+  async suggestImprovements(content: string): Promise<AIGenerationResponse> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+      const promptText = `You are a Senior Superintendent in Khyber Pakhtunkhwa government. Review this official document and suggest specific improvements for tone, format, typos, or administrative clarity.
+Be specific and construct a list of suggested improvements.
+
+### DOCUMENT CONTENT:
+${content}
+
+Output a clean, bulleted list of helpful suggestions and key improvement notes:`;
+
+      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }],
+          generationConfig: { temperature: 0.5, maxOutputTokens: 1000 }
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+      const data = await response.json();
+      if (!response.ok || data.error) return { text: '', error: data.error?.message || 'API Error', code: 'API_ERROR' };
+      return { text: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '' };
+    } catch (error) {
+      clearTimeout(timeout);
+      return { text: '', error: 'Service unavailable.', code: 'NETWORK_ERROR' };
+    }
+  }
 }
 
 export const AIService = new AIServiceClass();
+

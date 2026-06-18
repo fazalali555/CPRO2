@@ -30,7 +30,7 @@ export const LPRPayForm: React.FC<Props> = ({ employee, caseRecord }) => {
   ), [emp]);
 
   const monthLabel = caseRecord.extras?.lpr_month || formatPayrollMonth(new Date());
-  const [monthPart, yearPart] = monthLabel.split('/').map(s => s.trim());
+  const [monthPart, yearPart] = monthLabel.split('/').map((s: string) => s.trim());
 
   const ddoChars = splitToChars(emp.ddo_code || '', 6);
   const personalChars = splitToChars(emp.personal_no || '', 8);
@@ -41,7 +41,8 @@ export const LPRPayForm: React.FC<Props> = ({ employee, caseRecord }) => {
   const dor = formatDate(service.date_of_retirement) || '__________';
   const basicPay = financials.basic_pay || 0;
   const lprDays = service.lpr_days ?? 365;
-  const lprAmount = caseRecord.extras?.lpr_amount ?? Math.round(((basicPay || 0) / 30) * lprDays);
+  const lprAmount = caseRecord.extras?.lpr_amount ?? 
+    Math.round(((basicPay || 0) * 12 * lprDays) / 365);
   const orderNo = service.retirement_order_no || '__________';
   const orderDate = formatDate(service.retirement_order_date) || '__________';
 

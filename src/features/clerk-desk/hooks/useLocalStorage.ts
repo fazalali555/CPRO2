@@ -25,7 +25,7 @@ export function useLocalStorage<T>(
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync with storage on mount and when key changes
   useEffect(() => {

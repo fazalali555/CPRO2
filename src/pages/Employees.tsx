@@ -1293,7 +1293,7 @@ export const Employees: React.FC = () => {
   const { grossPay, totalDeduction, netPay } = calculatePayroll(formData.financials);
 
   const lprDays   = formData.service_history.lpr_days ?? 365;
-  const lprAmount = Math.round(((f.basic_pay || 0) / 30) * lprDays);
+  const lprAmount = Math.round(((f.basic_pay || 0) * 12 * lprDays) / 365);
 
   const isEmployeeActive    = formData.employees.status === 'Active';
   const calculationEndDate  = isEmployeeActive ? new Date().toISOString() : formData.service_history.date_of_retirement;
@@ -1369,7 +1369,7 @@ export const Employees: React.FC = () => {
     if (filters.status !== 'All') count++;
     if (filters.district !== 'All') count++;
     if (filters.tehsil !== 'All') count++;
-    if (filters.schoolLevel !== 'all') count++;
+    if (filters.institutionLevel !== 'all') count++;
     if (filters.schoolGender !== 'all') count++;
     if (filters.staffType !== 'all') count++;
     if (filters.retiringYear) count++;

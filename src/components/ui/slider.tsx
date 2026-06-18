@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 
-import { cn } from "../../features/clerk-desk/components/wordpro/lib/utils";
+import { cn } from "@/lib/utils";
 
 function Slider({
   className,

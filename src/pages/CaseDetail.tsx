@@ -13,6 +13,7 @@ import {
   getRetirementType, 
   getOfficialRetirementChecklist, 
   getOfficialPensionChecklist,
+  getFamilyPensionChecklist,
   getOfficialGPFChecklist, 
   getRBDCChecklist,
   getBenevolentFundChecklist,
@@ -296,7 +297,9 @@ export const CaseDetail: React.FC = () => {
         officialList = getOfficialRetirementChecklist(employee, caseRec);
         break;
       case 'pension':
-        officialList = getOfficialPensionChecklist(employee, caseRec);
+        officialList = isDeceased 
+          ? getFamilyPensionChecklist() 
+          : getOfficialPensionChecklist(employee, caseRec);
         break;
       case 'gpf_refundable':
       case 'gpf_non_refundable':
@@ -376,6 +379,17 @@ export const CaseDetail: React.FC = () => {
        }
     }
   }, [caseRec?.id, employee?.id]); 
+
+  if (!caseRec || !employee) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[600px] gap-4">
+        <AppIcon name="error" size={48} className="text-error" />
+        <h2 className="text-xl font-bold">Case or Employee Not Found</h2>
+        <p className="text-on-surface-variant">The record you are looking for does not exist or has been removed.</p>
+        <Button onClick={() => navigate('/cases')} label="Go Back to Cases" variant="tonal" />
+      </div>
+    );
+  }
 
   // --- Handlers Moved Below ---
 
@@ -880,7 +894,8 @@ export const CaseDetail: React.FC = () => {
        { id: 'checklist', title: 'Checklist (RB&DC)', route: 'checklist-rbdc', Component: <RBDCChecklist employee={employee} caseRecord={caseRec} /> },
        { id: 'cover', title: 'Application / Cover Letter', route: 'cover-rbdc', Component: <RBDCApplication employee={employee} caseRecord={caseRec} /> },
        { id: 'leaveaccount', title: 'Leave Account Proforma', route: 'leave-account', orientation: 'landscape', Component: <LeaveAccountProforma employeeRecord={employee} caseRecord={caseRec} /> },
-       { id: 'application_official', title: 'Official Application Form', route: 'rbdc-application', Component: <RBDCOfficialForm employee={employee} caseRecord={caseRec} /> }
+       { id: 'application_official', title: 'Official Application Form', route: 'rbdc-application', Component: <RBDCOfficialForm employee={employee} caseRecord={caseRec} /> },
+       { id: 'packet', title: 'Complete Packet (A4)', route: 'rbdc-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full set including Checklist, Cover Letter, Leave Account, and Official Form</div> }
      );
   } else if (caseRec.case_type === 'benevolent_fund') {
      documentsList.push(
@@ -888,27 +903,31 @@ export const CaseDetail: React.FC = () => {
        { id: 'cover', title: 'Application / Cover Letter', route: 'cover-bf', Component: <BenevolentFundApplication employee={employee} caseRecord={caseRec} /> },
        { id: 'cert', title: 'Non-Drawal Certificate', route: 'cert-nondrawal-bf', Component: <NonDrawalCertificate employee={employee} type="Benevolent Fund" /> },
        { id: 'contribution_cert', title: 'Contribution Certificate', route: 'cert-contribution-bf', Component: <NonDrawalCertificate employee={employee} type="Contribution" /> },
-       { id: 'application_official', title: 'Official Application Form', route: 'bf-application', Component: <BenevolentFundOfficialForm employee={employee} caseRecord={caseRec} /> }
+       { id: 'application_official', title: 'Official Application Form', route: 'bf-application', Component: <BenevolentFundOfficialForm employee={employee} caseRecord={caseRec} /> },
+       { id: 'packet', title: 'Complete Packet (A4)', route: 'bf-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full set including Checklist, Cover Letter, Certificates, and Official Form</div> }
      );
   } else if (caseRec.case_type === 'eef') {
      documentsList.push(
        { id: 'checklist', title: 'Checklist (E.E.F)', route: 'checklist-eef', Component: <EEFChecklist employee={employee} caseRecord={caseRec} /> },
        { id: 'cover', title: 'Application / Cover Letter', route: 'cover-eef', Component: <EEFApplication employee={employee} caseRecord={caseRec} /> },
        { id: 'cert', title: 'Non-Drawal Certificate', route: 'cert-nondrawal-eef', Component: <NonDrawalCertificate employee={employee} type="Employees Education Foundation" /> },
-       { id: 'application_official', title: 'Official Application Form', route: 'eef-application', Component: <EEFOfficialForm employee={employee} caseRecord={caseRec} /> }
+       { id: 'application_official', title: 'Official Application Form', route: 'eef-application', Component: <EEFOfficialForm employee={employee} caseRecord={caseRec} /> },
+       { id: 'packet', title: 'Complete Packet (A4)', route: 'eef-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full set including Checklist, Cover Letter, Certificates, and Official Form</div> }
      );
   } else if (caseRec.case_type === 'lpr') {
      documentsList.push(
        { id: 'checklist', title: 'Checklist (LPR)', route: 'checklist-lpr', Component: <LPRChecklist employee={employee} caseRecord={caseRec} /> },
        { id: 'cover', title: 'Cover Letter (LPR)', route: 'cover-lpr', Component: <LPRApplication employee={employee} caseRecord={caseRec} /> },
       { id: 'cert', title: 'Non-Drawal Certificate', route: 'cert-nondrawal-lpr', Component: <NonDrawalCertificate employee={employee} type="LPR" /> },
-       { id: 'pay_form', title: 'Pay Form (LPR)', route: 'lpr-pay-form', Component: <LPRPayForm employee={employee} caseRecord={caseRec} /> }
+       { id: 'pay_form', title: 'Pay Form (LPR)', route: 'lpr-pay-form', Component: <LPRPayForm employee={employee} caseRecord={caseRec} /> },
+       { id: 'packet', title: 'Complete Packet (A4)', route: 'lpr-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full set including Checklist, Cover Letter, Certificates, and Pay Form</div> }
      );
   } else if (caseRec.case_type === 'financial_assistance') {
     documentsList.push(
       { id: 'checklist', title: 'Checklist (Financial Assistance)', route: 'checklist-financial-assistance', Component: <FinancialAssistanceChecklist employee={employee} caseRecord={caseRec} /> },
       { id: 'cert', title: 'Non-Drawal Certificate', route: 'cert-nondrawal-financial-assistance', Component: <NonDrawalCertificate employee={employee} type="Financial Assistance" /> },
-      { id: 'application', title: 'Application Form', route: 'financial-assistance-application', Component: <FinancialAssistanceApplication employee={employee} caseRecord={caseRec} /> }
+      { id: 'application', title: 'Application Form', route: 'financial-assistance-application', Component: <FinancialAssistanceApplication employee={employee} caseRecord={caseRec} /> },
+      { id: 'packet', title: 'Complete Packet (A4)', route: 'financial-assistance-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full set including Checklist, Certificates, and Application Form</div> }
     );
   } else if (caseRec.case_type === 'full_pension') {
      // --- FULL PENSION BUNDLE ---

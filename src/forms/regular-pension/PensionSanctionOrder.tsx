@@ -61,7 +61,7 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
 
   // LPR Calculation
   const lprDays = service_history.lpr_days ?? 365; 
-  const lprAmount = Math.round((basicPay / 30) * lprDays);
+  const lprAmount = Math.round((basicPay * 12 * lprDays) / 365);
 
   const service = svc;
 

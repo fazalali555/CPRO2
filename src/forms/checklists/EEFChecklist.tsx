@@ -10,7 +10,8 @@ interface Props {
 }
 
 export const EEFChecklist: React.FC<Props> = ({ employee, caseRecord }) => {
-  const items = getEEFChecklist();
+  const isDeath = employee?.employees?.status === 'deceased' || String(caseRecord?.extras?.nature_of_retirement || '').toLowerCase().includes('death');
+  const items = getEEFChecklist(isDeath);
   
   return (
     <ChecklistLayout 

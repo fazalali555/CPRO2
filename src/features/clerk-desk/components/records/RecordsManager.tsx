@@ -248,7 +248,7 @@ export const RecordsManager: React.FC = () => {
 
       const blob = data instanceof Blob
         ? data
-        : new Blob([data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBuffer)]);
+        : new Blob([new Uint8Array(data as unknown as ArrayBuffer)]);
 
       ExportService.downloadBlob(blob, attachment.name);
     } catch (error) {
@@ -630,7 +630,7 @@ export const RecordsManager: React.FC = () => {
                   hover:border-outline/40 hover:bg-surface-variant/10 transition-all
                   ${filterType === type.value ? 'border-primary bg-primary/5' : ''}
                 `}
-                onClick={() => setFilterType(filterType === type.value ? '' : type.value)}
+                onClick={() => setFilterType((filterType === type.value ? '' : type.value) as any)}
               >
                 <span className="material-symbols-outlined text-2xl text-primary mb-2">{type.icon}</span>
                 <div className="font-bold text-xl text-on-surface">{count}</div>

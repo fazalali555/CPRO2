@@ -18,6 +18,7 @@ export interface SeniorityListConfig {
 }
 
 export interface SeniorityEntry {
+  id: string;
   seniority_no: number;
   employee_id: string;
   name: string;

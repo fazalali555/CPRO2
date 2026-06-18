@@ -1,21 +1,11 @@
 /**
  * ENHANCED Virtual Scrolling Implementation
- * 
- * Features:
- * 1. ✅ Render only visible rows (huge performance boost)
- * 2. ✅ Smooth scrolling with dynamic item heights
- * 3. ✅ Mobile-optimized (12.4" tablet friendly)
- * 4. ✅ Keyboard navigation support
  */
 
-import React, { useMemo, useCallback, useState } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import React from 'react';
+import { List } from 'react-window';
 import { EmployeeRecord } from '../types';
 import { AppIcon } from '../components/AppIcon';
-
-// ============================================================================
-// VIRTUAL LIST COMPONENT FOR EMPLOYEES
-// ============================================================================
 
 interface VirtualEmployeeListProps {
   employees: EmployeeRecord[];
@@ -34,9 +24,8 @@ export const VirtualEmployeeList: React.FC<VirtualEmployeeListProps> = ({
   itemHeight = 60,
   maxHeight = 600,
 }) => {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
-  // Fallback to regular rendering for small datasets (< 100 items)
   if (employees.length < 100) {
     return (
       <div className="space-y-2">
@@ -54,9 +43,10 @@ export const VirtualEmployeeList: React.FC<VirtualEmployeeListProps> = ({
     );
   }
 
-  // Virtual list for large datasets
   const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
     const emp = employees[index];
+    if (!emp) return null;
+    
     return (
       <div style={style} className="border-b border-outline-variant/20">
         <EmployeeRowItem
@@ -72,21 +62,16 @@ export const VirtualEmployeeList: React.FC<VirtualEmployeeListProps> = ({
 
   return (
     <div className="border border-outline-variant/20 rounded-xl overflow-hidden">
-      <List
-        height={maxHeight}
-        itemCount={employees.length}
-        itemSize={itemHeight}
-        width="100%"
-      >
-        {Row}
-      </List>
+      <List<{}>
+        rowCount={employees.length}
+        rowHeight={itemHeight}
+        rowComponent={Row}
+        rowProps={{}}
+        style={{ height: maxHeight, width: "100%" }}
+      />
     </div>
   );
 };
-
-// ============================================================================
-// INDIVIDUAL ROW COMPONENT
-// ============================================================================
 
 interface EmployeeRowItemProps {
   employee: EmployeeRecord;
@@ -110,7 +95,15 @@ const EmployeeRowItem: React.FC<EmployeeRowItemProps> = ({
     Resigned: 'bg-error/10 text-error',
   };
 
-  const statusColor = statusColors[employee.employees.status] || 'bg-muted/10 text-muted-foreground';
+  // Safe access to nested properties
+  const empData = (employee as any).employees || employee;
+  const status = empData.status || 'Active';
+  const name = empData.name || 'Unknown';
+  const designation = empData.designation || '';
+  const bps = empData.bps || '';
+  const cnic = empData.cnic_no || '';
+
+  const statusColor = statusColors[status] || 'bg-muted/10 text-muted-foreground';
 
   return (
     <div
@@ -119,7 +112,6 @@ const EmployeeRowItem: React.FC<EmployeeRowItemProps> = ({
       }`}
       onClick={onClick}
     >
-      {/* Checkbox */}
       <input
         type="checkbox"
         checked={isSelected}
@@ -128,44 +120,37 @@ const EmployeeRowItem: React.FC<EmployeeRowItemProps> = ({
         onClick={(e) => e.stopPropagation()}
       />
 
-      {/* Avatar */}
       <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
         <span className="text-xs font-bold text-primary">
-          {employee.employees.name.charAt(0).toUpperCase()}
+          {name.charAt(0).toUpperCase()}
         </span>
       </div>
 
-      {/* Main Info */}
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm truncate">{employee.employees.name}</div>
+        <div className="font-semibold text-sm truncate">{name}</div>
         <div className="text-xs text-on-surface-variant truncate">
-          {employee.employees.designation} • BPS {employee.employees.bps}
+          {designation} • BPS {bps}
         </div>
       </div>
 
-      {/* Status Badge */}
       <div className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${statusColor}`}>
-        {employee.employees.status}
+        {status}
       </div>
 
-      {/* CNIC (hidden on mobile) */}
       <div className="hidden md:block text-xs text-on-surface-variant font-mono">
-        {employee.employees.cnic_no}
+        {cnic}
       </div>
 
-      {/* Actions */}
       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => onClick()}
           className="p-1.5 hover:bg-primary/10 rounded transition-colors"
-          title="Edit"
         >
           <AppIcon name="edit" size={16} className="text-primary" />
         </button>
         <button
           onClick={() => onDelete()}
           className="p-1.5 hover:bg-error/10 rounded transition-colors"
-          title="Delete"
         >
           <AppIcon name="delete" size={16} className="text-error" />
         </button>
@@ -173,49 +158,3 @@ const EmployeeRowItem: React.FC<EmployeeRowItemProps> = ({
     </div>
   );
 };
-
-// ============================================================================
-// CUSTOM HOOK: useVirtualList
-// ============================================================================
-
-interface UseVirtualListOptions {
-  itemHeight?: number;
-  maxHeight?: number;
-  overscan?: number;
-}
-
-export function useVirtualList<T extends { id: string }>(
-  items: T[],
-  options: UseVirtualListOptions = {}
-) {
-  const {
-    itemHeight = 60,
-    maxHeight = 600,
-    overscan = 5,
-  } = options;
-
-  const shouldVirtualize = useMemo(() => items.length > 100, [items.length]);
-
-  const visibleRange = useMemo(() => {
-    if (!shouldVirtualize) return { start: 0, end: items.length };
-
-    const visibleCount = Math.ceil(maxHeight / itemHeight) + overscan * 2;
-    return {
-      start: Math.max(0, Math.floor(0 / itemHeight) - overscan),
-      end: Math.min(items.length, Math.ceil(visibleCount)),
-    };
-  }, [items.length, shouldVirtualize, maxHeight, itemHeight, overscan]);
-
-  const visibleItems = useMemo(() => {
-    if (!shouldVirtualize) return items;
-    return items.slice(visibleRange.start, visibleRange.end);
-  }, [items, shouldVirtualize, visibleRange]);
-
-  return {
-    shouldVirtualize,
-    visibleItems,
-    visibleRange,
-    itemHeight,
-    maxHeight,
-  };
-}

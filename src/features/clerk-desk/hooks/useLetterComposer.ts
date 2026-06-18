@@ -468,6 +468,7 @@ export function useLetterComposer() {
           createdAt: now,
           createdBy: securityService.getCurrentUser()?.name || 'Unknown',
           changeNote: 'Auto-saved version',
+          isAutoSave: true,
         };
 
         const updatedVersions = [...(existing.versions || []), newVersion].slice(-10); // Keep last 10

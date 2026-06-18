@@ -23,13 +23,17 @@
         "./src/*"
       ],
       "@wordpro/*": [
-        "./src/features/clerk-desk/wordpro/client/src/*"
+        "./src/components/letter-composer/*"
       ]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "strict": true
   },
+  "include": [
+    "src",
+    "vite.config.ts"
+  ],
   "exclude": [
     "node_modules",
     "dist",

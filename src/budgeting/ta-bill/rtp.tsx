@@ -124,7 +124,7 @@ export const RevisedTourProgram: React.FC<RevisedTourProgramProps> = ({
     @media print {
       @page { 
         size: A4 portrait; 
-        margin: 10mm; 
+        margin: 7mm 9mm; 
       }
       
       html, body {
@@ -149,13 +149,18 @@ export const RevisedTourProgram: React.FC<RevisedTourProgramProps> = ({
         max-height: none !important;
         box-shadow: none !important;
         margin: 0 !important;
-        padding: 5mm 10mm !important;
+        padding: 0 !important;
         page-break-after: always;
         page-break-inside: avoid;
       }
       
       .print-container:last-child {
         page-break-after: avoid;
+      }
+
+      .print-container table th, .print-container table td {
+        padding: 2.5px 4px !important;
+        line-height: 1.15 !important;
       }
     }
   `;
@@ -164,117 +169,129 @@ export const RevisedTourProgram: React.FC<RevisedTourProgramProps> = ({
     <div className="bg-gray-100 min-h-screen p-8 text-black print-wrapper">
       <style>{printStyles}</style>
 
-      {pages.map((pageRows, index) => (
-        <div 
-          key={index} 
-          className={`print-container bg-white mx-auto relative shadow-xl font-arial ${index > 0 ? 'mt-8' : ''}`}
-          style={{ width: '210mm', minHeight: '280mm', padding: '15mm 15mm', boxSizing: 'border-box' }}
-        >
-          {/* Header */}
-          <div className="text-center mb-8 mt-4">
-            <h1 className="text-[18px] font-normal uppercase tracking-wide">{resolvedTitle}</h1>
-            <h2 className="text-[20px] mt-1 font-normal">{titleCaption}</h2>
-          </div>
+      {pages.map((pageRows, index) => {
+        // Find the first valid date on this specific page to determine the month dynamically
+        const firstRowWithDate = pageRows.find(r => r.date);
+        let pageMonthLabel = monthLabel;
+        if (firstRowWithDate && firstRowWithDate.date) {
+          const d = new Date(firstRowWithDate.date);
+          if (!isNaN(d.getTime())) {
+            pageMonthLabel = d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+          }
+        }
 
-          {/* Officer Info */}
-          <div className="flex items-end justify-between mb-2 text-[12px]">
-            <div className="flex items-end flex-grow w-1/2">
-              <span className="font-bold whitespace-nowrap mr-4 text-[13px]">Name of Officer</span>
-              <div className="border-b border-black flex-grow text-center font-bold pb-1 px-2">
-                {officerName || '________________'}
+        return (
+          <div 
+            key={index} 
+            className={`print-container bg-white mx-auto relative shadow-xl font-arial ${index > 0 ? 'mt-8' : ''}`}
+            style={{ width: '210mm', minHeight: '283mm', padding: '7mm 9mm', boxSizing: 'border-box' }}
+          >
+            {/* Header */}
+            <div className="text-center mb-8 mt-4">
+              <h1 className="text-[18px] font-normal uppercase tracking-wide">{resolvedTitle}</h1>
+              <h2 className="text-[20px] mt-1 font-normal">{titleCaption}</h2>
+            </div>
+
+            {/* Officer Info */}
+            <div className="flex items-end justify-between mb-2 text-[12px]">
+              <div className="flex items-end flex-grow w-1/2">
+                <span className="font-bold whitespace-nowrap mr-4 text-[13px]">Name of Officer</span>
+                <div className="border-b border-black flex-grow text-center font-bold pb-1 px-2">
+                  {officerName || '________________'}
+                </div>
+              </div>
+              <div className="flex items-end flex-grow w-1/2 ml-4">
+                <span className="font-bold whitespace-nowrap mr-4 text-[13px]">For the Month Of</span>
+                <div className="border-b border-black flex-grow text-center font-bold pb-1 px-2">
+                  {pageMonthLabel || '________________'}
+                </div>
               </div>
             </div>
-            <div className="flex items-end flex-grow w-1/2 ml-4">
-              <span className="font-bold whitespace-nowrap mr-4 text-[13px]">For the Month Of</span>
-              <div className="border-b border-black flex-grow text-center font-bold pb-1 px-2">
-                {monthLabel || '________________'}
-              </div>
-            </div>
-          </div>
 
-          {/* Table */}
-          <div className="w-full border-t border-l border-black">
-            <table className="w-full border-collapse">
-              <colgroup>
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '30%' }} />
-              </colgroup>
-              <thead>
-                <tr className="text-[12px]">
-                  <th className="border-b border-r border-black py-2 font-bold text-left px-2">Dated</th>
-                  <th className="border-b border-r border-black py-2 font-bold text-center">From</th>
-                  <th className="border-b border-r border-black py-2 font-bold text-center">To</th>
-                  <th className="border-b border-r border-black py-2 font-bold text-center leading-tight">Distance in<br/>Km</th>
-                  <th className="border-b border-r border-black py-2 font-bold text-center">Remarks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((row, rIdx) => (
-                  <tr key={rIdx} className="text-[10px] h-[10mm]">
-                    {row.type === 'hotel' ? (
-                      <>
-                        <td className="border-b border-r border-black px-2 text-center align-middle"></td>
-                        <td colSpan={2} className="border-b border-r border-black px-1 text-center align-middle">
-                          Stayed at Hotel
-                        </td>
-                        <td className="border-b border-r border-black px-1 text-center align-middle">
-                          {row.nights} Night{(row.nights || 0) > 1 ? 's' : ''}
-                        </td>
-                        <td className="border-b border-r border-black px-1 text-left align-middle leading-tight">
-                          {row.remarks}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="border-b border-r border-black px-2 text-center align-middle">
-                          {formatDateDisplay(row.date)}
-                        </td>
-                        <td className="border-b border-r border-black px-1 text-left align-middle">{row.from}</td>
-                        <td className="border-b border-r border-black px-1 text-left align-middle">{row.to}</td>
-                        <td className="border-b border-r border-black px-1 text-center align-middle">
-                          {row.distKm ? `${row.distKm} K.M` : ''}
-                        </td>
-                        <td className="border-b border-r border-black px-1 text-left align-middle leading-tight">
-                          {row.remarks}
-                        </td>
-                      </>
-                    )}
+            {/* Table */}
+            <div className="w-full border-t border-l border-black">
+              <table className="w-full border-collapse">
+                <colgroup>
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '30%' }} />
+                </colgroup>
+                <thead>
+                  <tr className="text-[12px]">
+                    <th className="border-b border-r border-black py-2 font-bold text-left px-2">Dated</th>
+                    <th className="border-b border-r border-black py-2 font-bold text-center">From</th>
+                    <th className="border-b border-r border-black py-2 font-bold text-center">To</th>
+                    <th className="border-b border-r border-black py-2 font-bold text-center leading-tight">Distance in<br/>Km</th>
+                    <th className="border-b border-r border-black py-2 font-bold text-center">Remarks</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pageRows.map((row, rIdx) => (
+                    <tr key={rIdx} className="text-[10px] h-[6.5mm]">
+                      {row.type === 'hotel' ? (
+                        <>
+                          <td className="border-b border-r border-black px-2 text-center align-middle"></td>
+                          <td colSpan={2} className="border-b border-r border-black px-1 text-center align-middle">
+                            Stayed at Hotel
+                          </td>
+                          <td className="border-b border-r border-black px-1 text-center align-middle">
+                            {row.nights} Night{(row.nights || 0) > 1 ? 's' : ''}
+                          </td>
+                          <td className="border-b border-r border-black px-1 text-left align-middle leading-tight">
+                            {row.remarks}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="border-b border-r border-black px-2 text-center align-middle">
+                            {formatDateDisplay(row.date)}
+                          </td>
+                          <td className="border-b border-r border-black px-1 text-left align-middle">{row.from}</td>
+                          <td className="border-b border-r border-black px-1 text-left align-middle">{row.to}</td>
+                          <td className="border-b border-r border-black px-1 text-center align-middle">
+                            {row.distKm ? `${row.distKm} K.M` : ''}
+                          </td>
+                          <td className="border-b border-r border-black px-1 text-left align-middle leading-tight">
+                            {row.remarks}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          {/* Signatures */}
-          <div className="mt-16">
-            <div className="flex justify-end mb-16">
-              <div className="text-center w-[60mm]">
-                <div className="h-[15mm]"></div>
-                <div className="border-t border-black w-full mb-1"></div>
-                <div className="text-[12px] font-bold">{employeeName || 'Authorized Signatory'}</div>
+            {/* Signatures */}
+            <div className="mt-6">
+              <div className="flex justify-end mb-6">
+                <div className="text-center w-[60mm]">
+                  <div className="h-[8mm]"></div>
+                  <div className="border-t border-black w-full mb-1"></div>
+                  <div className="text-[12px] font-bold">{employeeName || 'Authorized Signatory'}</div>
+                </div>
+              </div>
+
+              <div className="flex justify-start items-end">
+                <span className="text-[12px] mb-1 mr-4">Counter Signed By</span>
+                <div className="flex flex-col">
+                  <div className="h-[6mm]"></div>
+                  <div className="border-b border-black w-[80mm]"></div>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-start items-end">
-              <span className="text-[12px] mb-1 mr-4">Counter Signed By</span>
-              <div className="flex flex-col">
-                <div className="h-[12mm]"></div>
-                <div className="border-b border-black w-[80mm]"></div>
+            {/* Page Number */}
+            {pages.length > 1 && (
+              <div className="absolute bottom-[10mm] right-[15mm] text-[9px] text-gray-500">
+                Page {index + 1} of {pages.length}
               </div>
-            </div>
+            )}
           </div>
-
-          {/* Page Number */}
-          {pages.length > 1 && (
-            <div className="absolute bottom-[10mm] right-[15mm] text-[9px] text-gray-500">
-              Page {index + 1} of {pages.length}
-            </div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -302,19 +319,70 @@ export const RevisedTourProgramEditor: React.FC<RevisedTourProgramEditorProps> =
   // Filter out auto-generated return rows for user editing
   const userRows = rows.filter(r => !r.sameDayReturn);
   
+  const sortRTPRows = (currentRows: RTPRow[], expandedUserIdx: number | null) => {
+    const userRowsOnly = currentRows.filter(r => !r.sameDayReturn);
+    const expandedRowObj = expandedUserIdx !== null ? userRowsOnly[expandedUserIdx] : null;
+
+    const sortedUserRows = [...userRowsOnly].sort((a, b) => {
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return a.date.localeCompare(b.date);
+    });
+
+    const sortedRows: RTPRow[] = [];
+    let newExpandedIndex: number | null = null;
+    let userCount = 0;
+
+    for (const row of sortedUserRows) {
+      if (expandedRowObj && row.date === expandedRowObj.date && row.from === expandedRowObj.from && row.to === expandedRowObj.to) {
+        newExpandedIndex = userCount;
+      }
+      sortedRows.push(row);
+      userCount++;
+
+      const nights = Number(row.nights) || 0;
+      if (nights > 0) {
+        const returnDate = addDaysToDate(row.date, nights);
+        sortedRows.push({
+          date: returnDate || row.date,
+          from: row.to,
+          to: row.from,
+          distKm: row.distKm,
+          remarks: 'Return to Headquarters',
+          nights: 0,
+          daDays: 0,
+          rateType: row.rateType || 'auto',
+          sameDayReturn: true
+        });
+      }
+    }
+
+    return { sortedRows, newExpandedIndex };
+  };
+
+  const sortAndNotify = (currentRows: RTPRow[], expandedIdx: number | null) => {
+    const { sortedRows, newExpandedIndex } = sortRTPRows(currentRows, expandedIdx);
+    onChange(sortedRows);
+    setExpandedIndex(newExpandedIndex);
+  };
+
   // Add new trip row with smart defaults
   const addRow = useCallback(() => {
-    // Get the last user row to copy date from
-    const lastUserRow = userRows[userRows.length - 1];
+    const userRowsOnly = rows.filter(r => !r.sameDayReturn);
+    const sortedUserRows = [...userRowsOnly].sort((a, b) => {
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return a.date.localeCompare(b.date);
+    });
+
+    const lastUserRow = sortedUserRows[sortedUserRows.length - 1];
     let defaultDate = '';
     
     if (lastUserRow?.date) {
-      // If last row has nights, add those nights to get next date
       const nights = Number(lastUserRow.nights) || 0;
       if (nights > 0) {
         defaultDate = addDaysToDate(lastUserRow.date, nights);
       } else {
-        // Same day trip - use same date for convenience
         defaultDate = lastUserRow.date;
       }
     }
@@ -331,17 +399,13 @@ export const RevisedTourProgramEditor: React.FC<RevisedTourProgramEditorProps> =
       sameDayReturn: false 
     };
     
-    onChange([...rows, newRow]);
-    setExpandedIndex(userRows.length);
+    const newRowsList = [...userRowsOnly, newRow];
+    sortAndNotify(newRowsList, userRowsOnly.length);
     setJustAdded(true);
-  }, [rows, station, onChange, userRows]);
+  }, [rows, station, onChange]);
   
   const updateRow = (i: number, patch: Partial<RTPRow>) => {
     onChange(rows.map((r, idx) => idx === i ? { ...r, ...patch } : r));
-  };
-  
-  const removeRow = (i: number) => {
-    onChange(rows.filter((_, idx) => idx !== i));
   };
 
   // Auto-fill station for first row
@@ -368,69 +432,25 @@ export const RevisedTourProgramEditor: React.FC<RevisedTourProgramEditorProps> =
   const allRowsComplete = userRows.length > 0 && userRows.every(isRowComplete);
 
   const toggleExpand = (index: number) => {
-    setExpandedIndex(expandedIndex === index ? null : index);
-  };
-
-  const findUserRowIndex = (userIndex: number): number => {
-    let count = 0;
-    for (let i = 0; i < rows.length; i++) {
-      if (!rows[i].sameDayReturn) {
-        if (count === userIndex) return i;
-        count++;
-      }
+    const userRowsOnly = rows.filter(r => !r.sameDayReturn);
+    if (expandedIndex === index) {
+      sortAndNotify(userRowsOnly, null);
+    } else {
+      sortAndNotify(userRowsOnly, index);
     }
-    return -1;
   };
 
   const updateUserRow = (userIndex: number, patch: Partial<RTPRow>) => {
-    const actualIndex = findUserRowIndex(userIndex);
-    if (actualIndex >= 0) updateRow(actualIndex, patch);
-  };
-
-  const removeUserRow = (userIndex: number) => {
-    const actualIndex = findUserRowIndex(userIndex);
-    if (actualIndex >= 0) {
-      const row = rows[actualIndex];
+    const userRowsOnly = rows.filter(r => !r.sameDayReturn);
+    const updatedUserRows = userRowsOnly.map((r, idx) => idx === userIndex ? { ...r, ...patch } : r);
+    const reconstructed: RTPRow[] = [];
+    
+    for (const row of updatedUserRows) {
+      reconstructed.push(row);
       const nights = Number(row.nights) || 0;
-      // Also remove associated return row if exists
-      if (nights > 0 && rows[actualIndex + 1]?.sameDayReturn) {
-        onChange(rows.filter((_, idx) => idx !== actualIndex && idx !== actualIndex + 1));
-      } else {
-        removeRow(actualIndex);
-      }
-    }
-  };
-
-  // Quick date increment/decrement
-  const incrementDate = (userIndex: number, days: number) => {
-    const actualIndex = findUserRowIndex(userIndex);
-    if (actualIndex >= 0) {
-      const row = rows[actualIndex];
-      if (row.date) {
-        const newDate = addDaysToDate(row.date, days);
-        updateRow(actualIndex, { date: newDate });
-      }
-    }
-  };
-
-  // Generate or update return row when user clicks Done
-  const handleDone = (userIndex: number) => {
-    const actualIndex = findUserRowIndex(userIndex);
-    if (actualIndex >= 0) {
-      const row = rows[actualIndex];
-      const nights = Number(row.nights) || 0;
-      const isComplete = row.date && row.from && row.to && row.distKm > 0;
-      
-      // Check if next row is a return row for this trip
-      const nextRow = rows[actualIndex + 1];
-      const hasExistingReturn = nextRow?.sameDayReturn && 
-        nextRow.from === row.to && 
-        nextRow.to === row.from;
-      
-      if (isComplete && nights > 0) {
-        // Need a return row
+      if (nights > 0) {
         const returnDate = addDaysToDate(row.date, nights);
-        const newReturnRow: RTPRow = {
+        reconstructed.push({
           date: returnDate || row.date,
           from: row.to,
           to: row.from,
@@ -440,26 +460,31 @@ export const RevisedTourProgramEditor: React.FC<RevisedTourProgramEditorProps> =
           daDays: 0,
           rateType: row.rateType || 'auto',
           sameDayReturn: true
-        };
-        
-        if (hasExistingReturn) {
-          // Update existing return row
-          const newRows = [...rows];
-          newRows[actualIndex + 1] = newReturnRow;
-          onChange(newRows);
-        } else {
-          // Insert new return row
-          const newRows = [...rows];
-          newRows.splice(actualIndex + 1, 0, newReturnRow);
-          onChange(newRows);
-        }
-      } else if (hasExistingReturn && nights === 0) {
-        // Remove return row if nights is now 0
-        onChange(rows.filter((_, idx) => idx !== actualIndex + 1));
+        });
       }
     }
-    
-    setExpandedIndex(null);
+    onChange(reconstructed);
+  };
+
+  const removeUserRow = (userIndex: number) => {
+    const userRowsOnly = rows.filter(r => !r.sameDayReturn);
+    const filteredUserRows = userRowsOnly.filter((_, idx) => idx !== userIndex);
+    sortAndNotify(filteredUserRows, null);
+  };
+
+  // Quick date increment/decrement
+  const incrementDate = (userIndex: number, days: number) => {
+    const userRowsOnly = rows.filter(r => !r.sameDayReturn);
+    const row = userRowsOnly[userIndex];
+    if (row && row.date) {
+      const newDate = addDaysToDate(row.date, days);
+      updateUserRow(userIndex, { date: newDate });
+    }
+  };
+
+  const handleDone = (userIndex: number) => {
+    const userRowsOnly = rows.filter(r => !r.sameDayReturn);
+    sortAndNotify(userRowsOnly, null);
   };
 
   return (

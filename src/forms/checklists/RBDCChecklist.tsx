@@ -10,7 +10,8 @@ interface Props {
 }
 
 export const RBDCChecklist: React.FC<Props> = ({ employee, caseRecord }) => {
-  const items = getRBDCChecklist();
+  const isDeath = employee?.employees?.status === 'deceased' || String(caseRecord?.extras?.nature_of_retirement || '').toLowerCase().includes('death');
+  const items = getRBDCChecklist(isDeath);
   
   return (
     <ChecklistLayout 

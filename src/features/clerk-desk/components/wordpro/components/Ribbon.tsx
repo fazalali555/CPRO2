@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { HomeTab } from "./ribbon-tabs/HomeTab";
 import { InsertTab } from "./ribbon-tabs/InsertTab";
@@ -10,113 +10,114 @@ import { ViewTab } from "./ribbon-tabs/ViewTab";
 import { TableTab } from "./ribbon-tabs/TableTab";
 import { Menu, X } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { useEditorContext } from "../contexts/EditorContext";
+import { useEditorInstance } from "@/contexts/EditorContext";
 
 interface RibbonProps {
   className?: string;
   isMobile?: boolean;
   onFocusModeToggle?: () => void;
+  isFocusMode?: boolean;
 }
 
 /**
  * Ribbon UI with 6+ tabs: Home, Insert, Layout, References, Review, View, (Table Tools)
  */
-export function Ribbon({ className, isMobile = false }: RibbonProps) {
+export function Ribbon({ className, isMobile = false, onFocusModeToggle, isFocusMode }: RibbonProps) {
   const [isOpen, setIsOpen] = useState(!isMobile);
   const [activeTab, setActiveTab] = useState("home");
-  const { editor } = useEditorContext();
+  const editor = useEditorInstance();
   const isTableActive = editor?.isActive("table");
 
   if (isMobile) {
     return (
       <div className={cn("border-b bg-white", className)}>
-        <div className="flex items-center justify-between p-2">
-          <span className="text-sm font-semibold">Ribbon</span>
+        <div className="flex items-center justify-between p-3">
+          <span className="text-sm font-black uppercase tracking-widest text-gray-500">Ribbon Tools</span>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsOpen(!isOpen)}
-            className="h-8 w-8 p-0"
+            className="h-11 w-11 p-0 rounded-xl bg-gray-50 border border-gray-100"
           >
-            {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
 
         {isOpen && (
-          <div className="border-t">
+          <div className="border-t animate-in slide-in-from-top-2 duration-200">
             <Tabs
               value={activeTab}
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <TabsList className="w-full justify-start rounded-none border-b bg-gray-50 p-0 overflow-x-auto custom-scrollbar">
+              <TabsList className="w-full justify-start rounded-none border-b bg-gray-50 p-0 overflow-x-auto scrollbar-hide flex-nowrap whitespace-nowrap">
                 <TabsTrigger
                   value="home"
-                  className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-blue-500"
+                  className="rounded-none border-b-2 border-transparent px-3 py-3 text-xs font-bold uppercase tracking-wide data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 flex-shrink-0"
                 >
                   Home
                 </TabsTrigger>
                 <TabsTrigger
                   value="insert"
-                  className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-blue-500"
+                  className="rounded-none border-b-2 border-transparent px-3 py-3 text-xs font-bold uppercase tracking-wide data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 flex-shrink-0"
                 >
                   Insert
                 </TabsTrigger>
                 <TabsTrigger
                   value="layout"
-                  className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-blue-500"
+                  className="rounded-none border-b-2 border-transparent px-3 py-3 text-xs font-bold uppercase tracking-wide data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 flex-shrink-0"
                 >
                   Layout
                 </TabsTrigger>
                 <TabsTrigger
                   value="references"
-                  className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-blue-500"
+                  className="rounded-none border-b-2 border-transparent px-3 py-3 text-xs font-bold uppercase tracking-wide data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 flex-shrink-0"
                 >
-                  References
+                  Ref.
                 </TabsTrigger>
                 <TabsTrigger
                   value="review"
-                  className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-blue-500"
+                  className="rounded-none border-b-2 border-transparent px-3 py-3 text-xs font-bold uppercase tracking-wide data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 flex-shrink-0"
                 >
                   Review
                 </TabsTrigger>
                 <TabsTrigger
                   value="view"
-                  className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-blue-500"
+                  className="rounded-none border-b-2 border-transparent px-3 py-3 text-xs font-bold uppercase tracking-wide data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 flex-shrink-0"
                 >
                   View
                 </TabsTrigger>
                 {isTableActive && (
                   <TabsTrigger
                     value="table"
-                    className="rounded-none border-b-2 border-emerald-500 px-4 py-2 data-[state=active]:border-emerald-600 text-emerald-700"
+                    className="rounded-none border-b-2 border-emerald-500 px-3 py-3 text-xs font-bold uppercase tracking-wide data-[state=active]:border-emerald-600 text-emerald-700 flex-shrink-0"
                   >
                     Table
                   </TabsTrigger>
                 )}
               </TabsList>
 
-              <div className="overflow-x-auto">
-                <TabsContent value="home" className="m-0 border-0 p-2">
+              <div className="bg-white overflow-hidden">
+                <TabsContent value="home" className="m-0 border-0 p-4">
                   <HomeTab isMobile={true} />
                 </TabsContent>
-                <TabsContent value="insert" className="m-0 border-0 p-2">
+                <TabsContent value="insert" className="m-0 border-0 p-4">
                   <InsertTab isMobile={true} />
                 </TabsContent>
-                <TabsContent value="layout" className="m-0 border-0 p-2">
+                <TabsContent value="layout" className="m-0 border-0 p-4">
                   <LayoutTab isMobile={true} />
                 </TabsContent>
-                <TabsContent value="references" className="m-0 border-0 p-2">
+                <TabsContent value="references" className="m-0 border-0 p-4">
                   <ReferencesTab isMobile={true} />
                 </TabsContent>
-                <TabsContent value="review" className="m-0 border-0 p-2">
+                <TabsContent value="review" className="m-0 border-0 p-4">
                   <ReviewTab isMobile={true} />
                 </TabsContent>
-                <TabsContent value="view" className="m-0 border-0 p-2">
-                  <ViewTab isMobile={true} onFocusModeToggle={onFocusModeToggle} />
+                <TabsContent value="view" className="m-0 border-0 p-4">
+                  <ViewTab isMobile={true} onFocusModeToggle={onFocusModeToggle} isFocusMode={isFocusMode} />
                 </TabsContent>
                 {isTableActive && (
-                  <TabsContent value="table" className="m-0 border-0 p-2">
+                  <TabsContent value="table" className="m-0 border-0 p-4">
                     <TableTab />
                   </TabsContent>
                 )}
@@ -179,27 +180,27 @@ export function Ribbon({ className, isMobile = false }: RibbonProps) {
           )}
         </TabsList>
 
-        <div className="border-t bg-gray-50 p-3">
-          <TabsContent value="home" className="m-0">
+        <div className="border-t bg-gray-50 p-3 overflow-x-auto no-scrollbar">
+          <TabsContent value="home" className="m-0 min-w-max">
             <HomeTab />
           </TabsContent>
-          <TabsContent value="insert" className="m-0">
+          <TabsContent value="insert" className="m-0 min-w-max">
             <InsertTab />
           </TabsContent>
-          <TabsContent value="layout" className="m-0">
+          <TabsContent value="layout" className="m-0 min-w-max">
             <LayoutTab />
           </TabsContent>
-          <TabsContent value="references" className="m-0">
+          <TabsContent value="references" className="m-0 min-w-max">
             <ReferencesTab />
           </TabsContent>
-          <TabsContent value="review" className="m-0">
+          <TabsContent value="review" className="m-0 min-w-max">
             <ReviewTab />
           </TabsContent>
-          <TabsContent value="view" className="m-0">
-            <ViewTab onFocusModeToggle={onFocusModeToggle} />
+          <TabsContent value="view" className="m-0 min-w-max">
+            <ViewTab onFocusModeToggle={onFocusModeToggle} isFocusMode={isFocusMode} />
           </TabsContent>
           {isTableActive && (
-            <TabsContent value="table" className="m-0">
+            <TabsContent value="table" className="m-0 min-w-max">
               <TableTab />
             </TabsContent>
           )}

@@ -20,7 +20,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        '@wordpro': path.resolve(__dirname, './src/features/clerk-desk/wordpro/client/src')
+        '@wordpro': path.resolve(__dirname, './src/components/letter-composer'),
+
       },
     },
     build: {

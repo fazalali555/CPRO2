@@ -32,7 +32,7 @@ export const DocumentFiling: React.FC = () => {
   // Form state
   const [formData, setFormData] = useState({
     title: '',
-    category: 'general' as DocumentCategory,
+    category: 'other' as DocumentCategory,
     tags: '',
     description: '',
     expiryDate: '',
@@ -142,7 +142,7 @@ export const DocumentFiling: React.FC = () => {
   const resetForm = useCallback(() => {
     setFormData({
       title: '',
-      category: 'general',
+      category: 'other',
       tags: '',
       description: '',
       expiryDate: '',
@@ -186,7 +186,10 @@ export const DocumentFiling: React.FC = () => {
 
   // Submit handler
   const handleSubmit = useCallback(async () => {
-    const validation = validateDocument(formData);
+    const validation = validateDocument({
+      ...formData,
+      tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean)
+    });
     if (!validation.isValid) {
       setValidationErrors(validation.errors);
       showToast('Please fix the validation errors', 'error');
@@ -224,7 +227,7 @@ export const DocumentFiling: React.FC = () => {
         expiryDate: formData.expiryDate || undefined,
         isConfidential: formData.isConfidential,
         accessLog: [],
-      });
+      } as any);
 
       auditService.log('DOC_FILED', `Filed document: ${newDoc.title}`, newDoc.id);
       showToast('Document filed successfully', 'success');
@@ -284,7 +287,7 @@ export const DocumentFiling: React.FC = () => {
         ? data
         : typeof data === 'string'
           ? new Blob([data])
-          : new Blob([data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBuffer)]);
+          : new Blob([new Uint8Array(data as unknown as ArrayBuffer)]);
 
       ExportService.downloadBlob(blob, doc.fileName || 'document');
 

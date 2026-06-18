@@ -25,10 +25,11 @@ export interface MedicalClaim {
   employeeName: string;
   amount: number;
   claimType: string;
-  remarks: string;
+  remarks?: string;
   submittedAt: string;
   status: 'Submitted' | 'Approved' | 'Rejected';
 }
+
 
 export interface LoanApplication {
   id: string;
@@ -97,7 +98,8 @@ export type AdminTab =
   | 'inspection' 
   | 'emis' 
   | 'inventory' 
-  | 'meetings';
+  | 'meetings'
+  | 'acr';
 
 // Institution types
 export * from './institution';

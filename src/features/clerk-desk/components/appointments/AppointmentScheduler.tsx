@@ -254,7 +254,7 @@ export const AppointmentScheduler: React.FC = () => {
       // If recurring, create multiple appointments
       if (isRecurring && recurrence.endDate) {
         const createdIds: string[] = [];
-        let currentDate = new Date(formData.date);
+        const currentDate = new Date(formData.date);
         const endDate = new Date(recurrence.endDate);
 
         while (currentDate <= endDate) {

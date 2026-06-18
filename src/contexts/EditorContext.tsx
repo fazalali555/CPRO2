@@ -1,80 +1,113 @@
-import React, { createContext, useContext, ReactNode } from "react";
-import { useEditorV2 } from "../features/clerk-desk/components/wordpro/hooks/useEditorV2";
-import { EditorState, TextFormat, HeadingLevel } from "@shared/editor-types";
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
+import { EditorSettings, EditorMetrics } from '../types/editor';
 
-interface SelectionState {
-  start: number;
-  end: number;
-  blockId: string;
+// 1. CHANNELS FOR SEPARATION OF CONCERNS
+const EditorInstanceContext = createContext<any | null>(null);
+const EditorMetricsContext = createContext<EditorMetrics | null>(null);
+const EditorSettingsContext = createContext<{
+  settings: EditorSettings;
+  updateSettings: (updates: Partial<EditorSettings>) => void;
+} | null>(null);
+
+const DEFAULT_SETTINGS: EditorSettings = {
+  viewMode: 'print', 
+  zoom: 100,
+  margins: { top: 25.4, bottom: 25.4, left: 31.75, right: 31.75 }, 
+  pageSize: 'A4',   
+  orientation: 'portrait',
+  showRuler: true,
+  spellCheck: true,
+  showGridlines: false,
+  showNavPane: false
+};
+
+interface ProviderProps {
+  children: React.ReactNode;
+  editorInstance: any; 
 }
 
-interface EditorContextType {
-  editorState: EditorState;
-  selection: SelectionState;
-  setSelection: (selection: SelectionState) => void;
-  editorRef: React.RefObject<HTMLDivElement | null>;
-  insertText: (text: string) => void;
-  applyFormat: (format: TextFormat) => void;
-  applyHeading: (level: HeadingLevel) => void;
-  deleteSelection: () => void;
-  addBlock: (type?: "paragraph" | "heading") => void;
-  deleteBlock: (blockId: string) => void;
-  undo: () => void;
-  redo: () => void;
-  getContent: () => string;
-  getWordCount: () => number;
-  getCharacterCount: () => number;
-  getReadingTime: () => number;
-  clear: () => void;
-  loadState: (state: EditorState) => void;
-  canUndo: boolean;
-  canRedo: boolean;
-}
+export const EditorProvider: React.FC<ProviderProps> = ({ children, editorInstance }) => {
+  const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
+  const [metrics, setMetrics] = useState<EditorMetrics>({
+    wordCount: 0,
+    charCount: 0,
+    paragraphCount: 0,
+    currentPage: 1,
+    totalPages: 1
+  });
 
-const EditorContext = createContext<EditorContextType | undefined>(undefined);
+  // Automatically sync metrics from editorInstance
+  useEffect(() => {
+    if (!editorInstance) return;
 
-interface EditorProviderProps {
-  children: ReactNode;
-  initialState?: EditorState;
-}
+    const updateMetrics = () => {
+      const { storage, state } = editorInstance;
+      const wordCount = storage?.characterCount?.words() || 0;
+      const charCount = storage?.characterCount?.characters() || 0;
+      
+      // Calculate paragraph count
+      let paragraphCount = 0;
+      state.doc.descendants((node: any) => {
+        if (node.type.name === 'paragraph') paragraphCount++;
+      });
 
-export function EditorProvider({ children, initialState }: EditorProviderProps) {
-  const editor = useEditorV2(initialState);
+      setMetrics(prev => ({
+        ...prev,
+        wordCount,
+        charCount,
+        paragraphCount,
+        // Page calculation would go here if implemented
+      }));
+    };
 
-  const value: EditorContextType = {
-    editorState: editor.editorState,
-    selection: editor.selection,
-    setSelection: editor.setSelection,
-    editorRef: editor.editorRef,
-    insertText: editor.insertText,
-    applyFormat: editor.applyFormat,
-    applyHeading: editor.applyHeading,
-    deleteSelection: editor.deleteSelection,
-    addBlock: editor.addBlock,
-    deleteBlock: editor.deleteBlock,
-    undo: editor.undo,
-    redo: editor.redo,
-    getContent: editor.getContent,
-    getWordCount: editor.getWordCount,
-    getCharacterCount: editor.getCharacterCount,
-    getReadingTime: editor.getReadingTime,
-    clear: editor.clear,
-    loadState: editor.loadState,
-    canUndo: editor.canUndo,
-    canRedo: editor.canRedo,
-  };
+    // Initial update
+    updateMetrics();
+
+    // Listen for updates
+    editorInstance.on('update', updateMetrics);
+    return () => {
+      editorInstance.off('update', updateMetrics);
+    };
+  }, [editorInstance]);
+
+  const updateSettings = useCallback((updates: Partial<EditorSettings>) => {
+    setSettings((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const settingsValue = useMemo(() => ({ settings, updateSettings }), [settings, updateSettings]);
 
   return (
-    <EditorContext.Provider value={value}>
-      {children}
-    </EditorContext.Provider>
+    <EditorInstanceContext.Provider value={editorInstance}>
+      <EditorSettingsContext.Provider value={settingsValue}>
+        <EditorMetricsContext.Provider value={metrics}>
+          {children}
+        </EditorMetricsContext.Provider>
+      </EditorSettingsContext.Provider>
+    </EditorInstanceContext.Provider>
   );
-}
+};
 
-export function useEditorContext(): EditorContextType {
-  const context = useContext(EditorContext);
-  if (!context) {
-    throw new Error("useEditorContext must be used within EditorProvider");
+// 2. OPTIMIZED EXPORT HOOKS (Saves memory, stops multi-component re-renders)
+export const useEditorInstance = () => {
+  const context = useContext(EditorInstanceContext);
+  if (context === undefined) {
+    throw new Error('useEditorInstance must be used within an EditorProvider');
   }
   return context;
-}
+};
+
+export const useEditorSettings = () => {
+  const context = useContext(EditorSettingsContext);
+  if (!context) {
+    throw new Error('useEditorSettings must be used within an EditorProvider');
+  }
+  return context;
+};
+
+export const useEditorMetrics = () => {
+  const context = useContext(EditorMetricsContext);
+  if (!context) {
+    throw new Error('useEditorMetrics must be used within an EditorProvider');
+  }
+  return context;
+};

@@ -46,8 +46,15 @@ export interface EmployeeRecord {
     account_type: string;
     gpf_account_no: string;
     ppo_no?: string;
-    gender?: 'Male' | 'Female';
+    gender?: 'Male' | 'Female' | string;
     department?: string; // Explicit department override (e.g. "Health", "Police")
+    date_of_birth?: string; // Duplicate for consistency
+    domicile?: string;
+    birth_place?: string;
+    marital_status?: string;
+    home_district?: string;
+    cnic?: string; // Alias for cnic_no
+    qualification?: string;
   };
   service_history: {
     date_of_appointment: string;
@@ -61,6 +68,7 @@ export interface EmployeeRecord {
     leave_taken_days: number;
     date_of_regularization: string; // New: For seniority logic
     qualifying_service?: string;
+    date_of_entry_current_post?: string;
   };
   financials: {
     basic_pay: number;
@@ -197,14 +205,16 @@ export interface AuditParaRecord {
   category: ParaCategory;
   para_no: string;
   description: string;
+  subject?: string;
   amount_involved: number;
   status: ParaStatus;
   deadline?: string; // For submission of Para-wise Comments
   school_name?: string; // Added for gender/authority parsing
   replies: { date: string; content: string }[];
   documents: CaseDocument[];
-  createdAt: string;
-  updatedAt: string;
+  history?: any[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type CaseStatus = 'draft' | 'in_progress' | 'submitted' | 'returned' | 'completed';
@@ -331,6 +341,7 @@ export interface CourtCaseRecord {
   id: string;
   wp_number: string; // WP Number
   title: string; // Case Title
+  subject?: string;
   court_name: 'Peshawar High Court' | 'KP Service Tribunal' | string;
   petitioner: string;
   respondents: string[]; // [DEO, Director, Secretary, etc.]
@@ -344,7 +355,10 @@ export interface CourtCaseRecord {
 }
 
 export interface SeniorityEntry {
+  id: string;
   employee_id: string;
+  name?: string;
+  father_name?: string;
   designation: string;
   seniority_no: number;
   date_of_joining_cadre: string;

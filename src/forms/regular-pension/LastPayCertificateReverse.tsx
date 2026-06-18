@@ -8,8 +8,8 @@ interface Props {
 }
 
 export const LastPayCertificateReverse: React.FC<Props> = ({ employee }) => {
-  const extras = employee?.extras || {};
-  const financials = employee?.financials || {};
+  const extras = employee?.extras || ({} as any);
+  const financials = employee?.financials || ({} as any);
 
   const recoveries = [];
   if (extras.hba_balance > 0) recoveries.push({ name: 'HBA Balance', amount: extras.hba_balance });

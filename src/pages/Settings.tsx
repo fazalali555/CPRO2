@@ -24,6 +24,34 @@ export const Settings: React.FC = () => {
     };
   });
 
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('clerk_pro_gemini_api_key') || '');
+  const [isTestingKey, setIsTestingKey] = useState(false);
+
+  const handleTestConnection = async () => {
+    if (!geminiApiKey.trim()) {
+      showToast('Please enter an API Key to test', 'warning');
+      return;
+    }
+    setIsTestingKey(true);
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiApiKey.trim()}`);
+      if (res.ok) {
+        showToast('Connection successful! Your API key is valid.', 'success');
+        auditService.log('AI_API_KEY_TEST_SUCCESS', 'Gemini API key tested successfully');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        const errMsg = errData.error?.message || 'Invalid API Key';
+        showToast(`Connection failed: ${errMsg}`, 'error');
+        auditService.log('AI_API_KEY_TEST_FAILED', `Gemini API key test failed: ${errMsg}`);
+      }
+    } catch (err) {
+      showToast('Connection failed: Network error or CORS restriction', 'error');
+      auditService.log('AI_API_KEY_TEST_ERROR', 'Gemini API key test failed due to network error');
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
+
   useEffect(() => {
     localStorage.setItem('clerk_pro_auto_backup_enabled', autoBackupEnabled ? 'true' : 'false');
   }, [autoBackupEnabled]);
@@ -192,6 +220,76 @@ export const Settings: React.FC = () => {
                  <Button variant="tonal" label="Sync" icon="sync" onClick={() => syncIntegration('finance')} />
                </div>
              </div>
+           </div>
+        </Card>
+
+        {/* AI Integration Settings */}
+        <div className="text-sm font-bold text-on-surface-variant uppercase tracking-wider ml-2">AI Integration</div>
+        <Card variant="outlined" className="p-0 overflow-hidden bg-surface-container-low">
+           <div className="p-4 border-b border-outline-variant/20 flex items-center gap-3">
+             <div className="p-2 bg-primary/10 text-primary rounded-lg">
+               <AppIcon name="auto_awesome" />
+             </div>
+             <div>
+               <div className="font-bold">Gemini AI Credentials</div>
+               <div className="text-xs text-on-surface-variant">Configure custom API key for letter drafting and administrative review features</div>
+             </div>
+           </div>
+           
+           <div className="p-4 space-y-4">
+             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+               <TextField 
+                 label="Gemini API Key" 
+                 icon="key" 
+                 type="password"
+                 value={geminiApiKey} 
+                 onChange={e => setGeminiApiKey(e.target.value)} 
+                 className="flex-1" 
+                 placeholder="Enter your Gemini API key (AIzaSy...)"
+               />
+                <div className="flex gap-2 shrink-0">
+                  <Button 
+                    variant="outlined" 
+                    label={isTestingKey ? "Testing..." : "Test Connection"} 
+                    icon="wifi" 
+                    disabled={isTestingKey || !geminiApiKey.trim()}
+                    onClick={handleTestConnection}
+                  />
+                  <Button 
+                    variant="filled" 
+                    label="Save Key" 
+                    icon="save" 
+                    onClick={() => {
+                      if (geminiApiKey.trim()) {
+                        localStorage.setItem('clerk_pro_gemini_api_key', geminiApiKey.trim());
+                        showToast('API Key saved successfully', 'success');
+                        auditService.log('AI_API_KEY_UPDATED', 'Gemini API key updated in Settings');
+                      } else {
+                        localStorage.removeItem('clerk_pro_gemini_api_key');
+                        showToast('API Key cleared. Using default key.', 'success');
+                        auditService.log('AI_API_KEY_CLEARED', 'Gemini API key cleared in Settings');
+                      }
+                    }} 
+                  />
+                 {localStorage.getItem('clerk_pro_gemini_api_key') && (
+                   <Button 
+                     variant="outlined" 
+                     label="Reset Default" 
+                     icon="clear" 
+                     className="text-error border-error/20 hover:bg-error/5"
+                     onClick={() => {
+                       setGeminiApiKey('');
+                       localStorage.removeItem('clerk_pro_gemini_api_key');
+                       showToast('Using system default API key', 'info');
+                       auditService.log('AI_API_KEY_RESET', 'Gemini API key reset to system default');
+                     }} 
+                   />
+                 )}
+               </div>
+             </div>
+             <p className="text-[11px] text-on-surface-variant/80 italic leading-relaxed">
+               Note: If no custom key is saved, the system will fall back to the pre-configured default Gemini Flash key. Custom key will be stored securely in your local browser storage.
+             </p>
            </div>
         </Card>
 

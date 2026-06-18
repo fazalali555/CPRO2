@@ -38,6 +38,7 @@ export interface LetterTemplate extends BaseEntity {
 export interface Letter extends BaseEntity {
   templateId: string;
   officeProfileId?: string;
+  institutionName?: string;
   schoolType: string;
   schoolName: string;
   recipientGender: 'Male' | 'Female';
@@ -54,6 +55,7 @@ export interface Letter extends BaseEntity {
   signatureName: string;
   signatureTitle: string;
   forwardedTo: string[];
+  enclosures?: string;
   status: LetterStatus;
   priority: Priority;
   versions: LetterVersion[];

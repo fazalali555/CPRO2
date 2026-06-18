@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "../../features/clerk-desk/components/wordpro/lib/utils";
+import { cn } from "@/lib/utils";
 import { Button } from "../../features/clerk-desk/components/wordpro/components/ui/button";
 import { Input } from "../../features/clerk-desk/components/wordpro/components/ui/input";
 import { Textarea } from "../../features/clerk-desk/components/wordpro/components/ui/textarea";

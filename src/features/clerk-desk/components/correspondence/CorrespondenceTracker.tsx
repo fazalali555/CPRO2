@@ -97,9 +97,11 @@ export const CorrespondenceTracker: React.FC = () => {
   const groupedByStatus = useMemo(() => {
     const groups: Record<CorrespondenceStatus, Correspondence[]> = {
       pending: [],
+      active: [],
       replied: [],
       escalated: [],
       closed: [],
+      archived: [],
     };
 
     filteredCorrespondence.forEach(corr => {

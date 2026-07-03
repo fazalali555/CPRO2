@@ -47,3 +47,8 @@ test-results/
 *.sqlite
 *.sqlite3
 *.db
+
+# Agent and IDE meta files
+.ai/
+.gemini/
+.geminiignore

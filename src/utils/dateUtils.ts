@@ -48,3 +48,22 @@ export const getAuditYear = (): string => {
   const year = today.getFullYear();
   return `${year}-${(year + 1).toString().slice(-2)}`;
 };
+
+/**
+ * Checks if a string is a valid ISO or common date format.
+ */
+export const isValidDate = (dateStr?: string | null): boolean => {
+  if (!dateStr) return false;
+  const parsed = Date.parse(dateStr);
+  return !isNaN(parsed);
+};
+
+/**
+ * Parses a date string into a Date object.
+ */
+export const parseDate = (dateStr?: string | null): Date | null => {
+  if (!dateStr) return null;
+  const parsed = new Date(dateStr);
+  return isNaN(parsed.getTime()) ? null : parsed;
+};
+

@@ -2,6 +2,23 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const parseSafetySettings = () => {
+  const defaults = [
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
+  ];
+  const envVal = process.env.GEMINI_SAFETY_SETTINGS;
+  if (!envVal) return defaults;
+  try {
+    const parsed = JSON.parse(envVal);
+    return Array.isArray(parsed) ? parsed : defaults;
+  } catch (e) {
+    return defaults;
+  }
+};
+
 export const config = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -24,11 +41,6 @@ export const config = {
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiBaseUrl: process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
-  geminiSafetySettings: [
-    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
-  ],
+  geminiSafetySettings: parseSafetySettings(),
   auditLogPath: process.env.AUDIT_LOG_PATH || './logs/audit.log'
 };

@@ -30,10 +30,16 @@ import { FinancialAssistancePacketPrint } from '../pages/print/FinancialAssistan
 import { RetirementSuiteLandscapePrint } from '../pages/print/RetirementSuiteLandscapePrint';
 import { RetirementSuiteAffidavitsPrint } from '../pages/print/RetirementSuiteAffidavitsPrint';
 import { LetterPrint } from '../features/clerk-desk/components/wordpro/letters/LetterPrint';
+import { BulkCasePrint } from '../pages/print/BulkCasePrint';
 
 export const PrintWrapper = () => <Print />;
 
 export const LetterPrintWrapper = () => <LetterPrint />;
+
+export const BulkCasePrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <BulkCasePrint employees={employees} cases={cases} />;
+};
 
 export const RetirementSuitePortraitPrintWrapper = () => {
   const { employees, cases } = useEmployeeContext();

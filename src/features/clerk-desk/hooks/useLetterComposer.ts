@@ -283,9 +283,9 @@ export function useLetterComposer() {
     
     const recipientLines = (formState.to || 'Recipient')
       .split('\n')
-      .map(l => l.trim())
+      .map((l: string) => l.trim())
       .filter(Boolean);
-    const recipientBlock = recipientLines.map(l => `              ${l}`).join('\n');
+    const recipientBlock = recipientLines.map((l: string) => `              ${l}`).join('\n');
     
     const noLine = formState.reference?.trim() || '____________';
     const parsedDate = formState.letterDate ? new Date(formState.letterDate) : null;
@@ -297,14 +297,14 @@ export function useLetterComposer() {
       formState.signatureName || 'Clerk',
       resolvedValues.signatureTitle
     ].filter(Boolean);
-    const signatureBox = signatureLines.map(l => l.padStart(70)).join('\n');
+    const signatureBox = signatureLines.map((l: string) => l.padStart(70)).join('\n');
     
     const forwardedItems = formState.forwardedTo
       .split('\n')
-      .map(l => l.trim())
+      .map((l: string) => l.trim())
       .filter(Boolean);
     const forwardedList = forwardedItems.length
-      ? forwardedItems.map((l, i) => `  ${i + 1}. ${l}`).join('\n')
+      ? forwardedItems.map((l: string, i: number) => `  ${i + 1}. ${l}`).join('\n')
       : '';
     
     const headerBlock = [
@@ -406,8 +406,8 @@ export function useLetterComposer() {
     }
 
     const now = new Date().toISOString();
-    const tags = formState.tags.split(',').map(t => t.trim()).filter(Boolean);
-    const forwardedTo = formState.forwardedTo.split('\n').map(l => l.trim()).filter(Boolean);
+    const tags = formState.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+    const forwardedTo = formState.forwardedTo.split('\n').map((l: string) => l.trim()).filter(Boolean);
 
     const letterData: Omit<Letter, 'id' | 'createdAt' | 'updatedAt'> = {
       templateId: formState.templateId,

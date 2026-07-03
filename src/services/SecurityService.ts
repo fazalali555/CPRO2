@@ -5,18 +5,31 @@ class SecurityService {
   private currentUser: User | null = null;
 
   constructor() {
-    const savedUser = localStorage.getItem('clerk_pro_user');
-    if (savedUser) {
-      this.currentUser = JSON.parse(savedUser);
+    if (typeof localStorage !== 'undefined') {
+      const savedUser = localStorage.getItem('clerk_pro_user');
+      if (savedUser) {
+        this.currentUser = JSON.parse(savedUser);
+      } else {
+        // Default mock user for now
+        this.currentUser = {
+          id: 'u1',
+          name: 'Fazal Ali',
+          role: 'admin',
+          office: 'Allai'
+        };
+        try {
+          localStorage.setItem('clerk_pro_user', JSON.stringify(this.currentUser));
+        } catch (e) {
+          console.warn("localStorage not writable", e);
+        }
+      }
     } else {
-      // Default mock user for now
       this.currentUser = {
         id: 'u1',
         name: 'Fazal Ali',
         role: 'admin',
         office: 'Allai'
       };
-      localStorage.setItem('clerk_pro_user', JSON.stringify(this.currentUser));
     }
   }
 
@@ -31,12 +44,24 @@ class SecurityService {
 
   login(user: User) {
     this.currentUser = user;
-    localStorage.setItem('clerk_pro_user', JSON.stringify(user));
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('clerk_pro_user', JSON.stringify(user));
+      } catch (e) {
+        console.warn("localStorage not writable", e);
+      }
+    }
   }
 
   logout() {
     this.currentUser = null;
-    localStorage.removeItem('clerk_pro_user');
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem('clerk_pro_user');
+      } catch (e) {
+        console.warn("localStorage not writable", e);
+      }
+    }
   }
 }
 
@@ -44,12 +69,22 @@ export const securityService = new SecurityService();
 
 class AuditService {
   private getAuditLog(): AuditEntry[] {
-    const log = localStorage.getItem('clerk_pro_audit_log');
-    return log ? JSON.parse(log) : [];
+    if (typeof localStorage === 'undefined') return [];
+    try {
+      const log = localStorage.getItem('clerk_pro_audit_log');
+      return log ? JSON.parse(log) : [];
+    } catch {
+      return [];
+    }
   }
 
   private saveAuditLog(log: AuditEntry[]) {
-    localStorage.setItem('clerk_pro_audit_log', JSON.stringify(log));
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem('clerk_pro_audit_log', JSON.stringify(log));
+    } catch (e) {
+      console.warn("localStorage not writable", e);
+    }
   }
 
   log(action: string, details: string, resourceId?: string) {

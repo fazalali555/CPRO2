@@ -1,3 +1,19 @@
+// Mock localStorage in environments where it is not available
+if (typeof global.localStorage === 'undefined') {
+  const store: Record<string, string> = {};
+  global.localStorage = {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => { store[key] = String(value); },
+    removeItem: (key: string) => { delete store[key]; },
+    clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+    key: (index: number) => Object.keys(store)[index] || null,
+    length: 0,
+  } as any;
+  Object.defineProperty(global.localStorage, 'length', {
+    get: () => Object.keys(store).length
+  });
+}
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { securityService, auditService } from '../SecurityService';
 

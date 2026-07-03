@@ -42,7 +42,8 @@ export const AGE_FACTORS: Record<number, number> = {
   57: 13.9888,
   58: 13.434,
   59: 12.8953,
-  60: 12.3719, // ← Maximum — table ends here
+  60: 12.3719,
+  61: 11.8632, // ← Superannuation (Retirement at 60) next birthday
 };
 
 export const RBDC_RATES = [

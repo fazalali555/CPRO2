@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
-vi.stubEnv('AI_AUDIT_LOG_PATH', 'logs/test_audit.log');
+vi.stubEnv('AUDIT_LOG_PATH', 'logs/test_audit.log');
 
 describe('logAudit', () => {
   it('writes audit log entry', async () => {

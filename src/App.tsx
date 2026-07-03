@@ -46,7 +46,8 @@ import {
   BenevolentFundPacketPrintWrapper,
   EEFPacketPrintWrapper,
   RBDCPacketPrintWrapper,
-  FinancialAssistancePacketPrintWrapper
+  FinancialAssistancePacketPrintWrapper,
+  BulkCasePrintWrapper
 } from './components/PrintWrappers';
 
 // Lazy Loaded Pages
@@ -245,6 +246,7 @@ const App: React.FC = () => {
               <Route path="/print/pension-suite-portrait/:caseId" element={<RetirementSuitePortraitPrintWrapper />} />
               <Route path="/print/pension-suite-landscape/:caseId" element={<RetirementSuiteLandscapePrintWrapper />} />
               <Route path="/print/pension-suite-legal/:caseId" element={<RetirementSuiteAffidavitsPrintWrapper />} />
+              <Route path="/print/bulk-case/:group/:caseId" element={<BulkCasePrintWrapper />} />
 
               <Route path="/verify/:caseId" element={<VerifyDocument />} />
 

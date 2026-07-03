@@ -5,7 +5,7 @@ describe('config', () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     vi.stubEnv('GEMINI_SAFETY_SETTINGS', 'bad');
-    const { config } = await import('../config.js');
+    const { config } = await import('../config.js?t=1');
     expect(Array.isArray(config.geminiSafetySettings)).toBe(true);
     expect(config.geminiSafetySettings.length).toBe(4);
   });
@@ -14,7 +14,7 @@ describe('config', () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     vi.stubEnv('GEMINI_SAFETY_SETTINGS', '[{"category":"X","threshold":"BLOCK_LOW"}]');
-    const { config } = await import('../config.js');
+    const { config } = await import('../config.js?t=2');
     expect(config.geminiSafetySettings.length).toBe(1);
     expect(config.geminiSafetySettings[0].category).toBe('X');
   });

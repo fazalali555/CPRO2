@@ -752,6 +752,7 @@ export const CaseDetail: React.FC = () => {
     Component: React.ReactNode; 
     orientation?: 'landscape' | 'portrait';
     size?: 'a4' | 'legal';
+    isAffidavit?: boolean;
   }[] = [];
 
   if (isRetirement) {
@@ -867,12 +868,12 @@ export const CaseDetail: React.FC = () => {
        { id: 'family_list', title: '3. Surviving Family Members List', route: 'family-pension-packet', Component: <FamilyMembersList employee={employee} /> },
        
        // --- SEPARATE DOCUMENTS ---
-       { id: 'succession_cert', title: 'Succession Certificate', route: 'family-pension-succession', Component: <SuccessionCertificate employee={employee} /> },
-       { id: 'bank_letter', title: 'Bank Account Letter', route: 'family-pension-bank-letter', Component: <BankAccountLetter employee={employee} /> },
+       { id: 'succession_cert', title: 'Succession Certificate', route: 'family-pension-succession', size: 'legal', Component: <SuccessionCertificate employee={employee} /> },
+       { id: 'bank_letter', title: 'Bank Account Letter', route: 'family-pension-bank-letter', size: 'legal', Component: <BankAccountLetter employee={employee} /> },
 
        // --- AFFIDAVITS AS SEPARATE DOCUMENTS FOR LEGAL SIZE PRINTING ---
-       { id: 'affidavit1', title: 'Affidavit 1 (Non-Marriage) [Legal]', route: 'family-pension-affidavit-1', Component: <Affidavit1 employee={employee} /> },
-       { id: 'affidavit2', title: 'Affidavit 2 (Indemnity) [Legal]', route: 'family-pension-affidavit-2', Component: <Affidavit2 employee={employee} /> },
+       { id: 'affidavit1', title: 'Affidavit 1 (Non-Marriage) [Legal]', route: 'family-pension-affidavit-1', size: 'legal', isAffidavit: true, Component: <Affidavit1 employee={employee} /> },
+       { id: 'affidavit2', title: 'Affidavit 2 (Indemnity) [Legal]', route: 'family-pension-affidavit-2', size: 'legal', isAffidavit: true, Component: <Affidavit2 employee={employee} /> },
        
        { id: 'packet_print', title: 'Full Packet (A4 Only)', route: 'family-pension-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Includes all standard forms except Affidavits (Legal Size).</div> }
      ];
@@ -886,8 +887,8 @@ export const CaseDetail: React.FC = () => {
         { id: 'cover', title: 'Forwarding Letter', route: 'regular-pension-packet', Component: <RegularCoverLetter employee={employee} caseRecord={caseRec} /> },
         { id: 'packet', title: 'Complete Packet (A4)', route: 'regular-pension-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full 13-page set</div> },
         // Add specific indemnity bond reuse if needed individually
-        { id: 'affidavit2', title: 'Indemnity Bond [Legal]', route: 'family-pension-affidavit-2', Component: <Affidavit2 employee={employee} /> },
-        { id: 'affidavit3', title: 'Affidavit: Non-Availment (LPR/EEF/BF/RB&DC) [Legal]', route: 'family-pension-affidavit-3', Component: <Affidavit3 employee={employee} /> }
+        { id: 'affidavit2', title: 'Indemnity Bond [Legal]', route: 'family-pension-affidavit-2', size: 'legal', isAffidavit: true, Component: <Affidavit2 employee={employee} /> },
+        { id: 'affidavit3', title: 'Affidavit: Non-Availment (LPR/EEF/BF/RB&DC) [Legal]', route: 'family-pension-affidavit-3', size: 'legal', isAffidavit: true, Component: <Affidavit3 employee={employee} /> }
      ];
   } else if (caseRec.case_type === 'rbdc') {
      documentsList.push(
@@ -1435,7 +1436,7 @@ export const CaseDetail: React.FC = () => {
                  </div>
                  <div className="flex flex-wrap gap-2">
                     {/* UNIVERSAL PRINT PACKET BUTTONS */}
-                    {caseRec.case_type === 'full_pension' && (
+                    {caseRec.case_type === 'full_pension' ? (
                       <div className="flex gap-2">
                          <Button 
                             variant="filled" 
@@ -1459,57 +1460,34 @@ export const CaseDetail: React.FC = () => {
                             onClick={() => handlePrintDocument('bulk_legal', 'pension-suite-legal')} 
                          />
                       </div>
-                    )}
-                    {isRetirement && (
-                      <Button 
-                          variant="filled" 
-                          label="Print Documents" 
-                          icon="print" 
-                          className="bg-slate-800 text-white"
-                          onClick={() => handlePrintDocument('packet', 'retirement-packet')} 
-                      />
-                    )}
-                    {isGPF && (
-                      <Button 
-                          variant="filled" 
-                          label="Print Documents" 
-                          icon="print" 
-                          className="bg-slate-800 text-white"
-                          onClick={() => handlePrintDocument('packet', 'gpf-packet')} 
-                      />
-                    )}
-                    {isDeceasedPension && (
-                      <Button 
-                          variant="filled" 
-                          label="Print Family Packet" 
-                          icon="print" 
-                          className="bg-red-800 text-white"
-                          onClick={() => handlePrintDocument('packet', 'family-pension-packet')} 
-                      />
-                    )}
-                    {isRegularPension && (
-                      <Button 
-                          variant="filled" 
-                          label="Print Packet" 
-                          icon="print" 
-                          className="bg-blue-800 text-white"
-                          onClick={() => handlePrintDocument('packet', 'regular-pension-packet')} 
-                      />
-                    )}
-                    {caseRec.case_type === 'rbdc' && (
-                       <Button variant="filled" label="Print RBDC Form" icon="print" className="bg-slate-800 text-white" onClick={() => handlePrintDocument('application_official', 'rbdc-application')} />
-                    )}
-                    {caseRec.case_type === 'benevolent_fund' && (
-                       <Button variant="filled" label="Print BF Form" icon="print" className="bg-slate-800 text-white" onClick={() => handlePrintDocument('application_official', 'bf-application')} />
-                    )}
-                    {caseRec.case_type === 'eef' && (
-                       <Button variant="filled" label="Print EEF Form" icon="print" className="bg-slate-800 text-white" onClick={() => handlePrintDocument('application_official', 'eef-application')} />
-                    )}
-                    {caseRec.case_type === 'lpr' && (
-                      <Button variant="filled" label="Print LPR Cover" icon="print" className="bg-slate-800 text-white" onClick={() => handlePrintDocument('cover', 'cover-lpr')} />
-                    )}
-                    {caseRec.case_type === 'financial_assistance' && (
-                       <Button variant="filled" label="Print FA Form" icon="print" className="bg-slate-800 text-white" onClick={() => handlePrintDocument('application', 'financial-assistance-application')} />
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                         <Button 
+                            variant="filled" 
+                            label="Print A4 Packet" 
+                            icon="print" 
+                            className="bg-slate-800 text-white"
+                            onClick={() => handlePrintDocument('bulk-a4', 'bulk-case/a4')} 
+                         />
+                         {documentsList.some(d => d.size === 'legal') && (
+                           <Button 
+                              variant="filled" 
+                              label="Print Legal Packet" 
+                              icon="article" 
+                              className="bg-orange-800 text-white"
+                              onClick={() => handlePrintDocument('bulk-legal', 'bulk-case/legal')} 
+                           />
+                         )}
+                         {documentsList.some(d => d.isAffidavit) && (
+                           <Button 
+                              variant="filled" 
+                              label="Print Affidavits" 
+                              icon="gavel" 
+                              className="bg-red-800 text-white"
+                              onClick={() => handlePrintDocument('bulk-affidavit', 'bulk-case/affidavit')} 
+                           />
+                         )}
+                      </div>
                     )}
                  </div>
               </div>

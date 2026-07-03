@@ -334,8 +334,8 @@ export const parseOfficialLetter = (rawText: string): ParsedLetter => {
     }
 
     // Ref No and Date
-    const refMatch = line.match(/(?:No\.?|Endst\.?\s*No\.?)[\s:]+([\w\/\-\\\(\)_ ]+)(?=\s+Dated|Date|$)/i);
-    const dateMatch = line.match(/(?:Dated?|Date)[\s:]+([\d\/\-A-Za-z_ ]+)/i);
+    const refMatch = line.match(/(?:No\.?|Endst\.?\s*No\.?|Ref\.?\s*No\.?)[\s*:]+([\w\/\-\\\(\)_ ]+)(?=\s+Dated|Date|$)/i);
+    const dateMatch = line.match(/(?:Dated?|Date)[\s*:]+([\d\/\-A-Za-z_ ,]+)/i);
 
     if (refMatch && !parsed.refNo) {
       let refStr = refMatch[1].trim();

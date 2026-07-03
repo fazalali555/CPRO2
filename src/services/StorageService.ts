@@ -5,7 +5,7 @@ import { STORAGE_KEYS } from '@/features/clerk-desk/constants';
 type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];
 
 class StorageServiceClass {
-  private cache: Map<string, any> = new Map();
+  private cache: Map<string, unknown> = new Map();
   private saveQueue: Map<string, NodeJS.Timeout> = new Map();
   private readonly DEBOUNCE_MS = 500;
 
@@ -111,7 +111,7 @@ class StorageServiceClass {
   getStorageStats(): { used: number; total: number; percentage: number } {
     let used = 0;
     for (const key in localStorage) {
-      if (localStorage.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
         used += localStorage.getItem(key)?.length || 0;
       }
     }
@@ -128,8 +128,8 @@ class StorageServiceClass {
   /**
    * Export all data for backup
    */
-  exportAll(): Record<string, any> {
-    const data: Record<string, any> = {};
+  exportAll(): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
     Object.values(STORAGE_KEYS).forEach(key => {
       data[key] = this.load(key, null);
     });
@@ -139,7 +139,7 @@ class StorageServiceClass {
   /**
    * Import data from backup
    */
-  importAll(data: Record<string, any>): void {
+  importAll(data: Record<string, unknown>): void {
     Object.entries(data).forEach(([key, value]) => {
       if (Object.values(STORAGE_KEYS).includes(key as StorageKey)) {
         this.save(key as StorageKey, value, true);

@@ -34,22 +34,19 @@ import {
 } from './types';
 import { PDFDocument, StandardFonts, PDFTextField } from 'pdf-lib';
 
-// Dynamic department detector
 import {
-  getDepartmentInfo,
-  isGirlsInstitution,
-  detectGender,
-  getSalutation as getDetectorSalutation,
-  DepartmentInfo,
-} from './utils/departmentDetector';
-
-// Re-export detector helpers
-export {
   getDepartmentInfo,
   isGirlsInstitution,
   detectGender,
   type DepartmentInfo,
 } from './utils/departmentDetector';
+
+export {
+  getDepartmentInfo,
+  isGirlsInstitution,
+  detectGender,
+  type DepartmentInfo,
+};
 
 // ============================================================================
 // CONSTANTS
@@ -925,7 +922,7 @@ export const getOfficialPensionChecklist = (
 
 export const getOfficialGPFChecklist = (
   caseType: CaseType,
-  employee: EmployeeRecord
+  _employee: EmployeeRecord
 ): CaseChecklistItem[] => {
   const items: CaseChecklistItem[] = [
     { id: 'gpf_1', label: 'Application by concerned', done: false, required: true },

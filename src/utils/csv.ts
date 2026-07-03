@@ -81,7 +81,7 @@ const parseCSVLine = (line: string, delimiter: string = ','): string[] => {
   return result;
 };
 
-export const generateCSV = (data: Record<string, any>[], headers: string[]): string => {
+export const generateCSV = (data: Record<string, unknown>[], headers: string[]): string => {
   if (!data || data.length === 0) return '';
 
   const headerRow = headers.join(',');

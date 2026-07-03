@@ -13,6 +13,9 @@ interface MultiEntry {
   deduction_amount: number;
   reason: string;
   remarks: string;
+  info_type?: string;
+  wage_type?: string;
+  effective_date?: string;
 }
 
 interface Props {
@@ -193,6 +196,17 @@ export const PayrollAmendmentMultiForm: React.FC<Props> = ({
               const rupees = Math.floor(amount);
               const paisa = Math.round((amount - rupees) * 100);
               
+              // Safe parse date for Effective Date
+              let formattedDate = '';
+              if (entry.personnel_no) {
+                try {
+                  const dateObj = entry.effective_date ? new Date(entry.effective_date) : new Date();
+                  formattedDate = format(dateObj, 'dd/MM/yy');
+                } catch {
+                  formattedDate = format(new Date(), 'dd/MM/yy');
+                }
+              }
+
               return (
                 <tr key={i} className="h-6">
                   {/* Personnel Number - 8 Digits */}
@@ -206,14 +220,14 @@ export const PayrollAmendmentMultiForm: React.FC<Props> = ({
                   <td className="border-b border-r border-black text-center text-[8px] tracking-tighter">{entry.cnic}</td>
                   
                   {/* Info Type */}
-                  <td className="border-b border-r border-black text-center"></td>
+                  <td className="border-b border-r border-black text-center font-bold text-[8px]">{entry.personnel_no ? (entry.info_type || '0014') : ''}</td>
                   {/* Field ID */}
-                  <td className="border-b border-r border-black text-center"></td>
+                  <td className="border-b border-r border-black text-center text-[8px]"></td>
                   {/* New Contents */}
-                  <td className="border-b border-r border-black px-1 text-[8px]">{entry.reason}</td>
+                  <td className="border-b border-r border-black px-1 text-[8px]">{entry.reason || (entry.personnel_no ? 'Deductions' : '')}</td>
                   
                   {/* Wage Type */}
-                  <td className="border-b border-r border-black text-center"></td>
+                  <td className="border-b border-r border-black text-center font-bold text-[8px]">{entry.personnel_no ? (entry.wage_type || '5110') : ''}</td>
                   
                   {/* Amount (Rupees) */}
                   <td className="border-b border-r border-dotted border-black text-right px-1 font-bold">{amount > 0 ? rupees : ''}</td>
@@ -221,13 +235,13 @@ export const PayrollAmendmentMultiForm: React.FC<Props> = ({
                   <td className="border-b border-r border-black text-center text-[7px]">{amount > 0 ? paisa.toString().padStart(2, '0') : ''}</td>
                   
                   {/* Adj */}
-                  <td className="border-b border-r border-black text-center"></td>
+                  <td className="border-b border-r border-black text-center text-[8px]"></td>
                   {/* Stop Sal */}
-                  <td className="border-b border-r border-black text-center"></td>
+                  <td className="border-b border-r border-black text-center text-[8px]"></td>
                   {/* Eff Date */}
-                  <td className="border-b border-r border-black text-center text-[7px]">{entry.personnel_no ? format(new Date(), 'dd/MM/yy') : ''}</td>
+                  <td className="border-b border-r border-black text-center text-[7px]">{formattedDate}</td>
                   {/* Remarks */}
-                  <td className="border-b border-black px-1 italic text-[7px] truncate max-w-[100px]">{entry.remarks}</td>
+                  <td className="border-b border-black px-1 italic text-[7px] truncate max-w-[100px]">{entry.remarks || (entry.personnel_no ? 'One Day Deduction' : '')}</td>
                 </tr>
               );
             })}

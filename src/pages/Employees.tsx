@@ -1325,6 +1325,10 @@ export const Employees: React.FC = () => {
     qualifyingServiceYears: qService,
     commutationPortionPercent: (formData.extras as any)?.commutation_portion ?? 35,
     ageAtRetirement,
+    bps: formData.employees.bps || 0,
+    retiringYearIncrement: Number((formData.extras as any)?.retiring_year_increment) || 0,
+    otherAllowances: Number((formData.extras as any)?.other_pensionable_allowances) || 0,
+    retirementDate: formData.service_history.date_of_retirement,
   });
 
   const grossPensionCalc     = calc.grossPension;
@@ -1349,7 +1353,11 @@ export const Employees: React.FC = () => {
       f.p_pay,
       qService,
       ageAtRetirement,
-      (formData.extras as any)?.commutation_portion
+      (formData.extras as any)?.commutation_portion,
+      formData.employees.bps || 0,
+      Number((formData.extras as any)?.retiring_year_increment) || 0,
+      Number((formData.extras as any)?.other_pensionable_allowances) || 0,
+      formData.service_history.date_of_retirement
     );
   }, [
     formData.employees.status,
@@ -1359,6 +1367,10 @@ export const Employees: React.FC = () => {
     ageAtRetirement,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     (formData.extras as any)?.commutation_portion,
+    formData.employees.bps,
+    (formData.extras as any)?.retiring_year_increment,
+    (formData.extras as any)?.other_pensionable_allowances,
+    formData.service_history.date_of_retirement,
   ]);
 
   const availableTehsils = DISTRICT_TEHSIL_MAP[formData.employees.district] || [];
@@ -2428,7 +2440,7 @@ export const Employees: React.FC = () => {
                     <TextField label="Leaves Taken (For Account)" type="number" value={formData.service_history.leave_taken_days}
                       onChange={(e) => updateDeep(['service_history', 'leave_taken_days'], Number(e.target.value))} />
 
-                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-8 p-8 bg-primary/5 rounded-[32px] border border-primary/10">
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-8 bg-primary/5 rounded-[32px] border border-primary/10">
                       <TextField label="LPR Days (Encashment)" type="number" value={formData.service_history.lpr_days ?? 365}
                         onChange={(e) => updateDeep(['service_history', 'lpr_days'], Number(e.target.value))} />
 
@@ -2437,7 +2449,17 @@ export const Employees: React.FC = () => {
                         onChange={(e) => updateDeep(['extras', 'commutation_portion'], Number(e.target.value))}
                         placeholder="35" />
 
-                      <div className="flex flex-col justify-end pb-2">
+                      <TextField label="Retiring Year Increment (Rs.)" type="number"
+                        value={(formData.extras as any)?.retiring_year_increment ?? 0}
+                        onChange={(e) => updateDeep(['extras', 'retiring_year_increment'], Number(e.target.value))}
+                        placeholder="0" />
+
+                      <TextField label="Other Pensionable Allowances (Rs.)" type="number"
+                        value={(formData.extras as any)?.other_pensionable_allowances ?? 0}
+                        onChange={(e) => updateDeep(['extras', 'other_pensionable_allowances'], Number(e.target.value))}
+                        placeholder="0" />
+
+                      <div className="flex flex-col justify-end pb-2 lg:col-span-2">
                         <span className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest mb-1">Encashment Amount (Est.)</span>
                         <span className="text-2xl font-black font-mono text-primary tracking-tighter">{formatCurrency(lprAmount)}</span>
                         <span className="text-[10px] text-on-surface-variant/40 mt-1">(Basic Pay / 30) × Days</span>
@@ -2596,6 +2618,9 @@ export const Employees: React.FC = () => {
                       <div>
                         <h4 className="font-black text-xl text-on-surface tracking-tighter">Family Members</h4>
                         <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-1">Dependency Records</p>
+                        <p className="text-[10px] text-primary/70 mt-1 italic font-medium max-w-lg">
+                          * Multiple Wives Support: Enter the 1st Wife followed immediately by her children, then the 2nd Wife followed immediately by her children.
+                        </p>
                       </div>
                       <Button
                         type="button" variant="tonal" icon="add" label="Add Member"
@@ -2627,19 +2652,72 @@ export const Employees: React.FC = () => {
                           animate={{ opacity: 1, x: 0 }}
                           className="p-8 border border-outline-variant/30 rounded-[40px] bg-white/5 relative group transition-all hover:bg-white/10"
                         >
-                          <button
-                            type="button"
-                            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-error/40 hover:text-error hover:bg-error/10 rounded-xl transition-all"
-                            onClick={() => {
-                              const next = [...formData.family_members];
-                              next.splice(idx, 1);
-                              setFormData((prev) => ({ ...prev, family_members: next }));
-                            }}
-                          >
-                            <AppIcon name="delete" size={20} />
-                          </button>
+                          <div className="absolute top-4 right-4 flex gap-2">
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                className="w-10 h-10 flex items-center justify-center text-primary/60 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                                onClick={() => {
+                                  const next = [...formData.family_members];
+                                  const temp = next[idx];
+                                  next[idx] = next[idx - 1];
+                                  next[idx - 1] = temp;
+                                  setFormData((prev) => ({ ...prev, family_members: next }));
+                                }}
+                                title="Move Up"
+                              >
+                                <AppIcon name="arrow_upward" size={20} />
+                              </button>
+                            )}
+                            {idx < formData.family_members.length - 1 && (
+                              <button
+                                type="button"
+                                className="w-10 h-10 flex items-center justify-center text-primary/60 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                                onClick={() => {
+                                  const next = [...formData.family_members];
+                                  const temp = next[idx];
+                                  next[idx] = next[idx + 1];
+                                  next[idx + 1] = temp;
+                                  setFormData((prev) => ({ ...prev, family_members: next }));
+                                }}
+                                title="Move Down"
+                              >
+                                <AppIcon name="arrow_downward" size={20} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="w-10 h-10 flex items-center justify-center text-error/40 hover:text-error hover:bg-error/10 rounded-xl transition-all"
+                              onClick={() => {
+                                const next = [...formData.family_members];
+                                next.splice(idx, 1);
+                                setFormData((prev) => ({ ...prev, family_members: next }));
+                              }}
+                              title="Delete"
+                            >
+                              <AppIcon name="delete" size={20} />
+                            </button>
+                          </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-8">
+                            <SelectField 
+                              label="Position" 
+                              value={idx + 1}
+                              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                const targetIdx = parseInt(e.target.value, 10) - 1;
+                                const next = [...formData.family_members];
+                                const [removed] = next.splice(idx, 1);
+                                next.splice(targetIdx, 0, removed);
+                                setFormData((prev) => ({ ...prev, family_members: next }));
+                              }}
+                            >
+                              {formData.family_members.map((_, i) => (
+                                <option key={i} value={i + 1}>
+                                  {i + 1}
+                                </option>
+                              ))}
+                            </SelectField>
+
                             <TextField label="Name" value={fm.relative_name}
                               onChange={(e) => {
                                 const next = [...formData.family_members];

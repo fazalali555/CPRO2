@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CaseRecord, EmployeeRecord, CaseStatus, CaseDocument, CaseChecklistItem, PdfTemplate } from '../types';
 import { PageHeader } from '../components/PageHeader';
@@ -123,6 +123,17 @@ export const CaseDetail: React.FC = () => {
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedEmpForPayroll, setSelectedEmpForPayroll] = useState('');
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
+  const [payrollEffectiveDate, setPayrollEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const filteredEmployees = useMemo(() => {
+    if (!employeeSearchQuery) return employees;
+    const q = employeeSearchQuery.toLowerCase().trim();
+    return employees.filter((emp: EmployeeRecord) => 
+      (emp.employees?.name || '').toLowerCase().includes(q) || 
+      (emp.employees?.personal_no || '').toLowerCase().includes(q)
+    );
+  }, [employees, employeeSearchQuery]);
 
   const caseRec = cases.find(c => c.id === id);
   const employee = caseRec ? employees.find(e => e.id === caseRec.employee_id) : null;
@@ -552,11 +563,15 @@ export const CaseDetail: React.FC = () => {
       personnel_no: emp.employees.personal_no,
       name: emp.employees.name,
       cnic: emp.employees.cnic_no,
+      school_name: emp.employees.school_full_name || emp.employees.office_name || '',
       absent_days: 0,
       gross_salary: gross,
       deduction_amount: 0,
       reason: 'Deductions',
-      remarks: ''
+      remarks: '',
+      info_type: '0014',
+      wage_type: '5110',
+      effective_date: payrollEffectiveDate
     };
     
     const currentEntries = caseRec.extras?.payroll_entries || [];
@@ -1219,42 +1234,72 @@ export const CaseDetail: React.FC = () => {
                     </div>
                   </Card>
                 )}
-
-                {/* Payroll Multi-Entry Card */}
+{/* Payroll Multi-Entry Card */}
                 {isPayroll && (
                   <Card variant="elevated" className="bg-surface">
                     <h3 className="font-bold text-sm uppercase tracking-wide text-on-surface-variant mb-4">Payroll Amendment Details (Source III)</h3>
-                    <div className="space-y-6">
-                      <div className="flex gap-2">
-                        <div className="flex-1 relative">
-                          <select 
-                            className="w-full bg-surface-variant/30 border border-outline-variant rounded p-2 text-sm appearance-none outline-none"
-                            value={selectedEmpForPayroll}
-                            onChange={(e) => setSelectedEmpForPayroll(e.target.value)}
-                          >
-                            <option value="">Select Employee to Add...</option>
-                            {employees.map(emp => (
-                              <option key={emp.id} value={emp.id}>{emp.employees.name} ({emp.employees.personal_no})</option>
-                            ))}
-                          </select>
-                          <AppIcon name="arrow_drop_down" size={18} className="absolute right-2 top-2 pointer-events-none text-on-surface-variant" />
+                    <div className="space-y-6">                      
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-surface-container-low p-4 rounded-xl border border-outline/10">
+                        <div className="md:col-span-4 w-full">
+                          <TextField
+                            label="Search Employee"
+                            placeholder="Type name or personal number..."
+                            value={employeeSearchQuery}
+                            onChange={e => setEmployeeSearchQuery(e.target.value)}
+                            className="w-full"
+                          />
                         </div>
-                        <Button variant="filled" label="Add" icon="add" onClick={addPayrollEntry} className="h-10" />
+                        <div className="md:col-span-3 w-full">
+                          <TextField
+                            label="Absent Date"
+                            type="date"
+                            value={payrollEffectiveDate}
+                            onChange={e => setPayrollEffectiveDate(e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="md:col-span-3 w-full flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-on-surface-variant px-1">Matching Employee</label>
+                          <div className="relative">
+                            <select 
+                              className="w-full bg-surface-variant/30 border border-outline-variant rounded-lg p-3 text-sm appearance-none outline-none focus:border-primary focus:bg-surface-variant/40 transition-colors h-14"
+                              value={selectedEmpForPayroll}
+                              onChange={(e) => setSelectedEmpForPayroll(e.target.value)}
+                            >
+                              <option value="">Select Employee to Add...</option>
+                              {filteredEmployees.map((emp: EmployeeRecord) => (
+                                <option key={emp.id} value={emp.id}>
+                                  {emp.employees.name} ({emp.employees.personal_no}) - {emp.employees.school_full_name || emp.employees.office_name}
+                                </option>
+                              ))}
+                            </select>
+                            <AppIcon name="arrow_drop_down" size={18} className="absolute right-3 top-4 pointer-events-none text-on-surface-variant" />
+                          </div>
+                        </div>
+                        <div className="md:col-span-2 w-full">
+                          <Button variant="filled" label="Add" icon="add" onClick={addPayrollEntry} className="w-full h-14 rounded-lg" />
+                        </div>
                       </div>
 
                       <div className="space-y-4">
                         {(caseRec.extras?.payroll_entries || []).map((entry: any) => (
-                          <div key={entry.employee_id} className="p-3 border border-outline-variant rounded-lg bg-surface-container-lowest relative">
+                          <div key={entry.employee_id} className="p-4 border border-outline-variant/60 rounded-xl bg-surface-container-lowest relative shadow-sm hover:shadow-md transition-shadow">
                             <button 
                               onClick={() => removePayrollEntry(entry.employee_id)}
-                              className="absolute top-2 right-2 text-on-surface-variant hover:text-error"
+                              className="absolute top-3 right-3 text-on-surface-variant hover:text-error p-1 hover:bg-error-container/10 rounded-full transition-colors"
+                              title="Remove Employee"
                             >
-                              <AppIcon name="close" size={16} />
+                              <AppIcon name="close" size={18} />
                             </button>
                             
-                            <div className="font-bold text-sm mb-2">{entry.name} <span className="text-xs font-normal opacity-70">({entry.personnel_no})</span></div>
+                            <div className="font-bold text-base mb-3 text-on-surface flex flex-col">
+                              <span>{entry.name} <span className="text-xs font-normal text-on-surface-variant opacity-70">({entry.personnel_no})</span></span>
+                              {entry.school_name && (
+                                <span className="text-xs font-normal text-on-surface-variant opacity-60 mt-0.5">{entry.school_name}</span>
+                              )}
+                            </div>
                             
-                            <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                               <TextField 
                                 label="Absent Days" 
                                 type="number" 
@@ -1267,20 +1312,41 @@ export const CaseDetail: React.FC = () => {
                                 value={entry.gross_salary} 
                                 onChange={e => updatePayrollEntry(entry.employee_id, 'gross_salary', Number(e.target.value))} 
                               />
+                              <TextField 
+                                label="Info Type" 
+                                value={entry.info_type || '0014'} 
+                                onChange={e => updatePayrollEntry(entry.employee_id, 'info_type', e.target.value)} 
+                              />
+                              <TextField 
+                                label="Wage Type" 
+                                value={entry.wage_type || '5110'} 
+                                onChange={e => updatePayrollEntry(entry.employee_id, 'wage_type', e.target.value)} 
+                              />
                             </div>
                             
-                            <div className="flex justify-between items-center bg-primary-container/20 p-2 rounded text-xs font-bold text-primary">
-                              <span>Deduction: {formatCurrency(entry.deduction_amount)}</span>
-                              <span className="opacity-70 font-normal">({formatCurrency(entry.gross_salary)} / 30 × {entry.absent_days})</span>
-                            </div>
-
-                            <div className="mt-3">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                              <TextField 
+                                label="Effective Date" 
+                                type="date" 
+                                value={entry.effective_date || new Date().toISOString().slice(0, 10)} 
+                                onChange={e => updatePayrollEntry(entry.employee_id, 'effective_date', e.target.value)} 
+                              />
+                              <TextField 
+                                label="New Contents (Reason)" 
+                                value={entry.reason || 'Deductions'} 
+                                onChange={e => updatePayrollEntry(entry.employee_id, 'reason', e.target.value)} 
+                              />
                               <TextField 
                                 label="Remarks" 
                                 value={entry.remarks} 
                                 onChange={e => updatePayrollEntry(entry.employee_id, 'remarks', e.target.value)} 
-                                placeholder="Optional remarks"
+                                placeholder="e.g. One Day Deduction"
                               />
+                            </div>
+                            
+                            <div className="flex justify-between items-center bg-primary-container/10 p-3 rounded-lg text-xs font-bold text-primary">
+                              <span>Deduction: {formatCurrency(entry.deduction_amount)}</span>
+                              <span className="opacity-75 font-normal">({formatCurrency(entry.gross_salary)} / 30 × {entry.absent_days})</span>
                             </div>
                           </div>
                         ))}

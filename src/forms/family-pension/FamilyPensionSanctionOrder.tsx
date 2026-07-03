@@ -31,13 +31,20 @@ export const FamilyPensionSanctionOrder: React.FC<Props> = ({ employee }) => {
      ageAtRetirement = differenceInYears(parseISO(employee.service_history.date_of_retirement), parseISO(employee.employees.dob));
   }
 
+  const retiringIncrement = Number(employee.extras?.retiring_year_increment) || 0;
+  const otherPensionAllowances = Number(employee.extras?.other_pensionable_allowances) || 0;
+
   const famPension = calculateFamilyPension(
     employee.employees.status,
     employee.financials.basic_pay,
     employee.financials.p_pay,
     qService,
     ageAtRetirement,
-    employee.extras?.commutation_portion ?? 35
+    employee.extras?.commutation_portion ?? 35,
+    employee.employees.bps || 0,
+    retiringIncrement,
+    otherPensionAllowances,
+    employee.service_history.date_of_retirement
   );
 
   const netPension = famPension?.netPension || 0;
@@ -73,23 +80,23 @@ export const FamilyPensionSanctionOrder: React.FC<Props> = ({ employee }) => {
       <div className="mb-3">
          <table className="w-full border border-black text-center text-[10pt]">
             <thead>
-               <tr className="bg-gray-100 print:bg-transparent font-bold leading-tight">
+               <tr className="bg-gray-100 print:bg-transparent font-bold leading-tight text-[9pt]">
                   <th className="border border-black p-1 w-12">S.No</th>
-                  <th className="border border-black p-1">Name</th>
-                  <th className="border border-black p-1 w-16">Age</th>
-                  <th className="border border-black p-1">Relationship with the deceased pensioner</th>
-                  <th className="border border-black p-1">Marital status</th>
-                  <th className="border border-black p-1 w-20">Share of family pension</th>
-                  <th className="border border-black p-1 w-20">Any disability</th>
+                  <th className="border border-black p-1 w-44">Name</th>
+                  <th className="border border-black p-1 w-20">Age</th>
+                  <th className="border border-black p-1 w-48">Relationship with the deceased pensioner</th>
+                  <th className="border border-black p-1 w-28">Marital status</th>
+                  <th className="border border-black p-1 w-24">Share of family pension</th>
+                  <th className="border border-black p-1 w-24">Any disability</th>
                </tr>
             </thead>
             <tbody>
                <tr>
                   <td className="border border-black p-1">1</td>
-                  <td className="border border-black p-1 uppercase font-bold">{ben.name}</td>
-                  <td className="border border-black p-1">{ben.dob}</td>
+                  <td className="border border-black p-1 uppercase font-bold text-left pl-2">{ben.name}</td>
+                  <td className="border border-black p-1">{ben.age || ben.dob || ''}</td>
                   <td className="border border-black p-1 uppercase">{ben.relation}</td>
-                  <td className="border border-black p-1 uppercase">{ben.status}</td>
+                  <td className="border border-black p-1 uppercase">{ben.marital_status || ben.status || (ben.relation?.toLowerCase() === 'widow' ? 'WIDOW' : '')}</td>
                   <td className="border border-black p-1">100%</td>
                   <td className="border border-black p-1">N/A</td>
                </tr>
@@ -104,8 +111,8 @@ export const FamilyPensionSanctionOrder: React.FC<Props> = ({ employee }) => {
             <span>{formatCurrency(netPension)}</span>
          </div>
          <div className="flex justify-between w-[380px] border-b border-black mb-1 pb-1">
-            <span>Family pension @ 100% of gross pension</span>
-            <span>{formatCurrency(familyPension)}</span>
+            <span>{employee.employees.status === 'Death after Retirement' || employee.employees.status === 'Retired' ? 'Family pension @ 75% of net pension' : 'Family pension @ 50% of gross pension'}</span>
+            <span>{formatCurrency(famPension?.familyPensionBase || 0)}</span>
          </div>
       </div>
 

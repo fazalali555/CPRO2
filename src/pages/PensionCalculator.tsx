@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { EmployeeRecord } from '../types';
 import { calculateServiceDuration, formatCurrency, isDeceasedStatus } from '../utils';
 import { differenceInYears, differenceInMonths, parseISO } from 'date-fns';
-import { calculatePension, calculateFamilyPension } from '../lib/pension';
+import { calculatePension, calculateFamilyPension, getApplicableIncreases } from '../lib/pension';
 import { AppIcon } from '../components/AppIcon';
 import { Card, Button, TextField } from '../components/M3';
 import { PageHeader } from '../components/PageHeader';
@@ -30,6 +30,7 @@ interface PensionBreakdown {
   commutationLumpSum: number;
   ageFactor: number;
   medicalAllowanceRate: number; // 0.20 or 0.25
+  increases?: { year: number; percent: number; amount: number; runningTotal: number }[];
 }
 
 export const PensionCalculator: React.FC = () => {
@@ -46,6 +47,9 @@ export const PensionCalculator: React.FC = () => {
   // Form State
   const [basicPay, setBasicPay] = useState(0);
   const [personalPay, setPersonalPay] = useState(0);
+  const [retiringYearIncrement, setRetiringYearIncrement] = useState(0);
+  const [otherAllowances, setOtherAllowances] = useState(0);
+  const [retirementDate, setRetirementDate] = useState(new Date().toISOString().split('T')[0]);
   const [age, setAge] = useState(60);
   const [serviceYears, setServiceYears] = useState(0);
   const [commutationPortion, setCommutationPortion] = useState(35);
@@ -120,6 +124,8 @@ export const PensionCalculator: React.FC = () => {
     // Populate fields
     setBasicPay(emp.financials?.basic_pay || 0);
     setPersonalPay(emp.financials?.p_pay || 0);
+    setRetiringYearIncrement(emp.extras?.retiring_year_increment || 0);
+    setOtherAllowances(emp.extras?.other_pensionable_allowances || 0);
     setBps(emp.employees?.bps || 0);
 
     // Calculate Service Duration
@@ -127,6 +133,8 @@ export const PensionCalculator: React.FC = () => {
     const calculationEndDate = isActive
       ? new Date().toISOString()
       : emp.service_history.date_of_retirement;
+
+    setRetirementDate(calculationEndDate ? calculationEndDate.split('T')[0] : new Date().toISOString().split('T')[0]);
 
     const service = calculateServiceDuration(
       emp.service_history.date_of_appointment,
@@ -156,6 +164,9 @@ export const PensionCalculator: React.FC = () => {
     setSearchQuery('');
     setBasicPay(0);
     setPersonalPay(0);
+    setRetiringYearIncrement(0);
+    setOtherAllowances(0);
+    setRetirementDate(new Date().toISOString().split('T')[0]);
     setServiceYears(0);
     setAge(60);
     setCommutationPortion(35);
@@ -178,7 +189,10 @@ export const PensionCalculator: React.FC = () => {
           serviceYears,
           effectiveAge,
           commutationPortion,
-          employeeBps  // ← pass bps for medical allowance rate
+          employeeBps,
+          retiringYearIncrement,
+          otherAllowances,
+          retirementDate
         );
 
         if (!p) {
@@ -191,10 +205,10 @@ export const PensionCalculator: React.FC = () => {
         const inc2024 = p.increases.find(i => i.year === 2024)?.amount || 0;
         const inc2025 = p.increases.find(i => i.year === 2025)?.amount || 0;
 
-        const runningAfter2022 = p.familyPensionBase + inc2022;
-        const runningAfter2023 = runningAfter2022 + inc2023;
-        const runningAfter2024 = runningAfter2023 + inc2024;
-        const runningAfter2025 = runningAfter2024 + inc2025;
+        const runningAfter2022 = p.increases.find(i => i.year === 2022)?.runningTotal || p.familyPensionBase;
+        const runningAfter2023 = p.increases.find(i => i.year === 2023)?.runningTotal || runningAfter2022;
+        const runningAfter2024 = p.increases.find(i => i.year === 2024)?.runningTotal || runningAfter2023;
+        const runningAfter2025 = p.increases.find(i => i.year === 2025)?.runningTotal || runningAfter2024;
 
         return {
           type: 'Family',
@@ -216,6 +230,7 @@ export const PensionCalculator: React.FC = () => {
           medicalAllowance2022: p.medicalAllowanceIncrease,
           ageFactor: p.ageFactor,
           medicalAllowanceRate: employeeBps >= 17 ? 0.20 : 0.25,
+          increases: p.increases,
         };
       }
 
@@ -226,7 +241,19 @@ export const PensionCalculator: React.FC = () => {
         qualifyingServiceYears: serviceYears,
         commutationPortionPercent: commutationPortion,
         ageAtRetirement: effectiveAge,
-        bps: employeeBps,  // ← pass bps for medical allowance rate
+        bps: employeeBps,
+        retiringYearIncrement,
+        otherAllowances,
+        retirementDate
+      });
+
+      const applicable = getApplicableIncreases(retirementDate);
+      const round2 = (num: number) => Math.round(num * 100) / 100;
+      let rTotal = p.netPension;
+      const increases = applicable.map((inc) => {
+        const amount = round2(rTotal * (inc.percent / 100));
+        rTotal = round2(rTotal + amount);
+        return { year: inc.year, percent: inc.percent, amount, runningTotal: rTotal };
       });
 
       return {
@@ -249,6 +276,7 @@ export const PensionCalculator: React.FC = () => {
         commutationLumpSum: p.commutationLumpSum,
         ageFactor: p.ageFactor,
         medicalAllowanceRate: p.medicalAllowanceRate,
+        increases,
       };
     } catch (e: any) {
       console.error(e);
@@ -438,6 +466,27 @@ export const PensionCalculator: React.FC = () => {
             icon="add_card"
           />
           <TextField
+            label="Retiring Year Increment (Rs.)"
+            type="number"
+            value={retiringYearIncrement}
+            onChange={e => setRetiringYearIncrement(Number(e.target.value))}
+            icon="trending_up"
+          />
+          <TextField
+            label="Other Pensionable Allow (Rs.)"
+            type="number"
+            value={otherAllowances}
+            onChange={e => setOtherAllowances(Number(e.target.value))}
+            icon="add_circle"
+          />
+          <TextField
+            label="Date of Retirement / Death"
+            type="date"
+            value={retirementDate}
+            onChange={e => setRetirementDate(e.target.value)}
+            icon="calendar_today"
+          />
+          <TextField
             label="Qualifying Service (Years)"
             type="number"
             value={serviceYears}
@@ -477,7 +526,7 @@ export const PensionCalculator: React.FC = () => {
           <div className="flex items-end">
             <div className="p-4 bg-surface-variant/50 rounded-xl flex-1">
               <div className="text-xs text-on-surface-variant uppercase mb-1">Pensionable Pay</div>
-              <div className="text-xl font-bold font-mono text-primary">{formatCurrency(basicPay + personalPay)}</div>
+              <div className="text-xl font-bold font-mono text-primary">{formatCurrency(basicPay + personalPay + retiringYearIncrement + otherAllowances)}</div>
             </div>
           </div>
 
@@ -568,10 +617,13 @@ export const PensionCalculator: React.FC = () => {
                 {[
                   { label: 'Basic Pay', value: formatCurrency(basicPay) },
                   { label: 'Personal Pay', value: formatCurrency(personalPay) },
-                  { label: 'Pensionable Pay', value: formatCurrency(basicPay + personalPay) },
+                  { label: 'Retiring Increment', value: formatCurrency(retiringYearIncrement) },
+                  { label: 'Other Pension Allow', value: formatCurrency(otherAllowances) },
+                  { label: 'Pensionable Pay', value: formatCurrency(basicPay + personalPay + retiringYearIncrement + otherAllowances) },
                   { label: 'Qualifying Service', value: `${Math.min(serviceYears, 30)} Years` },
                   { label: 'Age at Retirement', value: `${Math.min(age, 60)} Years` },
                   { label: 'BPS Grade', value: `BPS-${effectiveBps}` },
+                  { label: 'Retirement Date', value: retirementDate },
                 ].map((item, i) => (
                   <div key={i} className="p-3 bg-surface-variant/30 rounded-lg print:bg-gray-50 print:p-1 print:border print:border-gray-200">
                     <div className="text-xs text-on-surface-variant uppercase print:text-[10px]">{item.label}</div>
@@ -659,38 +711,16 @@ export const PensionCalculator: React.FC = () => {
                         <td className="text-right font-mono font-bold print:py-0">{formatCurrency(result.netPension)}</td>
                         <td className="text-right font-mono print:py-0">{formatCurrency(result.netPension)}</td>
                       </tr>
-                      <tr className="bg-surface-variant/20 print:bg-transparent">
-                        <td className="py-3 print:py-0">Adhoc Relief 2022</td>
-                        <td className="text-center print:py-0">
-                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">15%</span>
-                        </td>
-                        <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(result.adhocRelief2022)}</td>
-                        <td className="text-right font-mono print:py-0">{formatCurrency(result.runningAfter2022)}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 print:py-0">Adhoc Relief 2023</td>
-                        <td className="text-center print:py-0">
-                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">17.5%</span>
-                        </td>
-                        <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(result.adhocRelief2023)}</td>
-                        <td className="text-right font-mono print:py-0">{formatCurrency(result.runningAfter2023)}</td>
-                      </tr>
-                      <tr className="bg-surface-variant/20 print:bg-transparent">
-                        <td className="py-3 print:py-0">Adhoc Relief 2024</td>
-                        <td className="text-center print:py-0">
-                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">15%</span>
-                        </td>
-                        <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(result.adhocRelief2024)}</td>
-                        <td className="text-right font-mono print:py-0">{formatCurrency(result.runningAfter2024)}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 print:py-0">Adhoc Relief 2025</td>
-                        <td className="text-center print:py-0">
-                          <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">7%</span>
-                        </td>
-                        <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(result.adhocRelief2025)}</td>
-                        <td className="text-right font-mono print:py-0">{formatCurrency(result.runningAfter2025)}</td>
-                      </tr>
+                      {result.increases?.map((inc, index) => (
+                        <tr key={inc.year} className={index % 2 === 0 ? "bg-surface-variant/20 print:bg-transparent" : ""}>
+                          <td className="py-3 print:py-0">Adhoc Relief {inc.year}</td>
+                          <td className="text-center print:py-0">
+                            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs print:bg-transparent print:text-black print:p-0">{inc.percent}%</span>
+                          </td>
+                          <td className="text-right font-mono text-success print:text-black print:py-0">+ {formatCurrency(inc.amount)}</td>
+                          <td className="text-right font-mono print:py-0">{formatCurrency(inc.runningTotal)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

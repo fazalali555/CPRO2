@@ -7,6 +7,9 @@ export interface PensionParams {
   commutationPortionPercent?: number;
   ageAtRetirement?: number;
   bps?: number; // BPS grade — affects medical allowance rate
+  retiringYearIncrement?: number; // New: Retiring Year Increment
+  otherAllowances?: number; // New: Other Pensionable Allowances
+  retirementDate?: string; // New: Date of Retirement
 }
 
 export interface PensionResult {
@@ -64,6 +67,43 @@ export const resolveAgeFactor = (age?: number): { age: number; factor: number } 
   return { age: cappedAge, factor };
 };
 
+const FAMILY_PENSION_INCREASES = [
+  { year: 2010, percent: 15 },
+  { year: 2011, percent: 15 },
+  { year: 2012, percent: 20 },
+  { year: 2013, percent: 15 },
+  { year: 2014, percent: 10 },
+  { year: 2015, percent: 10 },
+  { year: 2016, percent: 10 },
+  { year: 2017, percent: 10 },
+  { year: 2018, percent: 10 },
+  { year: 2019, percent: 10 },
+  { year: 2021, percent: 10 }, // 2020 skipped
+  { year: 2022, percent: 15 },
+  { year: 2023, percent: 17.5 },
+  { year: 2024, percent: 15 },
+  { year: 2025, percent: 7 },
+];
+
+export const getApplicableIncreases = (retirementDate?: string): typeof FAMILY_PENSION_INCREASES => {
+  let retYear = 2017;
+  if (retirementDate) {
+    try {
+      const year = new Date(retirementDate).getFullYear();
+      if (!isNaN(year)) retYear = year;
+    } catch {}
+  }
+
+  if (retYear >= 2022) {
+    return FAMILY_PENSION_INCREASES.filter((inc) => inc.year >= 2022);
+  } else {
+    // KPK 2017 scales unmerged reliefs: exclude 2010, 2012, 2013, 2014
+    return FAMILY_PENSION_INCREASES.filter(
+      (inc) => ![2010, 2012, 2013, 2014].includes(inc.year)
+    );
+  }
+};
+
 export const calculatePension = (params: PensionParams): PensionResult => {
   if (
     params.basicPay == null ||
@@ -84,7 +124,12 @@ export const calculatePension = (params: PensionParams): PensionResult => {
     throw new Error('Invalid commutation portion percentage');
   }
 
-  const pensionablePay = (params.basicPay || 0) + (params.personalPay || 0);
+  const pensionablePay = 
+    (params.basicPay || 0) + 
+    (params.personalPay || 0) + 
+    (params.retiringYearIncrement || 0) + 
+    (params.otherAllowances || 0);
+
   const qService = clamp(Math.floor(params.qualifyingServiceYears), 0, 30);
   const grossPension = (pensionablePay * qService * 7) / 300;
   const commutationPortion = commPct / 100;
@@ -98,25 +143,36 @@ export const calculatePension = (params: PensionParams): PensionResult => {
   const round2 = (num: number) => Math.round(num * 100) / 100;
 
   // ── Adhoc Reliefs (Compounding) ─────────────────────────────────────────
-  // 2022: 15% of Net Pension
-  const adhocRelief2022 = round2(netPension * 0.15);
-  const runningAfter2022 = round2(netPension + adhocRelief2022);
+  const applicableIncreases = getApplicableIncreases(params.retirementDate);
+  
+  let runningTotal = netPension;
+  const pre2022Increases = applicableIncreases.filter((inc) => inc.year < 2022);
+  pre2022Increases.forEach((inc) => {
+    const amount = round2(runningTotal * (inc.percent / 100));
+    runningTotal = round2(runningTotal + amount);
+  });
+
+  // 2022: 15% of Net Pension (or compounding running total)
+  const has2022 = applicableIncreases.some((inc) => inc.year === 2022);
+  const adhocRelief2022 = has2022 ? round2(runningTotal * 0.15) : 0;
+  const runningAfter2022 = round2(runningTotal + adhocRelief2022);
 
   // 2023: 17.5% of Running Pension (after 2022)
-  const adhocRelief2023 = round2(runningAfter2022 * 0.175);
+  const has2023 = applicableIncreases.some((inc) => inc.year === 2023);
+  const adhocRelief2023 = has2023 ? round2(runningAfter2022 * 0.175) : 0;
   const runningAfter2023 = round2(runningAfter2022 + adhocRelief2023);
 
   // 2024: 15% of Running Pension (after 2023)
-  const adhocRelief2024 = round2(runningAfter2023 * 0.15);
+  const has2024 = applicableIncreases.some((inc) => inc.year === 2024);
+  const adhocRelief2024 = has2024 ? round2(runningAfter2023 * 0.15) : 0;
   const runningAfter2024 = round2(runningAfter2023 + adhocRelief2024);
 
   // 2025: 7% of Running Pension (after 2024)
-  const adhocRelief2025 = round2(runningAfter2024 * 0.07);
+  const has2025 = applicableIncreases.some((inc) => inc.year === 2025);
+  const adhocRelief2025 = has2025 ? round2(runningAfter2024 * 0.07) : 0;
   const runningAfter2025 = round2(runningAfter2024 + adhocRelief2025);
 
   // ── Medical Allowance ────────────────────────────────────────────────────
-  // BPS 17 and above → 20% of Net Pension (2010 order for gazetted officers)
-  // BPS 16 and below → 25% of Net Pension (2010 order for non-gazetted)
   const bps = params.bps ?? 0;
   const medicalAllowanceRate = bps >= 17 ? 0.20 : 0.25;
   const medicalAllowance2010 = round2(netPension * medicalAllowanceRate);
@@ -182,24 +238,6 @@ export interface FamilyPensionResult {
   familyPensionBase: number;
 }
 
-const FAMILY_PENSION_INCREASES = [
-  { year: 2010, percent: 15 },
-  { year: 2011, percent: 15 },
-  { year: 2012, percent: 20 },
-  { year: 2013, percent: 15 },
-  { year: 2014, percent: 10 },
-  { year: 2015, percent: 10 },
-  { year: 2016, percent: 10 },
-  { year: 2017, percent: 10 },
-  { year: 2018, percent: 10 },
-  { year: 2019, percent: 10 },
-  { year: 2021, percent: 10 }, // 2020 skipped
-  { year: 2022, percent: 15 },
-  { year: 2023, percent: 17.5 },
-  { year: 2024, percent: 15 },
-  { year: 2025, percent: 7 },
-];
-
 export const calculateFamilyPension = (
   status: string,
   lastBasicPay: number,
@@ -207,14 +245,15 @@ export const calculateFamilyPension = (
   qualifyingService: number,
   ageAtRetirement: number = 60,
   commutationPercent: number = 35,
-  bps: number = 0 // Add bps for medical allowance rate
+  bps: number = 0, // Add bps for medical allowance rate
+  retiringYearIncrement: number = 0, // New
+  otherAllowances: number = 0, // New
+  retirementDate?: string // New
 ): FamilyPensionResult | null => {
-  const isDeathInService = status === 'Death in Service';
-  const isDeathAfterRetirement = status === 'Death after Retirement';
+  const isDeathInService = status === 'Death in Service' || status === 'Died in Service';
+  const isDeathAfterRetirement = status === 'Death after Retirement' || status === 'Retired';
 
-  if (!isDeathInService && !isDeathAfterRetirement) return null;
-
-  const lastPay = (lastBasicPay || 0) + (personalPay || 0);
+  const lastPay = (lastBasicPay || 0) + (personalPay || 0) + (retiringYearIncrement || 0) + (otherAllowances || 0);
   const qService = clamp(Math.floor(qualifyingService), 0, 30);
   const grossPension = (lastPay * qService * 7) / 300;
 
@@ -232,7 +271,7 @@ export const calculateFamilyPension = (
     familyPensionBase = grossPension * 0.50;
   }
 
-  const applicableIncreases = FAMILY_PENSION_INCREASES.filter((inc) => inc.year >= 2022);
+  const applicableIncreases = getApplicableIncreases(retirementDate);
 
   const round2 = (num: number) => Math.round(num * 100) / 100;
 

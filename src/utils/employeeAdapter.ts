@@ -73,8 +73,8 @@ export const CSV_HEADERS = [
   'bank_branch',
 ];
 
-export const flattenEmployee = (emp: EmployeeRecord): Record<string, any> => {
-  const flat: Record<string, any> = {};
+export const flattenEmployee = (emp: EmployeeRecord): Record<string, unknown> => {
+  const flat: Record<string, unknown> = {};
 
   Object.assign(flat, emp.employees);
   if (emp.employees.dob) flat.dob = formatDateForCsv(emp.employees.dob);
@@ -85,7 +85,7 @@ export const flattenEmployee = (emp: EmployeeRecord): Record<string, any> => {
   if (emp.service_history.date_of_retirement) flat.date_of_retirement = formatDateForCsv(emp.service_history.date_of_retirement);
   if (emp.service_history.retirement_order_date) flat.retirement_order_date = formatDateForCsv(emp.service_history.retirement_order_date);
   if (emp.service_history.date_of_regularization) flat.date_of_regularization = formatDateForCsv(emp.service_history.date_of_regularization);
-  if ((emp.service_history as any).date_of_death) flat.date_of_death = formatDateForCsv((emp.service_history as any).date_of_death);
+  if (emp.service_history.date_of_death) flat.date_of_death = formatDateForCsv(emp.service_history.date_of_death);
 
   Object.assign(flat, emp.financials);
 
@@ -101,10 +101,10 @@ export const flattenEmployee = (emp: EmployeeRecord): Record<string, any> => {
     if (typeof emp.extras.commutation_portion !== 'undefined') {
       flat.commutation_portion = emp.extras.commutation_portion;
     }
-    if (typeof (emp.extras as any).retirement_date_source !== 'undefined') {
-      flat.retirement_date_source = (emp.extras as any).retirement_date_source;
+    if (typeof emp.extras.retirement_date_source !== 'undefined') {
+      flat.retirement_date_source = emp.extras.retirement_date_source;
     }
-    const ben = (emp.extras as any).beneficiary;
+    const ben = emp.extras.beneficiary;
     if (ben) {
       flat.beneficiary_name = ben.name || '';
       flat.beneficiary_relation = ben.relation || '';
@@ -116,7 +116,7 @@ export const flattenEmployee = (emp: EmployeeRecord): Record<string, any> => {
     }
   }
   
-  if ((emp.employees as any).gender) flat.gender = (emp.employees as any).gender;
+  if (emp.employees.gender) flat.gender = emp.employees.gender;
 
   return flat;
 };
@@ -244,7 +244,7 @@ export const unflattenEmployee = (
   const staffType = deriveStaffType(str('staff_type'), existing?.employees.staff_type);
 
   const genderCsvRaw = str('gender') || undefined;
-  const existingGenderRaw = (existing as any)?.employees?.gender as string | undefined;
+  const existingGenderRaw = existing?.employees?.gender;
   const genderVal = deriveGender(cnicSource, existingGenderRaw, genderCsvRaw);
   
   let dorVal = date('date_of_retirement') || existing?.service_history.date_of_retirement || '';
@@ -288,7 +288,7 @@ export const unflattenEmployee = (
       school_full_name: str('school_full_name') || existing?.employees.school_full_name || '',
       office_name: str('office_name') || existing?.employees.office_name || '',
       staff_type: staffType,
-      status: str('status') as any || existing?.employees.status || 'Active',
+      status: str('status') || existing?.employees.status || 'Active',
       gender: genderVal,
       
       cnic_no: str('cnic_no') || existing?.employees.cnic_no || '',
@@ -329,8 +329,8 @@ export const unflattenEmployee = (
       lwp_days: num('lwp_days') ?? existing?.service_history.lwp_days ?? 0,
       lpr_days: num('lpr_days') ?? existing?.service_history.lpr_days ?? 365,
       leave_taken_days: num('leave_taken_days') ?? existing?.service_history.leave_taken_days ?? 0,
-      date_of_regularization: date('date_of_regularization') || (existing as any)?.service_history?.date_of_regularization || '',
-      date_of_death: date('date_of_death') || (existing as any)?.service_history?.date_of_death || '',
+      date_of_regularization: date('date_of_regularization') || existing?.service_history?.date_of_regularization || '',
+      date_of_death: date('date_of_death') || existing?.service_history?.date_of_death || '',
     },
 
     financials: {
@@ -387,7 +387,7 @@ export const unflattenEmployee = (
       edu_rop: num('edu_rop') ?? existing?.financials.edu_rop ?? 0,
       hba_loan_instal: num('hba_loan_instal') ?? existing?.financials.hba_loan_instal ?? 0,
       gpf_loan_instal: num('gpf_loan_instal') ?? existing?.financials.gpf_loan_instal ?? 0,
-    } as any,
+    } as EmployeeRecord['financials'],
 
     family_members: existing?.family_members || [],
   };
@@ -397,7 +397,7 @@ export const unflattenEmployee = (
     if (json) {
       const parsed = JSON.parse(json);
       if (parsed && typeof parsed === 'object') {
-        newRecord.financials.deductions_extra = parsed;
+        newRecord.financials.deductions_extra = parsed as Record<string, number>;
       }
     }
   } catch {}
@@ -406,7 +406,7 @@ export const unflattenEmployee = (
   const comm = num('commutation_portion');
   if (comm !== undefined) newRecord.extras.commutation_portion = comm;
   const rds = str('retirement_date_source');
-  if (rds) (newRecord.extras as any).retirement_date_source = rds;
+  if (rds) newRecord.extras.retirement_date_source = rds;
   
   const ben = {
     name: str('beneficiary_name'),
@@ -418,7 +418,7 @@ export const unflattenEmployee = (
     account_no: str('beneficiary_account_no')
   };
   if (Object.values(ben).some(v => v)) {
-    (newRecord.extras as any).beneficiary = ben;
+    newRecord.extras.beneficiary = ben;
   }
 
   if (str('family_1_name')) {

@@ -19,7 +19,9 @@ export const FamilyPensionInServiceDeathData: React.FC<Props> = ({ employee, cas
   // Real Calculations
   const basicPay = financials.basic_pay || 0;
   const personalPay = financials.p_pay || 0;
-  const totalReckonable = basicPay + personalPay;
+  const retiringIncrement = Number(employee.extras?.retiring_year_increment) || 0;
+  const otherPensionAllowances = Number(employee.extras?.other_pensionable_allowances) || 0;
+  const totalReckonable = basicPay + personalPay + retiringIncrement + otherPensionAllowances;
 
   // Calculate Service Years capped at 30
   const totalServiceYears = calculateServiceYears(
@@ -43,7 +45,11 @@ export const FamilyPensionInServiceDeathData: React.FC<Props> = ({ employee, cas
     personalPay,
     qualifyingService,
     ageAtRetirement,
-    employee.extras?.commutation_portion ?? 35
+    employee.extras?.commutation_portion ?? 35,
+    employees.bps || 0,
+    retiringIncrement,
+    otherPensionAllowances,
+    service_history.date_of_retirement
   );
 
   const grossPension = calc?.grossPension || 0;

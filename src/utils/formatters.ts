@@ -1,6 +1,6 @@
 // utils/formatters.ts - Formatting Utilities
 
-import { Letter, Document, Correspondence } from '../types/index';
+import { Letter } from '../types/index';
 
 /**
  * Format letter to plain text

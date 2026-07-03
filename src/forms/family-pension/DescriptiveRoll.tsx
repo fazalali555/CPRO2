@@ -39,8 +39,8 @@ export const DescriptiveRoll: React.FC<Props> = ({ employee }) => {
         </div>
 
         <div className="flex items-end">
-          <span className="w-64 font-bold">Date of Birth:</span>
-          <div className="flex-grow border-b border-black font-bold px-2">{formatDate(ben.dob)}</div>
+          <span className="w-64 font-bold">Date of Birth / Age:</span>
+          <div className="flex-grow border-b border-black font-bold px-2">{formatDate(ben.dob) || ben.age}</div>
         </div>
 
         <div className="flex items-end">

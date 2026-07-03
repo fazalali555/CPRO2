@@ -134,7 +134,7 @@ const markdownToHtml = (text: string): string => {
   const processedLines: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
+    const line = lines[i];
 
     // Markdown horizontal rule
     if (line.match(/^---$/)) {
@@ -338,7 +338,7 @@ export const parseOfficialLetter = (rawText: string): ParsedLetter => {
     const dateMatch = line.match(/(?:Dated?|Date)[\s*:]+([\d\/\-A-Za-z_ ,]+)/i);
 
     if (refMatch && !parsed.refNo) {
-      let refStr = refMatch[1].trim();
+      const refStr = refMatch[1].trim();
       const blankMatch = refStr.match(/^(_+)(.*)$/);
       if (blankMatch && blankMatch[1].length >= 2) {
         parsed.refNo = "";

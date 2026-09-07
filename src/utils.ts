@@ -471,7 +471,8 @@ export const splitToChars = (
   opts?: { padLeft?: string; onlyDigits?: boolean } | boolean
 ): string[] => {
   const resolved = typeof opts === 'boolean' ? { onlyDigits: opts } : opts;
-  const onlyDigits = resolved?.onlyDigits ?? true;
+  const hasLetters = /[a-zA-Z]/.test(String(value ?? ''));
+  const onlyDigits = resolved?.onlyDigits ?? (hasLetters ? false : true);
 
   if (value === undefined || value === null) return Array(count).fill('');
 

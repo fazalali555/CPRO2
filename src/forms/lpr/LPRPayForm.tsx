@@ -32,9 +32,9 @@ export const LPRPayForm: React.FC<Props> = ({ employee, caseRecord }) => {
   const monthLabel = caseRecord.extras?.lpr_month || formatPayrollMonth(new Date());
   const [monthPart, yearPart] = monthLabel.split('/').map((s: string) => s.trim());
 
-  const ddoChars = splitToChars(emp.ddo_code || '', 6);
+  const ddoChars = splitToChars((emp.ddo_code || '').toUpperCase(), 6, false);
   const personalChars = splitToChars(emp.personal_no || '', 8);
-  const bpsChars = splitToChars(String(emp.bps ?? ''), 2);
+  const bpsChars = splitToChars(String(emp.bps ?? ''), 2, { padLeft: '0' });
   const designationLine = [emp.designation, emp.school_full_name].filter(Boolean).join(', ');
   const dob = formatDate(emp.dob) || '__________';
   const doa = formatDate(service.date_of_appointment) || '__________';
@@ -88,7 +88,7 @@ export const LPRPayForm: React.FC<Props> = ({ employee, caseRecord }) => {
             </div>
             <div className="flex justify-end items-center gap-2">
                <span>DDO Code:</span>
-               <span className="font-bold">{emp.ddo_code}</span>
+               <span className="font-bold">{(emp.ddo_code || '').toUpperCase()}</span>
             </div>
           </div>
         </div>

@@ -130,7 +130,7 @@ export const PAYF06PermanentLoan: React.FC<Props> = ({ employeeRecord, caseRecor
                 DDO Code <sup className="text-[7px]">5</sup><br/>
                 (Cost Centre)
               </div>
-              <CombInput values={splitToChars(ddoCode, 6)} count={6} boxClassName="bg-white" />
+              <CombInput values={splitToChars((ddoCode || '').toUpperCase(), 6, false)} count={6} boxClassName="bg-white" />
               
               <div className="ml-2 flex-grow flex items-end min-w-0">
                 <span className="text-[10px] mr-1 mb-6 shrink-0">Description <sup className="text-[7px]">6</sup></span>

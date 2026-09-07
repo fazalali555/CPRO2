@@ -2023,11 +2023,11 @@ export function getDepartmentInfo(
     } else {
       locPart = effectiveTehsil || (districtClean ? `District ${districtClean}` : '');
     }
-    signatureTitle = locPart ? `${baseTitle}\n${locPart}` : finalDesignation;
+    signatureTitle = locPart ? `${baseTitle} ${locPart}` : finalDesignation;
   } else if (config?.organizationType === 'primary_school' && (effectiveTehsil || districtClean)) {
     const baseTitle = `Sub Divisional Education Officer ${genderSuffix}`;
     const locPart = effectiveTehsil || (districtClean ? `District ${districtClean}` : '');
-    signatureTitle = locPart ? `${baseTitle}\n${locPart}` : finalDesignation;
+    signatureTitle = locPart ? `${baseTitle} ${locPart}` : finalDesignation;
   } else {
     signatureTitle = finalDesignation;
   }

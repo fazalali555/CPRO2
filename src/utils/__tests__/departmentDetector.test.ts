@@ -37,19 +37,19 @@ describe('departmentDetector', () => {
   it('reflects office name/tehsil in SDEO signature title instead of district', () => {
     const info = getDepartmentInfo('', 'OFFICE OF THE SUB DIVISIONAL EDUCATION OFFICER (MALE) ALLAI', 'Allai', 'Battagram');
     expect(info.letterhead.line1).toBe('OFFICE OF THE SUB DIVISIONAL EDUCATION OFFICER (MALE) ALLAI');
-    expect(info.signatureTitle).toBe('Sub Divisional Education Officer (Male)\nAllai');
+    expect(info.signatureTitle).toBe('Sub Divisional Education Officer (Male) Allai');
     expect(info.authorityTitle).toContain('District Education Officer');
   });
 
   it('extracts office location from office_name when tehsil is empty', () => {
     const info = getDepartmentInfo('', 'OFFICE OF THE SUB DIVISIONAL EDUCATION OFFICER (MALE) ALLAI', '', 'Battagram');
-    expect(info.signatureTitle).toBe('Sub Divisional Education Officer (Male)\nAllai');
+    expect(info.signatureTitle).toBe('Sub Divisional Education Officer (Male) Allai');
     expect(info.authorityTitle).toContain('District Education Officer');
   });
 
   it('reflects SDEO office location for primary school employees', () => {
     const info = getDepartmentInfo('GPS KANNA', 'OFFICE OF THE SUB DIVISIONAL EDUCATION OFFICER (MALE) ALLAI', 'Allai', 'Battagram');
-    expect(info.signatureTitle).toBe('Sub Divisional Education Officer (Male)\nAllai');
+    expect(info.signatureTitle).toBe('Sub Divisional Education Officer (Male) Allai');
   });
 });
 

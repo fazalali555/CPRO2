@@ -53,8 +53,8 @@ const getPensionSanctionAuthority = (employee: EmployeeRecord): {
     // Primary schools → SDEO is the sanctioning authority
     case 'primary_school':
       authorityTitle = tehsil
-        ? `Sub Divisional Education Officer ${genderLabel}\n${tehsil}`
-        : `Sub Divisional Education Officer ${genderLabel}\nDistrict ${district}`;
+        ? `Sub Divisional Education Officer ${genderLabel} ${tehsil}`
+        : `Sub Divisional Education Officer ${genderLabel} District ${district}`;
       break;
 
     // Middle, High, Higher Secondary Schools → DEO is sanctioning authority

@@ -148,6 +148,7 @@ export const Bm20: React.FC<Bm20Props> = ({ officeName, fiscalYearLabel, previou
         A0125P: Number(f.adhoc_2025_10) || 0,
         A0124N: Number(f.dra_2022kp) || 0,
         A0125Q: Number(f.dra_2025_15) || 0,
+        A0126A: Number(f.adhoc_2026) || 0,
         A01253: Number(f.science_teaching_allow) || 0,
         A01289: Number(f.teaching_allow) || 0,
         A01239: Number(f.spl_allow_female) || 0,

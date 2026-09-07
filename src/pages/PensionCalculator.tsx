@@ -3,6 +3,7 @@ import { EmployeeRecord } from '../types';
 import { calculateServiceDuration, formatCurrency, isDeceasedStatus } from '../utils';
 import { differenceInYears, differenceInMonths, parseISO } from 'date-fns';
 import { calculatePension, calculateFamilyPension, getApplicableIncreases } from '../lib/pension';
+import { getRetiringIncrementDetails, isEligibleForRetiringIncrement } from '../utils/RulesEngine';
 import { AppIcon } from '../components/AppIcon';
 import { Card, Button, TextField } from '../components/M3';
 import { PageHeader } from '../components/PageHeader';
@@ -24,6 +25,8 @@ interface PensionBreakdown {
   runningAfter2024: number;
   adhocRelief2025: number;
   runningAfter2025: number;
+  adhocRelief2026: number;
+  runningAfter2026: number;
   medicalAllowance2010: number;
   medicalAllowance2022: number;
   monthlyPayablePension: number;
@@ -121,20 +124,24 @@ export const PensionCalculator: React.FC = () => {
     const isDeceased = isDeceasedStatus(emp.employees.status);
     setPensionType(isDeceased ? 'Family' : 'Regular');
 
-    // Populate fields
-    setBasicPay(emp.financials?.basic_pay || 0);
-    setPersonalPay(emp.financials?.p_pay || 0);
-    setRetiringYearIncrement(emp.extras?.retiring_year_increment || 0);
-    setOtherAllowances(emp.extras?.other_pensionable_allowances || 0);
-    setBps(emp.employees?.bps || 0);
-
     // Calculate Service Duration
     const isActive = emp.employees.status === 'Active';
     const calculationEndDate = isActive
       ? new Date().toISOString()
       : emp.service_history.date_of_retirement;
 
-    setRetirementDate(calculationEndDate ? calculationEndDate.split('T')[0] : new Date().toISOString().split('T')[0]);
+    const dor = calculationEndDate ? calculationEndDate.split('T')[0] : new Date().toISOString().split('T')[0];
+    setRetirementDate(dor);
+
+    // Populate fields
+    setBasicPay(emp.financials?.basic_pay || 0);
+    setPersonalPay(emp.financials?.p_pay || 0);
+    const bpsVal = emp.employees?.bps || 0;
+    const manualInc = emp.extras?.retiring_year_increment;
+    const incDetails = getRetiringIncrementDetails(bpsVal, dor, typeof manualInc === 'number' ? manualInc : undefined);
+    setRetiringYearIncrement(incDetails.amount);
+    setOtherAllowances(emp.extras?.other_pensionable_allowances || 0);
+    setBps(bpsVal);
 
     const service = calculateServiceDuration(
       emp.service_history.date_of_appointment,
@@ -204,11 +211,13 @@ export const PensionCalculator: React.FC = () => {
         const inc2023 = p.increases.find(i => i.year === 2023)?.amount || 0;
         const inc2024 = p.increases.find(i => i.year === 2024)?.amount || 0;
         const inc2025 = p.increases.find(i => i.year === 2025)?.amount || 0;
+        const inc2026 = p.increases.find(i => i.year === 2026)?.amount || 0;
 
         const runningAfter2022 = p.increases.find(i => i.year === 2022)?.runningTotal || p.familyPensionBase;
         const runningAfter2023 = p.increases.find(i => i.year === 2023)?.runningTotal || runningAfter2022;
         const runningAfter2024 = p.increases.find(i => i.year === 2024)?.runningTotal || runningAfter2023;
         const runningAfter2025 = p.increases.find(i => i.year === 2025)?.runningTotal || runningAfter2024;
+        const runningAfter2026 = p.increases.find(i => i.year === 2026)?.runningTotal || runningAfter2025;
 
         return {
           type: 'Family',
@@ -226,6 +235,8 @@ export const PensionCalculator: React.FC = () => {
           runningAfter2024,
           adhocRelief2025: inc2025,
           runningAfter2025,
+          adhocRelief2026: inc2026,
+          runningAfter2026,
           medicalAllowance2010: p.medicalAllowance2010,
           medicalAllowance2022: p.medicalAllowanceIncrease,
           ageFactor: p.ageFactor,
@@ -270,6 +281,8 @@ export const PensionCalculator: React.FC = () => {
         runningAfter2024: p.runningAfter2024,
         adhocRelief2025: p.adhocRelief2025,
         runningAfter2025: p.runningAfter2025,
+        adhocRelief2026: p.adhocRelief2026,
+        runningAfter2026: p.runningAfter2026,
         medicalAllowance2010: p.medicalAllowance2010,
         medicalAllowance2022: p.medicalAllowance2022,
         monthlyPayablePension: p.monthlyPayablePension,
@@ -465,13 +478,20 @@ export const PensionCalculator: React.FC = () => {
             onChange={e => setPersonalPay(Number(e.target.value))}
             icon="add_card"
           />
-          <TextField
-            label="Retiring Year Increment (Rs.)"
-            type="number"
-            value={retiringYearIncrement}
-            onChange={e => setRetiringYearIncrement(Number(e.target.value))}
-            icon="trending_up"
-          />
+          <div>
+            <TextField
+              label="Retiring Year Increment (Rs.)"
+              type="number"
+              value={retiringYearIncrement}
+              onChange={e => setRetiringYearIncrement(Number(e.target.value))}
+              icon="trending_up"
+            />
+            <p className="text-[10px] text-on-surface-variant mt-1">
+              {isEligibleForRetiringIncrement(retirementDate)
+                ? 'Eligible (1st June – 30th Nov retirement window)'
+                : 'Not eligible based on retirement date (standard annual increment falls on 1st Dec)'}
+            </p>
+          </div>
           <TextField
             label="Other Pensionable Allow (Rs.)"
             type="number"

@@ -35,7 +35,7 @@ const DateSegment = ({ dateStr, label, width = "w-8" }: { dateStr?: string, labe
 };
 
 export const PAYF06PermanentLoan: React.FC<Props> = ({ employeeRecord, caseRecord }) => {
-  const { employees, service_history } = employeeRecord;
+  const { employees, financials, service_history } = employeeRecord;
   const extras = caseRecord.extras || {};
 
   // --- Data Preparation ---
@@ -45,7 +45,7 @@ export const PAYF06PermanentLoan: React.FC<Props> = ({ employeeRecord, caseRecor
   const monthOf = format(appDate, 'MMMM yyyy');
 
   const { headerTitle } = getCoverLetterInfo(employeeRecord);
-  const officeName = headerTitle.replace(/^OFFICE OF THE\s+/i, '').trim();
+  const officeName = headerTitle.replace(/^OFFICE OF THE\s+/i, '').replace(/\n/g, ' ').trim();
 
   const ddoCode = employees.ddo_code || extras.ddo_code || '';
   const personalNo = employees.personal_no || '';
@@ -53,7 +53,7 @@ export const PAYF06PermanentLoan: React.FC<Props> = ({ employeeRecord, caseRecor
   const designation = employees.designation;
   const name = employees.name.toUpperCase();
   const cnic = employees.cnic_no || '';
-  const gpfAccountNo = employees.gpf_account_no || '0';
+  const gpfAccountNo = extras.gpf_account_no || financials?.gpf_account_no || employees.gpf_account_no || '0';
   
   // Service Calc
   const service = calculateServiceDuration(
@@ -61,9 +61,8 @@ export const PAYF06PermanentLoan: React.FC<Props> = ({ employeeRecord, caseRecor
     appDateStr
   );
 
-  // Percentages Logic (Assuming stored in extras.percentage or inferred)
-  // Default to 80% if not specified, or parse from extras
-  const percentage = extras.percentage || '100'; // '80', '100', 'other'
+  // Percentages Logic: Default to 100% for GPF Final Payment, else 80% if not specified in extras
+  const percentage = extras.percentage || (caseRecord.case_type === 'gpf_final' ? '100' : '80');
 
   return (
     <div className="bg-white text-black font-sans text-xs leading-tight relative print-page mx-auto"

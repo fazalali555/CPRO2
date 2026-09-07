@@ -10,7 +10,7 @@ interface Props {
 }
 
 export const GPFSanctionOrderClassIV: React.FC<Props> = ({ employeeRecord, caseRecord }) => {
-  const { employees } = employeeRecord;
+  const { employees, financials } = employeeRecord;
   const { extras } = caseRecord;
   
   const isRefundable = caseRecord.case_type === 'gpf_refundable';
@@ -107,7 +107,7 @@ export const GPFSanctionOrderClassIV: React.FC<Props> = ({ employeeRecord, caseR
                 <div className="text-[10px]">{schoolName}</div>
               </td>
               <td className="border border-black p-2 align-middle font-mono">
-                <div>{employees.gpf_account_no}</div>
+                <div>{extras?.gpf_account_no || financials?.gpf_account_no || employees.gpf_account_no}</div>
                 <div className="text-[10px] text-gray-600">{employees.personal_no}</div>
               </td>
               <td className="border border-black p-2 align-middle font-bold">{formatCurrency(amount)}</td>

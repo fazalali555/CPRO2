@@ -22,7 +22,7 @@ export const PAYF05TemporaryLoan: React.FC<Props> = ({ employeeRecord, caseRecor
   const monthOf = format(appDate, 'MMMM yyyy');
   
   const { headerTitle } = getCoverLetterInfo(employeeRecord);
-  const officeName = headerTitle.replace(/^OFFICE OF THE\s+/i, '').trim();
+  const officeName = headerTitle.replace(/^OFFICE OF THE\s+/i, '').replace(/\n/g, ' ').trim();
 
   const ddoCode = employees.ddo_code || extras.ddo_code || '';
   const personalNo = employees.personal_no || '';
@@ -38,7 +38,7 @@ export const PAYF05TemporaryLoan: React.FC<Props> = ({ employeeRecord, caseRecor
     appDateStr
   );
 
-  const gpfAccountNo = employees.gpf_account_no || '0';
+  const gpfAccountNo = extras.gpf_account_no || financials.gpf_account_no || employees.gpf_account_no || '0';
   const loanCode = '6103'; // Fixed for GPF Advance
   
   // Amounts

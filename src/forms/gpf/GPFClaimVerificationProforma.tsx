@@ -9,17 +9,17 @@ interface Props {
 }
 
 export const GPFClaimVerificationProforma: React.FC<Props> = ({ employeeRecord, caseRecord }) => {
-  const { employees } = employeeRecord;
+  const { employees, financials } = employeeRecord;
   
   // Data Binding
   const ddoCode = employees.ddo_code || caseRecord.extras?.ddo_code || '________';
   const { headerTitle } = getCoverLetterInfo(employeeRecord);
   // Simplify description (remove 'OFFICE OF THE')
-  const description = headerTitle.replace(/OFFICE OF THE\s+/i, '').replace(/\n/g, ' ').trim();
+  const description = headerTitle.replace(/^OFFICE OF THE\s+/i, '').replace(/\n/g, ' ').trim();
   
   const personalNo = employees.personal_no || '________';
   const name = employees.name.toUpperCase();
-  const gpfAccount = employees.gpf_account_no || '________';
+  const gpfAccount = caseRecord.extras?.gpf_account_no || financials?.gpf_account_no || employees.gpf_account_no || '________';
   
   // New Bank Logic: Use explicit fields, fall back to legacy 'bank_branch' if missing
   const bankName = employees.bank_name || employees.bank_branch?.split(' ')?.[0] || '________'; 

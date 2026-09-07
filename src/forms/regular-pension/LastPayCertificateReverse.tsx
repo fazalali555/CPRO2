@@ -1,20 +1,26 @@
 
 import React from 'react';
-import { EmployeeRecord } from '../../types';
+import { EmployeeRecord, CaseRecord } from '../../types';
 import { formatCurrency } from '../../utils';
 
 interface Props {
   employee?: EmployeeRecord;
+  caseRecord?: CaseRecord;
 }
 
-export const LastPayCertificateReverse: React.FC<Props> = ({ employee }) => {
-  const extras = employee?.extras || ({} as any);
-  const financials = employee?.financials || ({} as any);
+export const LastPayCertificateReverse: React.FC<Props> = ({ employee, caseRecord }) => {
+  const extras = caseRecord?.extras;
+  const financials = employee?.financials;
+  const rightSignatureTitle = caseRecord?.extras?.lpc_right_signature_title || 'DDO Signature & Stamp';
 
-  const recoveries = [];
-  if (extras.hba_balance > 0) recoveries.push({ name: 'HBA Balance', amount: extras.hba_balance });
-  if (extras.gpf_adv_balance > 0) recoveries.push({ name: 'GPF Advance', amount: extras.gpf_adv_balance });
-  if (financials.recovery > 0) recoveries.push({ name: 'Govt Dues', amount: financials.recovery });
+  const recoveries: { name: string; amount: number }[] = [];
+  const hbaBal = Number(extras?.hba_balance) || 0;
+  const gpfAdvBal = Number(extras?.gpf_adv_balance) || 0;
+  const govtDues = Number(financials?.recovery) || 0;
+
+  if (hbaBal > 0) recoveries.push({ name: 'HBA Balance', amount: hbaBal });
+  if (gpfAdvBal > 0) recoveries.push({ name: 'GPF Advance Balance', amount: gpfAdvBal });
+  if (govtDues > 0) recoveries.push({ name: 'Govt Dues / Recovery', amount: govtDues });
 
   return (
     <div className="bg-white text-black font-serif text-sm leading-tight relative print-page mx-auto"
@@ -65,7 +71,7 @@ export const LastPayCertificateReverse: React.FC<Props> = ({ employee }) => {
       <div className="mt-auto flex justify-end">
          <div className="text-center w-64">
             <div className="border-t border-black mb-1 pt-1"></div>
-            <div className="font-bold uppercase text-sm">DDO Signature & Stamp</div>
+            <div className="font-bold uppercase text-sm leading-tight whitespace-pre-wrap">{rightSignatureTitle}</div>
          </div>
       </div>
 

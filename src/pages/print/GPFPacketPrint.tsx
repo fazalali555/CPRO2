@@ -111,9 +111,19 @@ export const GPFPacketPrint: React.FC<Props> = ({ employees, cases }) => {
 
         {/* --- FINAL PAYMENT CASE --- */}
         {isFinal && (
-           <div className="mb-8 print:mb-0">
-             <GPFFinalPaymentForm10 employeeRecord={employee} caseRecord={caseRecord} />
-           </div>
+          <>
+            <div className="mb-8 print:mb-0">
+              <GPFFinalPaymentForm10 employeeRecord={employee} caseRecord={caseRecord} />
+            </div>
+
+            <div className="landscape-page mb-8 print:mb-0" style={{ width: '297mm' }}>
+              <PAYF06PermanentLoan employeeRecord={employee} caseRecord={caseRecord} />
+            </div>
+
+            <div className="landscape-page mb-8 print:mb-0" style={{ width: '297mm' }}>
+              <GPFClaimVerificationProforma employeeRecord={employee} caseRecord={caseRecord} />
+            </div>
+          </>
         )}
 
       </div>

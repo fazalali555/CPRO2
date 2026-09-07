@@ -1,4 +1,5 @@
 import { AGE_FACTORS } from '../constants';
+import { getRetiringIncrementDetails } from '../utils/RulesEngine';
 
 export interface PensionParams {
   basicPay: number;
@@ -6,10 +7,10 @@ export interface PensionParams {
   qualifyingServiceYears: number;
   commutationPortionPercent?: number;
   ageAtRetirement?: number;
-  bps?: number; // BPS grade — affects medical allowance rate
-  retiringYearIncrement?: number; // New: Retiring Year Increment
-  otherAllowances?: number; // New: Other Pensionable Allowances
-  retirementDate?: string; // New: Date of Retirement
+  bps?: number; // BPS grade — affects medical allowance rate and increment
+  retiringYearIncrement?: number; // Retiring Year Increment (if undefined, auto-calculated from retirementDate & bps)
+  otherAllowances?: number; // Other Pensionable Allowances
+  retirementDate?: string; // Date of Retirement (YYYY-MM-DD)
 }
 
 export interface PensionResult {
@@ -30,10 +31,13 @@ export interface PensionResult {
   runningAfter2024: number;
   adhocRelief2025: number;
   runningAfter2025: number;
+  adhocRelief2026: number;
+  runningAfter2026: number;
   medicalAllowance2010: number;
   medicalAllowance2022: number;
   monthlyPayablePension: number;
   medicalAllowanceRate: number; // expose the rate used (0.20 or 0.25)
+  retiringYearIncrement: number; // Premature / Retiring increment included in calculation
 }
 
 const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
@@ -58,9 +62,8 @@ export const resolveAgeFactor = (age?: number): { age: number; factor: number } 
 
   const factorAges = Object.keys(AGE_FACTORS).map(Number);
   const minAge = Math.min(...factorAges); // 20
-  const maxAge = Math.max(...factorAges); // 60 — now correctly the table max
+  const maxAge = 60; // Max age factor for superannuation at 60 is age 60 factor (12.3719)
 
-  // Cap at table max (60) — anyone older than 59 gets the factor for age 60
   const cappedAge = clamp(ageNextBirthday, minAge, maxAge);
   const factor = AGE_FACTORS[cappedAge] ?? AGE_FACTORS[maxAge];
 
@@ -83,25 +86,39 @@ const FAMILY_PENSION_INCREASES = [
   { year: 2023, percent: 17.5 },
   { year: 2024, percent: 15 },
   { year: 2025, percent: 7 },
+  { year: 2026, percent: 7 },
 ];
 
 export const getApplicableIncreases = (retirementDate?: string): typeof FAMILY_PENSION_INCREASES => {
-  let retYear = 2017;
+  let retYear = new Date().getFullYear();
+  let retDateStr = new Date().toISOString().split('T')[0];
+
   if (retirementDate) {
     try {
-      const year = new Date(retirementDate).getFullYear();
-      if (!isNaN(year)) retYear = year;
+      const d = new Date(retirementDate);
+      if (!isNaN(d.getTime())) {
+        retYear = d.getFullYear();
+        retDateStr = retirementDate;
+      }
     } catch {}
   }
 
-  if (retYear >= 2022) {
-    return FAMILY_PENSION_INCREASES.filter((inc) => inc.year >= 2022);
-  } else {
-    // KPK 2017 scales unmerged reliefs: exclude 2010, 2012, 2013, 2014
-    return FAMILY_PENSION_INCREASES.filter(
-      (inc) => ![2010, 2012, 2013, 2014].includes(inc.year)
-    );
-  }
+  return FAMILY_PENSION_INCREASES.filter((inc) => {
+    // Exclude any relief notified AFTER the employee's retirement year
+    if (inc.year > retYear) return false;
+
+    // Special rule: 2026 7% increase requires retirement on or after 2026-07-01
+    if (inc.year === 2026 && retDateStr < '2026-07-01') {
+      return false;
+    }
+
+    if (retYear >= 2022) {
+      return inc.year >= 2022;
+    } else {
+      // KPK 2017 scales unmerged reliefs: exclude 2010, 2012, 2013, 2014
+      return ![2010, 2012, 2013, 2014].includes(inc.year);
+    }
+  });
 };
 
 export const calculatePension = (params: PensionParams): PensionResult => {
@@ -124,23 +141,29 @@ export const calculatePension = (params: PensionParams): PensionResult => {
     throw new Error('Invalid commutation portion percentage');
   }
 
+  const resolvedRetiringIncrement = params.retiringYearIncrement !== undefined
+    ? params.retiringYearIncrement
+    : (params.retirementDate && params.bps
+      ? getRetiringIncrementDetails(params.bps, params.retirementDate).amount
+      : 0);
+
   const pensionablePay = 
     (params.basicPay || 0) + 
     (params.personalPay || 0) + 
-    (params.retiringYearIncrement || 0) + 
+    resolvedRetiringIncrement + 
     (params.otherAllowances || 0);
 
+  const round2 = (num: number) => Math.round((num + Number.EPSILON) * 100) / 100;
+
   const qService = clamp(Math.floor(params.qualifyingServiceYears), 0, 30);
-  const grossPension = (pensionablePay * qService * 7) / 300;
+  const grossPension = round2((pensionablePay * qService * 7) / 300);
   const commutationPortion = commPct / 100;
-  const commutationAmount = grossPension * commutationPortion;
-  const netPension = grossPension * (1 - commutationPortion);
+  const commutationAmount = round2(grossPension * commutationPortion);
+  const netPension = round2(grossPension - commutationAmount);
 
   // Age is capped at 60 inside resolveAgeFactor
   const { age: resolvedAge, factor: ageFactor } = resolveAgeFactor(params.ageAtRetirement);
-  const commutationLumpSum = commutationAmount * 12 * ageFactor;
-
-  const round2 = (num: number) => Math.round(num * 100) / 100;
+  const commutationLumpSum = round2(commutationAmount * 12 * ageFactor);
 
   // ── Adhoc Reliefs (Compounding) ─────────────────────────────────────────
   const applicableIncreases = getApplicableIncreases(params.retirementDate);
@@ -155,22 +178,27 @@ export const calculatePension = (params: PensionParams): PensionResult => {
   // 2022: 15% of Net Pension (or compounding running total)
   const has2022 = applicableIncreases.some((inc) => inc.year === 2022);
   const adhocRelief2022 = has2022 ? round2(runningTotal * 0.15) : 0;
-  const runningAfter2022 = round2(runningTotal + adhocRelief2022);
+  const runningAfter2022 = has2022 ? round2(runningTotal + adhocRelief2022) : runningTotal;
 
   // 2023: 17.5% of Running Pension (after 2022)
   const has2023 = applicableIncreases.some((inc) => inc.year === 2023);
   const adhocRelief2023 = has2023 ? round2(runningAfter2022 * 0.175) : 0;
-  const runningAfter2023 = round2(runningAfter2022 + adhocRelief2023);
+  const runningAfter2023 = has2023 ? round2(runningAfter2022 + adhocRelief2023) : runningAfter2022;
 
   // 2024: 15% of Running Pension (after 2023)
   const has2024 = applicableIncreases.some((inc) => inc.year === 2024);
   const adhocRelief2024 = has2024 ? round2(runningAfter2023 * 0.15) : 0;
-  const runningAfter2024 = round2(runningAfter2023 + adhocRelief2024);
+  const runningAfter2024 = has2024 ? round2(runningAfter2023 + adhocRelief2024) : runningAfter2023;
 
   // 2025: 7% of Running Pension (after 2024)
   const has2025 = applicableIncreases.some((inc) => inc.year === 2025);
   const adhocRelief2025 = has2025 ? round2(runningAfter2024 * 0.07) : 0;
-  const runningAfter2025 = round2(runningAfter2024 + adhocRelief2025);
+  const runningAfter2025 = has2025 ? round2(runningAfter2024 + adhocRelief2025) : runningAfter2024;
+
+  // 2026: 7% of Running Pension (after 2025)
+  const has2026 = applicableIncreases.some((inc) => inc.year === 2026);
+  const adhocRelief2026 = has2026 ? round2(runningAfter2025 * 0.07) : 0;
+  const runningAfter2026 = has2026 ? round2(runningAfter2025 + adhocRelief2026) : runningAfter2025;
 
   // ── Medical Allowance ────────────────────────────────────────────────────
   const bps = params.bps ?? 0;
@@ -178,12 +206,12 @@ export const calculatePension = (params: PensionParams): PensionResult => {
   const medicalAllowance2010 = round2(netPension * medicalAllowanceRate);
 
   // 25% increase on Medical Allowance (2022 notification)
-  const medicalAllowance2022 = round2(medicalAllowance2010 * 0.25);
+  const medicalAllowance2022 = has2022 ? round2(medicalAllowance2010 * 0.25) : 0;
 
   const totalMedicalAllowance = medicalAllowance2010 + medicalAllowance2022;
 
   // ── Monthly Payable Pension ───────────────────────────────────────────────
-  const monthlyPayablePension = runningAfter2025 + totalMedicalAllowance;
+  const monthlyPayablePension = round2(runningAfter2026 + totalMedicalAllowance);
 
   return {
     pensionablePay,
@@ -203,10 +231,13 @@ export const calculatePension = (params: PensionParams): PensionResult => {
     runningAfter2024,
     adhocRelief2025,
     runningAfter2025,
+    adhocRelief2026,
+    runningAfter2026,
     medicalAllowance2010,
     medicalAllowance2022,
     monthlyPayablePension,
     medicalAllowanceRate,
+    retiringYearIncrement: resolvedRetiringIncrement,
   };
 };
 

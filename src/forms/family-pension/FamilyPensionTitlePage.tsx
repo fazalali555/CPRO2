@@ -16,7 +16,7 @@ const formatDate = (dateStr?: string) => {
 
 export const FamilyPensionTitlePage: React.FC<Props> = ({ employee }) => {
   const { employees, service_history } = employee;
-  const { department } = getCoverLetterInfo(employee);
+  const { department, headerTitle } = getCoverLetterInfo(employee);
   const isDeceased = employees.status === 'Deceased';
   const dateValue = isDeceased 
     ? formatDate(service_history.date_of_death || service_history.date_of_retirement)

@@ -26,7 +26,6 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
 
   const basicPay = financials.basic_pay || 0;
   const personalPay = financials.p_pay || 0;
-  const totalReckonable = basicPay + personalPay;
 
   // Qualifying Service (round up if months >= 6), capped at 30 – consistent with Employees page
   const svc = calculateServiceDuration(
@@ -56,8 +55,13 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
     personalPay,
     qualifyingServiceYears: qService,
     commutationPortionPercent: (employee.extras?.commutation_portion as number | undefined) ?? 35,
-    ageAtRetirement
+    ageAtRetirement,
+    bps: employees.bps,
+    retirementDate: service_history.date_of_retirement,
+    retiringYearIncrement: (employee.extras?.retiring_year_increment as number | undefined),
   });
+
+  const totalReckonable = calc.pensionablePay;
 
   // LPR Calculation
   const lprDays = service_history.lpr_days ?? 365; 
@@ -108,9 +112,9 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
       <div className="text-justify leading-[1.6] mb-2 text-[10.5pt]">
          On attaining the age of superannuation/having applied for retiring/invalid/compensatory pension vide application dated <span className="font-bold border-b border-black px-2">{appDate}</span> Or has been retired compulsorily vide Notification/Order No. <span className="font-bold border-b border-black px-2">{orderNo}</span> Dated <span className="font-bold border-b border-black px-2">{orderDate}</span> issued by <span className="font-bold border-b border-black px-2">Competent Authority</span>.
          <br/>
-         Mr./Miss/Ms: <span className="font-bold uppercase border-b border-black px-2">{name}</span> S/O, W/O, D/O <span className="font-bold uppercase border-b border-black px-2">{fatherName}</span> Designation <span className="font-bold uppercase border-b border-black px-2">{designation}</span> drawing pay / emoluments Rs. <span className="font-bold border-b border-black px-2">{formatCurrency(totalReckonable)}</span> PM (reckonable towards pension), in BPS <span className="font-bold border-b border-black px-2">{bps}</span> on <span className="font-bold border-b border-black px-2">{dor}</span> (please indicate nature of appointment i.e. <span className="font-bold border-b border-black px-2">{empCat}</span> basis, w.e.f. <span className="font-bold border-b border-black px-2">{doa}</span>.
+         Mr./Miss/Ms: <span className="font-bold uppercase border-b border-black px-2">{name}</span> S/O, W/O, D/O <span className="font-bold uppercase border-b border-black px-2">{fatherName}</span> Designation <span className="font-bold uppercase border-b border-black px-2">{designation}</span> drawing pay / emoluments <span className="font-bold border-b border-black px-2">{formatCurrency(totalReckonable)}</span> PM (reckonable towards pension), in BPS <span className="font-bold border-b border-black px-2">{bps}</span> on <span className="font-bold border-b border-black px-2">{dor}</span> (please indicate nature of appointment i.e. <span className="font-bold border-b border-black px-2">{empCat}</span> basis, w.e.f. <span className="font-bold border-b border-black px-2">{doa}</span>.
          <br/>
-         Personnel No <span className="font-bold border-b border-black px-2">{pNo}</span> presently posted as <span className="font-bold uppercase border-b border-black px-2">{school}</span> has retired /has been permitted to retire/is due to be retired/has been retired compulsorily from the Government service (tick where applicable) on <span className="font-bold border-b border-black px-2">{dor}</span> date after availing LPR for <span className="font-bold border-b border-black px-2">{lprDays}</span> days/Leave encashment in lieu of LPR Rs. <span className="font-bold border-b border-black px-2">{formatCurrency(lprAmount)}</span>.
+         Personnel No <span className="font-bold border-b border-black px-2">{pNo}</span> presently posted as <span className="font-bold uppercase border-b border-black px-2">{school}</span> has retired /has been permitted to retire/is due to be retired/has been retired compulsorily from the Government service (tick where applicable) on <span className="font-bold border-b border-black px-2">{dor}</span> date after availing LPR for <span className="font-bold border-b border-black px-2">{lprDays}</span> days/Leave encashment in lieu of LPR <span className="font-bold border-b border-black px-2">{formatCurrency(lprAmount)}</span>.
       </div>
 
       {/* Pension Calculation */}

@@ -523,6 +523,7 @@ export const calculatePayroll = (financials: EmployeeRecord['financials']) => {
     (f.adhoc_2024_25 || 0) +
     (f.adhoc_2025_10 || 0) +
     (f.dra_2025_15 || 0) +
+    (f.adhoc_2026 || 0) +
     Object.values(f.arrears || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0) +
     Object.values(f.allowances_extra || {}).reduce(
       (a: number, b: any) => a + (Number(b) || 0),
@@ -629,7 +630,7 @@ export const calculateServiceDuration = (
     const start = parseISO(doa);
     const end = parseISO(dor);
 
-    if (!isValid(start) || !isValid(end)) {
+    if (!isValid(start) || !isValid(end) || end < start) {
       return { text: 'Invalid Dates', years: 0, months: 0, days: 0 };
     }
 
@@ -670,10 +671,12 @@ export const calculatePension = (
   basicPay: number,
   serviceYears: number,
   age: number,
-  bps: number
+  bps: number,
+  retiringIncrement: number = 0
 ): PensionCalculationResult => {
+  const pensionablePay = (basicPay || 0) + (retiringIncrement || 0);
   const qualifyingService = Math.min(serviceYears, 30);
-  const grossPension = (basicPay * qualifyingService * 7) / 300;
+  const grossPension = (pensionablePay * qualifyingService * 7) / 300;
   const netPensionBase = grossPension * 0.65;
   const commutationAmount = grossPension * 0.35;
 
@@ -690,6 +693,7 @@ export const calculatePension = (
     { label: 'Adhoc Relief 2022 (15%)', amount: netPensionBase * 0.15 },
     { label: 'Adhoc Relief 2023 (15%)', amount: netPensionBase * 0.15 },
     { label: 'Adhoc Relief 2024 (10%)', amount: netPensionBase * 0.10 },
+    { label: 'Adhoc Relief 2026 (7%)', amount: netPensionBase * 0.07 },
   ];
 
   const totalReliefs = reliefs.reduce((sum, r) => sum + r.amount, 0);
@@ -703,6 +707,8 @@ export const calculatePension = (
     reliefs,
     totalMonthlyPension,
     proposedNetPension,
+    retiringIncrement,
+    pensionablePay,
   };
 };
 
@@ -763,6 +769,7 @@ export const getDefaultChecklist = (
   if (caseType === 'benevolent_fund') return getBenevolentFundChecklist(isDeath);
   if (caseType === 'eef') return getEEFChecklist(isDeath);
   if (caseType === 'lpr') return getLPRChecklist();
+  if (caseType === 'lpc') return getLPCChecklist();
   if (caseType === 'financial_assistance') return getFinancialAssistanceChecklist(isDeath);
   if (caseType === 'audit_para') return getAuditParaChecklist();
   if (caseType === 'court_case') return getCourtCaseChecklist();
@@ -959,13 +966,17 @@ export const getOfficialGPFChecklist = (
 
   if (caseType === 'gpf_final') {
     return [
-      { id: 'gpf_f_1', label: 'Form-10 (Final Payment Application)', done: false, required: true },
-      { id: 'gpf_f_2', label: 'CNIC Copy', done: false, required: true },
-      { id: 'gpf_f_3', label: 'Payroll showing GP deduction ceased', done: false, required: true },
-      { id: 'gpf_f_4', label: 'Pay-Stoppage Certificate', done: false, required: true },
-      { id: 'gpf_f_5', label: 'Original Application', done: false, required: true },
-      { id: 'gpf_f_6', label: 'Credit Memo (if transfer)', done: false, required: false },
-      { id: 'gpf_f_7', label: 'Nomination/Legal Heirs Docs (if Death case)', done: false, required: false },
+      { id: 'gpf_f_1', label: 'Form-10 (Final Payment Application Form)', done: false, required: true },
+      { id: 'gpf_f_2', label: 'PAYF06 Proforma (SAP / Final Payment Form)', done: false, required: true },
+      { id: 'gpf_f_3', label: 'GCVP Form (GPF Claim Verification Proforma)', done: false, required: true },
+      { id: 'gpf_f_4', label: 'Attested Copy of CNIC', done: false, required: true },
+      { id: 'gpf_f_5', label: 'Sanction Order / Retirement Order Copy', done: false, required: true },
+      { id: 'gpf_f_6', label: 'Payroll / Pay Slip showing GP deduction ceased', done: false, required: true },
+      { id: 'gpf_f_7', label: 'Pay-Stoppage Certificate / LPC', done: false, required: true },
+      { id: 'gpf_f_8', label: 'Service Book (Original / Service Verification)', done: false, required: true },
+      { id: 'gpf_f_9', label: 'Bank Account Maintenance Certificate / DAO Form', done: false, required: true },
+      { id: 'gpf_f_10', label: 'Credit Memo (if transfer case)', done: false, required: false },
+      { id: 'gpf_f_11', label: 'Death Certificate & Nomination / Legal Heirs List (if Deceased)', done: false, required: false },
     ];
   }
 
@@ -1093,6 +1104,14 @@ export const getLPRChecklist = (): CaseChecklistItem[] => [
   { id: '7', label: 'Affidavit duly attested by Oath commissioner', done: false, required: true },
 ];
 
+export const getLPCChecklist = (): CaseChecklistItem[] => [
+  { id: '1', label: 'Copy of Transfer Order / Retirement Order / Release Notification', done: false, required: true },
+  { id: '2', label: 'Last Month Salary Slip', done: false, required: true },
+  { id: '3', label: 'No Demand Certificate from School/Office', done: false, required: true },
+  { id: '4', label: 'GPF / Pension / Loan recovery details', done: false, required: false },
+  { id: '5', label: 'LPC Proforma filled for DDO Signature', done: false, required: true },
+];
+
 export const getFinancialAssistanceChecklist = (isDeath: boolean): CaseChecklistItem[] => {
   const list: CaseChecklistItem[] = [
     { id: '1', label: 'Cover Letter/Demand Letter in the Name of ADC (F&P)', done: false, required: true },
@@ -1204,6 +1223,101 @@ export const getGPFEligibilityWarnings = (
   }
 
   return warnings;
+};
+
+// ============================================================================
+// GPF REFUNDABLE CALCULATIONS & DEFAULTS
+// ============================================================================
+
+export interface GpfRefundableCalculation {
+  currentBalance: number;
+  admissibleLimit: number;
+  amountRequested: number;
+  installments: number;
+  monthlyDeduction: number;
+}
+
+export interface GpfRefundableDefaults {
+  gpf_account_no: string;
+  basic_pay: number;
+  net_pay: number;
+  current_balance: number;
+  amount_requested: number;
+  installments: number;
+  monthly_deduction: number;
+  monthly_recovery: number;
+  [key: string]: unknown;
+}
+
+export const calculateGpfRefundable = (
+  currentBalance: number,
+  installments = 36,
+  customAmountRequested?: number
+): GpfRefundableCalculation => {
+  const balance = Math.max(0, Number(currentBalance) || 0);
+  const admissibleLimit = Math.floor(balance * 0.8);
+  const validInstallments = Math.max(1, Number(installments) || 36);
+
+  const amountRequested = customAmountRequested !== undefined
+    ? Math.max(0, Number(customAmountRequested) || 0)
+    : admissibleLimit;
+
+  const monthlyDeduction = amountRequested > 0 && validInstallments > 0
+    ? Math.ceil(amountRequested / validInstallments)
+    : 0;
+
+  return {
+    currentBalance: balance,
+    admissibleLimit,
+    amountRequested,
+    installments: validInstallments,
+    monthlyDeduction,
+  };
+};
+
+export const getGpfRefundableDefaults = (
+  employee: EmployeeRecord,
+  existingExtras?: Record<string, unknown>
+): GpfRefundableDefaults => {
+  const extras = existingExtras || {};
+  const payroll = calculatePayroll(employee.financials);
+  const fetchedBasicPay = employee.financials?.basic_pay || 0;
+  const fetchedNetPay = employee.financials?.net_pay || payroll.netPay || 0;
+
+  const gpf_account_no = String(extras.gpf_account_no || employee.financials?.gpf_account_no || employee.employees?.gpf_account_no || '');
+
+  const basic_pay = (extras.basic_pay !== undefined && extras.basic_pay !== '' && Number(extras.basic_pay) > 0)
+    ? Number(extras.basic_pay)
+    : fetchedBasicPay;
+
+  const net_pay = (extras.net_pay !== undefined && extras.net_pay !== '' && Number(extras.net_pay) > 0)
+    ? Number(extras.net_pay)
+    : fetchedNetPay;
+
+  const rawBalance = extras.current_balance ?? employee.extras?.gpf_balance ?? employee.extras?.gpf_adv_balance ?? 0;
+  const current_balance = Number(rawBalance) || 0;
+
+  const rawInstallments = Number(extras.installments);
+  const installments = rawInstallments > 0 ? rawInstallments : 36;
+
+  const calculation = calculateGpfRefundable(
+    current_balance,
+    installments,
+    (extras.amount_requested !== undefined && extras.amount_requested !== '' && Number(extras.amount_requested) > 0)
+      ? Number(extras.amount_requested)
+      : undefined
+  );
+
+  return {
+    gpf_account_no,
+    basic_pay,
+    net_pay,
+    current_balance,
+    installments,
+    amount_requested: calculation.amountRequested,
+    monthly_deduction: calculation.monthlyDeduction,
+    monthly_recovery: calculation.monthlyDeduction,
+  };
 };
 
 // ============================================================================
@@ -1546,6 +1660,7 @@ const OFFICIAL_FIN_ALLOWANCE_KEYS = new Set([
   'adhoc_2024_25',
   'adhoc_2025_10',
   'dra_2025_15',
+  'adhoc_2026',
 ]);
 
 const OFFICIAL_FIN_DEDUCTION_KEYS = new Set([
@@ -1691,6 +1806,7 @@ export const migrateToV2 = (oldData: any[]): EmployeeRecord[] => {
         adhoc_2024_25: 0,
         adhoc_2025_10: 0,
         dra_2025_15: 0,
+        adhoc_2026: 0,
         arrears: {},
         gpf: 0,
         gpf_sub: 0,

@@ -17,7 +17,7 @@ export const DescriptiveRoll: React.FC<Props> = ({ employee }) => {
   const ben = getBeneficiaryDetails(employee);
 
   return (
-    <div className="bg-white text-black font-sans print-page fit-page mx-auto" 
+    <div className="bg-white text-black font-sans print-page fit-page mx-auto flex flex-col justify-between" 
       style={{ width: '210mm', height: '297mm', padding: '10mm', boxSizing: 'border-box', overflow: 'hidden' }}>
       
       <h1 className="text-center text-lg font-bold uppercase underline mb-4 leading-tight">Descriptive Roll</h1>

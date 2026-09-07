@@ -58,7 +58,7 @@ export const CSV_HEADERS = [
   'spl_allow_2021', 'teaching_allow', 'spl_allow_female', 'spl_allow_disable', 
   'integrated_allow', 'charge_allow', 'wa', 'dress_allow',
   'computer_allow', 'mphil_allow', 'entertainment_allow', 'science_teaching_allow', 'weather_allow', 'special_allow_non_teaching',
-  'adhoc_2013', 'adhoc_2015', 'adhoc_2022_ps17', 'dra_2022kp', 'adhoc_2023_35', 'adhoc_2024_25', 'adhoc_2025_10', 'dra_2025_15',
+  'adhoc_2013', 'adhoc_2015', 'adhoc_2022_ps17', 'dra_2022kp', 'adhoc_2023_35', 'adhoc_2024_25', 'adhoc_2025_10', 'dra_2025_15', 'adhoc_2026',
   'gpf', 'gpf_sub', 'gpf_advance', 'bf', 'eef', 'rb_death', 'adl_g_insurance', 'group_insurance', 'income_tax', 'income_tax_ded', 'recovery',
   'edu_rop', 'hba_loan_instal', 'gpf_loan_instal',
   'family_1_name', 'family_1_relation', 'family_1_age', 'family_1_cnic',
@@ -229,8 +229,9 @@ export const unflattenEmployee = (
   const num = (key: string) => {
     const val = row[key];
     if (val === undefined || val === null || val === '') return undefined;
-    const clean = val.replace(/,/g, '');
-    return isNaN(Number(clean)) ? 0 : Number(clean);
+    const clean = typeof val === 'string' ? val.replace(/,/g, '') : val;
+    const n = Number(clean);
+    return isNaN(n) ? 0 : n;
   };
 
   const str = (key: string) => row[key] ? row[key].trim() : '';
@@ -365,6 +366,7 @@ export const unflattenEmployee = (
       adhoc_2024_25: num('adhoc_2024_25') ?? existing?.financials.adhoc_2024_25 ?? 0,
       adhoc_2025_10: num('adhoc_2025_10') ?? existing?.financials.adhoc_2025_10 ?? 0,
       dra_2025_15: num('dra_2025_15') ?? existing?.financials.dra_2025_15 ?? 0,
+      adhoc_2026: num('adhoc_2026') ?? existing?.financials.adhoc_2026 ?? 0,
 
       gpf: (() => {
         const a = num('gpf');
@@ -387,6 +389,7 @@ export const unflattenEmployee = (
       edu_rop: num('edu_rop') ?? existing?.financials.edu_rop ?? 0,
       hba_loan_instal: num('hba_loan_instal') ?? existing?.financials.hba_loan_instal ?? 0,
       gpf_loan_instal: num('gpf_loan_instal') ?? existing?.financials.gpf_loan_instal ?? 0,
+      gpf_account_no: str('gpf_account_no') || existing?.financials?.gpf_account_no || existing?.employees?.gpf_account_no || '',
     } as EmployeeRecord['financials'],
 
     family_members: existing?.family_members || [],

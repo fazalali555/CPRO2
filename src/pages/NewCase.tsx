@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CaseRecord, EmployeeRecord, CaseType, CURRENT_CASE_SCHEMA_VERSION } from '../types';
-import { getDefaultChecklist } from '../utils';
+import { getDefaultChecklist, getGpfRefundableDefaults } from '../utils';
 import { PageHeader } from '../components/PageHeader';
 import { Card, Button, TextField } from '../components/M3';
 import { AppIcon } from '../components/AppIcon';
@@ -22,6 +22,7 @@ const CASE_TYPES: { id: CaseType; label: string; icon: string }[] = [
   { id: 'eef', label: 'E.E.F (Employee Education Foundation)', icon: 'school' },
   { id: 'financial_assistance', label: 'Financial Assistance', icon: 'health_and_safety' },
   { id: 'payroll', label: 'Payroll / Salary Change', icon: 'receipt_long' },
+  { id: 'lpc', label: 'Last Pay Certificate (LPC)', icon: 'description' },
   { id: 'full_pension', label: 'Full Pension Case (Bundle)', icon: 'auto_stories' },
 ];
 
@@ -48,6 +49,10 @@ export const NewCase: React.FC = () => {
     const emp = employees.find(e => e.id === selectedEmpId);
     if (!emp) return;
 
+    const initialExtras: Record<string, unknown> = selectedType === 'gpf_refundable'
+      ? getGpfRefundableDefaults(emp)
+      : {};
+
     const newCase: CaseRecord = {
       id: Date.now().toString(),
       schemaVersion: CURRENT_CASE_SCHEMA_VERSION,
@@ -58,9 +63,10 @@ export const NewCase: React.FC = () => {
       deadline: deadline || undefined,
       title: `${CASE_TYPES.find(t => t.id === selectedType)?.label} Case - ${emp.employees.name}`,
       checklist: getDefaultChecklist(selectedType, emp),
-      documents: [],      notes: [],
+      documents: [],
+      notes: [],
       auditLog: [],
-      extras: {},
+      extras: initialExtras,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

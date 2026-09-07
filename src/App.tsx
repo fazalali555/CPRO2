@@ -47,7 +47,11 @@ import {
   EEFPacketPrintWrapper,
   RBDCPacketPrintWrapper,
   FinancialAssistancePacketPrintWrapper,
-  BulkCasePrintWrapper
+  BulkCasePrintWrapper,
+  LastPayCertificatePrintWrapper,
+  LastPayCertificateReversePrintWrapper,
+  LPCPacketPrintWrapper,
+  PensionCalculationSheetPrintWrapper
 } from './components/PrintWrappers';
 
 // Lazy Loaded Pages
@@ -236,6 +240,12 @@ const App: React.FC = () => {
               <Route path="/print/eef-packet/:caseId" element={<EEFPacketPrintWrapper />} />
               <Route path="/print/rbdc-packet/:caseId" element={<RBDCPacketPrintWrapper />} />
               <Route path="/print/financial-assistance-packet/:caseId" element={<FinancialAssistancePacketPrintWrapper />} />
+              
+              <Route path="/print/checklist-lpc/:caseId" element={<UniversalChecklistPrintWrapper type="lpc" />} />
+              <Route path="/print/last-pay-certificate/:caseId" element={<LastPayCertificatePrintWrapper />} />
+              <Route path="/print/last-pay-certificate-reverse/:caseId" element={<LastPayCertificateReversePrintWrapper />} />
+              <Route path="/print/lpc-packet/:caseId" element={<LPCPacketPrintWrapper />} />
+              <Route path="/print/pension-calculation-sheet/:caseId" element={<PensionCalculationSheetPrintWrapper />} />
 
               <Route path="/print/cert-nondrawal-bf/:caseId" element={<NonDrawalPrintWrapper type="Benevolent Fund" />} />
               <Route path="/print/cert-contribution-bf/:caseId" element={<NonDrawalPrintWrapper type="Contribution" />} />

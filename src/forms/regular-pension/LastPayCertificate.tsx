@@ -1,11 +1,13 @@
 
 import React from 'react';
-import { EmployeeRecord } from '../../types';
+import { EmployeeRecord, CaseRecord } from '../../types';
 import { formatCurrency, getCoverLetterInfo } from '../../utils';
 import { format, parseISO } from 'date-fns';
+import { getRetiringIncrementDetails } from '../../utils/RulesEngine';
 
 interface Props {
   employee: EmployeeRecord;
+  caseRecord?: CaseRecord;
 }
 
 const formatDate = (dateStr?: string) => {
@@ -13,12 +15,37 @@ const formatDate = (dateStr?: string) => {
   try { return format(parseISO(dateStr), 'dd-MM-yyyy'); } catch { return dateStr; }
 };
 
-export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
+export const LastPayCertificate: React.FC<Props> = ({ employee, caseRecord }) => {
   const { employees, financials, service_history } = employee;
   const f = financials;
   
   // Logic to get the dynamic Head of Department title
   const { signatureTitle } = getCoverLetterInfo(employee);
+
+  // LPC Case Overrides
+  const lpcReason = caseRecord?.extras?.lpc_reason || "Retirement on Superannuation";
+  const paidUpTo = caseRecord?.extras?.lpc_paid_up_to || service_history.date_of_retirement;
+  const handedOverDate = caseRecord?.extras?.lpc_handed_over_date || service_history.date_of_appointment;
+  const handedOverTime = caseRecord?.extras?.lpc_handed_over_time || "After";
+  const joiningTimeDays = caseRecord?.extras?.lpc_joining_time_days || "";
+  const leftSignatureName = caseRecord?.extras?.lpc_left_signature_name || employees.name;
+  const rightSignatureTitle = caseRecord?.extras?.lpc_right_signature_title || signatureTitle;
+
+  // Retiring / Premature Increment Resolution
+  const retirementDate = paidUpTo || service_history.date_of_retirement;
+  const isRetirementCase = 
+    caseRecord?.case_type === 'retirement' || 
+    caseRecord?.case_type === 'full_pension' || 
+    (Boolean(lpcReason) && lpcReason.toLowerCase().includes('retir'));
+  const manualRetiringIncrement = caseRecord?.extras?.retiring_year_increment ?? employee.extras?.retiring_year_increment;
+  const retiringDetails = getRetiringIncrementDetails(
+    employees.bps,
+    retirementDate,
+    typeof manualRetiringIncrement === 'number' ? manualRetiringIncrement : undefined
+  );
+  const isEligibleRetiringIncrement = isRetirementCase && retiringDetails.eligible && retiringDetails.amount > 0;
+  const retiringIncrementAmount = isEligibleRetiringIncrement ? retiringDetails.amount : 0;
+  const includeInAllowances = Boolean(caseRecord?.extras?.include_retiring_increment_in_lpc_allowances);
 
   // --- Dynamic Field Collection ---
 
@@ -55,6 +82,7 @@ export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
     { label: "Adhoc Relief 2024", value: f.adhoc_2024_25 },
     { label: "Adhoc Relief 2025", value: f.adhoc_2025_10 },
     { label: "DRA 2025", value: f.dra_2025_15 },
+    { label: "Adhoc Relief 2026", value: f.adhoc_2026 },
   ];
 
   // Add Dynamic/Extra Allowances
@@ -71,6 +99,14 @@ export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
        if (Number(val) > 0) {
          allowancesList.push({ label: key.replace(/_/g, ' '), value: Number(val) });
        }
+    });
+  }
+
+  // Optional inclusion of Retiring Increment in LPC Allowances table
+  if (includeInAllowances && retiringIncrementAmount > 0) {
+    allowancesList.push({
+      label: "Retiring Increment (Pension)",
+      value: retiringIncrementAmount,
     });
   }
 
@@ -135,8 +171,8 @@ export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
       <div className="mb-3 text-[11px] leading-relaxed shrink-0">
          Last pay certificate of <span className="font-bold uppercase border-b border-black px-1">{employees.name}</span>
          {' '}Of the <span className="font-bold uppercase border-b border-black px-1">{employees.school_full_name}</span>
-         {' '}Proceeding to <span className="font-bold uppercase border-b border-black px-1">Retirement on Superannuation</span>
-         {' '}He has been paid upto <span className="font-bold border-b border-black px-1">{formatDate(service_history.date_of_retirement)}</span>
+         {' '}Proceeding to <span className="font-bold uppercase border-b border-black px-1">{lpcReason}</span>
+         {' '}He has been paid upto <span className="font-bold border-b border-black px-1">{formatDate(paidUpTo)}</span>
       </div>
       <div className="mb-2 text-[11px] shrink-0">
          As the following rates:-
@@ -191,7 +227,7 @@ export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
       {/* Office Details */}
       <div className="mb-3 text-[11px] leading-relaxed shrink-0">
          He made overcharge of the office of <span className="font-bold uppercase border-b border-black px-1">{employees.school_full_name}</span>
-         {' '}On the <span className="font-bold uppercase border-b border-black px-1">After</span> noon of <span className="font-bold border-b border-black px-1">{formatDate(service_history.date_of_appointment)}</span>
+         {' '}On the <span className="font-bold uppercase border-b border-black px-1">{handedOverTime}</span> noon of <span className="font-bold border-b border-black px-1">{formatDate(handedOverDate)}</span>
       </div>
 
       {/* Recovery Note */}
@@ -208,8 +244,15 @@ export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
       {/* Entitlements */}
       <div className="mb-4 text-[11px] shrink-0">
          He is entitled to draw the following: - 
+         {isEligibleRetiringIncrement ? (
+           <span className="font-bold underline ml-1">
+             Retiring / Premature Increment of Rs. {formatCurrency(retiringIncrementAmount).replace('PKR', '').trim()}/- per month admissible for Pension calculation (Retirement: {formatDate(retirementDate)}, BPS-{employees.bps || 'N/A'}).
+           </span>
+         ) : (
+           <span> ____________________________________________________________________</span>
+         )}
          <br/>
-         He is also entitled to joining time for ________ days.
+         He is also entitled to joining time for <span className="font-bold border-b border-black px-2">{joiningTimeDays || '________'}</span> days.
       </div>
 
       {/* Spacer to prevent overlap with absolute footer */}
@@ -222,19 +265,19 @@ export const LastPayCertificate: React.FC<Props> = ({ employee }) => {
           {/* Left Signature - ADDED HERE */}
           <div className="text-center w-[70mm]">
             <div className="border-t border-black pt-1">
-              <div className="font-bold text-[11px] uppercase">{employees.name}</div>
+              <div className="font-bold text-[11px] uppercase">{leftSignatureName}</div>
             </div>
           </div>
 
           {/* Center - Page Number */}
           <div className="text-center text-[10px]">
-            Page 8
+            {caseRecord?.case_type === 'lpc' ? 'Page 1' : 'Page 8'}
           </div>
 
           {/* Right Signature - Head of Department */}
           <div className="text-center w-[70mm]">
             <div className="border-t border-black pt-1">
-              <div className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">{signatureTitle}</div>
+              <div className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">{rightSignatureTitle}</div>
             </div>
           </div>
         </div>

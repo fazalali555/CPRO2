@@ -141,7 +141,9 @@ export const GPFAdvanceApplication: React.FC<Props> = ({ employeeRecord, caseRec
             <span>GPF Account No.</span>
           </div>
           <div className="flex-grow border-b border-black relative top-[3px]">
-            <span className="absolute bottom-1 left-2 font-bold">{employees.gpf_account_no}</span>
+            <span className="absolute bottom-1 left-2 font-bold">
+              {extras.gpf_account_no || financials.gpf_account_no || employees.gpf_account_no || ''}
+            </span>
           </div>
         </div>
 

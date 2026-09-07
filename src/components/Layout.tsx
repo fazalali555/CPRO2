@@ -21,7 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<(Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> }) | null>(null);
   const location = useLocation();
 
   const currentUser = securityService.getCurrentUser();
@@ -34,7 +34,15 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
     .toUpperCase()
     .slice(0, 2);
 
-  const navItems = [
+  const role = userRole;
+
+  const roleAccess: Record<string, string[]> = React.useMemo(() => ({
+    admin: ['/', '/clerk-desk', '/employees', '/cases', '/pension', '/budgeting', '/legal-audit', '/admin', '/calendar', '/sharing', '/settings', '/about'],
+    clerk: ['/', '/clerk-desk', '/employees', '/cases', '/pension', '/budgeting', '/legal-audit', '/admin', '/calendar', '/sharing'],
+    viewer: ['/', '/cases', '/calendar', '/sharing', '/about']
+  }), []);
+
+  const navItems = React.useMemo(() => [
     { icon: 'dashboard', label: t.common.dashboard, path: '/' },
     { icon: 'assignment', label: 'Clerk Desk', path: '/clerk-desk' },
     { icon: 'groups', label: t.common.employees, path: '/employees' },
@@ -45,27 +53,24 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
     { icon: 'admin_panel_settings', label: t.common.admin, path: '/admin' },
     { icon: 'calendar_today', label: t.common.calendar, path: '/calendar' },
     { icon: 'folder_shared', label: t.common.sharing, path: '/sharing' },
-  ];
+  ], [t.common]);
 
-  const role = securityService.getCurrentUser()?.role || 'viewer';
-  const roleAccess: Record<string, string[]> = {
-    admin: ['/', '/clerk-desk', '/employees', '/cases', '/pension', '/budgeting', '/legal-audit', '/admin', '/calendar', '/sharing', '/settings', '/about'],
-    clerk: ['/', '/clerk-desk', '/employees', '/cases', '/pension', '/budgeting', '/legal-audit', '/admin', '/calendar', '/sharing'],
-    viewer: ['/', '/cases', '/calendar', '/sharing', '/about']
-  };
+  const isAllowed = React.useCallback(
+    (path: string) => (roleAccess[role] || []).some(p => path === p || (p !== '/' && path.startsWith(p))),
+    [role, roleAccess]
+  );
 
-  const isAllowed = (path: string) => (roleAccess[role] || []).some(p => path === p || (p !== '/' && path.startsWith(p)));
-  const filteredNavItems = navItems.filter(i => isAllowed(i.path));
-  const mobileNavItems = filteredNavItems.slice(0, 5);
+  const filteredNavItems = React.useMemo(() => navItems.filter(i => isAllowed(i.path)), [navItems, isAllowed]);
+  const mobileNavItems = React.useMemo(() => filteredNavItems.slice(0, 5), [filteredNavItems]);
 
   // Close mobile menu on route change
   useEffect(() => setMobileMenuOpen(false), [location.pathname]);
 
   // Install Prompt Listener
   useEffect(() => {
-    const handler = (e: any) => {
+    const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> });
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
@@ -154,21 +159,28 @@ const Layout: React.FC<LayoutProps> = ({ children, darkMode, setDarkMode }) => {
                 to={item.path}
                 title={!drawerOpen ? item.label : ''}
                 className={clsx(
-                  "flex items-center gap-4 px-4 py-3 rounded-full transition-all group relative",
+                  "flex items-center gap-4 px-4 py-3 rounded-full transition-all group relative font-medium text-sm",
                   isActive
-                    ? "bg-secondary-container text-on-secondary-container font-bold"
+                    ? "bg-primary/15 text-primary font-bold shadow-sm dark:bg-primary/25"
                     : "text-on-surface-variant hover:bg-on-surface/10 hover:text-on-surface"
                 )}
               >
-                <AppIcon name={item.icon} filled={isActive} />
+                <AppIcon name={item.icon} filled={isActive} className={clsx(isActive && "text-primary")} />
                 {drawerOpen && (
                   <motion.span 
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }} 
-                    className="text-sm"
+                    className="text-sm tracking-wide"
                   >
                     {item.label}
                   </motion.span>
+                )}
+                {isActive && (
+                  <motion.div
+                    layoutId="activePill"
+                    className="absolute left-0 w-1.5 h-6 bg-primary rounded-r-full"
+                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                  />
                 )}
               </Link>
             );

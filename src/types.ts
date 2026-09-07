@@ -99,6 +99,7 @@ export interface EmployeeRecord {
     adhoc_2024_25: number; // A0125E
     adhoc_2025_10: number; // A0125P
     dra_2025_15: number; // A0125Q
+    adhoc_2026: number; // A0126A
 
     // New Allowances
     computer_allow: number; // A01226
@@ -129,6 +130,7 @@ export interface EmployeeRecord {
     recovery: number;
     allowances_extra: Record<string, number>;
     deductions_extra: Record<string, number>;
+    gpf_account_no?: string;
     [key: string]: any;
   };
   family_members: OfficialFamilyMember[];
@@ -161,6 +163,7 @@ export type CaseType =
   | 'token_bill'
   | 'sanctioned_post'
   | 'full_pension'
+  | 'lpc'
   | 'other';
 
 export interface BudgetHead {
@@ -290,6 +293,8 @@ export interface PensionCalculationResult {
   reliefs: { label: string; amount: number }[];
   totalMonthlyPension: number;
   proposedNetPension: number;
+  retiringIncrement?: number;
+  pensionablePay?: number;
 }
 
 export interface PdfTemplate {
@@ -448,6 +453,7 @@ export const INITIAL_EMPLOYEES: EmployeeRecord[] = [
       adhoc_2024_25: 0,
       adhoc_2025_10: 0,
       dra_2025_15: 0,
+      adhoc_2026: 0,
       computer_allow: 0,
       mphil_allow: 0,
       entertainment_allow: 0,

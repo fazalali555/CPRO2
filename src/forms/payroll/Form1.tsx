@@ -304,7 +304,7 @@ export const Form1: React.FC<Props> = ({ employeeRecord }) => {
            
            {/* 39: GPF Account No */}
            <div className="absolute top-[36.2mm] left-[64.5mm]">
-             <BoxGrid values={splitToChars(emp?.gpf_account_no || '', 13, false)} count={13} />
+             <BoxGrid values={splitToChars(emp?.gpf_account_no || financials?.gpf_account_no || '', 13, false)} count={13} />
            </div>
         </div>
 

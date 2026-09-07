@@ -1929,7 +1929,7 @@ export function getDepartmentInfo(
     headerLine1 = `${prefix} ${headerDesignation}`;
   }
 
-  const headerTitle     = headerLine1.split('\n')[0];
+  const headerTitle     = headerLine1.replace(/\n/g, ' ');
   const departmentShort = config?.departmentShort ?? 'Government Office';
   const headerLine2     = departmentShort;
   const headerLine3     = 'Govt. of Khyber Pakhtunkhwa';

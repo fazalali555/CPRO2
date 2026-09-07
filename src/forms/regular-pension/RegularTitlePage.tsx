@@ -16,9 +16,12 @@ const formatDate = (dateStr?: string) => {
 
 export const RegularTitlePage: React.FC<Props> = ({ employee }) => {
   const { employees, service_history } = employee;
-  const { department } = getCoverLetterInfo(employee);
+  const { department, headerTitle } = getCoverLetterInfo(employee);
   const isDeceased = employees.status === 'Deceased';
   const retirementLabel = isDeceased ? 'DATE OF DEATH' : 'DATE OF RETIREMENT';
+  const dateValue = isDeceased
+    ? formatDate(service_history.date_of_death || service_history.date_of_retirement)
+    : formatDate(service_history.date_of_retirement);
 
   return (
     <div className="bg-white text-black font-serif print-page mx-auto relative p-0" 
@@ -75,7 +78,7 @@ export const RegularTitlePage: React.FC<Props> = ({ employee }) => {
                 </tr>
                 <tr>
                   <td className="border-r-2 border-black p-5 font-bold uppercase text-xl bg-gray-100">{retirementLabel}</td>
-                  <td className="p-5 text-2xl font-bold uppercase text-center">{formatDate(service_history.date_of_retirement)}</td>
+                  <td className="p-5 text-2xl font-bold uppercase text-center">{dateValue}</td>
                 </tr>
               </tbody>
             </table>

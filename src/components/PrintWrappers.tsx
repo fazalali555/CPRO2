@@ -31,10 +31,19 @@ import { RetirementSuiteLandscapePrint } from '../pages/print/RetirementSuiteLan
 import { RetirementSuiteAffidavitsPrint } from '../pages/print/RetirementSuiteAffidavitsPrint';
 import { LetterPrint } from '../features/clerk-desk/components/wordpro/letters/LetterPrint';
 import { BulkCasePrint } from '../pages/print/BulkCasePrint';
+import { LastPayCertificatePrint } from '../pages/print/LastPayCertificatePrint';
+import { LastPayCertificateReversePrint } from '../pages/print/LastPayCertificateReversePrint';
+import { LPCPacketPrint } from '../pages/print/LPCPacketPrint';
+import { PensionCalculationSheetPrint } from '../pages/print/PensionCalculationSheetPrint';
 
 export const PrintWrapper = () => <Print />;
 
 export const LetterPrintWrapper = () => <LetterPrint />;
+
+export const PensionCalculationSheetPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <PensionCalculationSheetPrint employees={employees} cases={cases} />;
+};
 
 export const BulkCasePrintWrapper = () => {
   const { employees, cases } = useEmployeeContext();
@@ -56,7 +65,7 @@ export const RetirementSuiteAffidavitsPrintWrapper = () => {
   return <RetirementSuiteAffidavitsPrint employees={employees} cases={cases} />;
 };
 
-export const UniversalChecklistPrintWrapper = ({ type }: { type: 'retirement' | 'gpf' | 'family-pension' | 'rbdc' | 'bf' | 'eef' | 'lpr' | 'financial-assistance' }) => {
+export const UniversalChecklistPrintWrapper = ({ type }: { type: 'retirement' | 'gpf' | 'family-pension' | 'rbdc' | 'bf' | 'eef' | 'lpr' | 'financial-assistance' | 'lpc' }) => {
   const { employees, cases } = useEmployeeContext();
   return <UniversalChecklistPrint employees={employees} cases={cases} type={type} />;
 };
@@ -179,4 +188,19 @@ export const RBDCPacketPrintWrapper = () => {
 export const FinancialAssistancePacketPrintWrapper = () => {
   const { employees, cases } = useEmployeeContext();
   return <FinancialAssistancePacketPrint employees={employees} cases={cases} />;
+};
+
+export const LastPayCertificatePrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <LastPayCertificatePrint employees={employees} cases={cases} />;
+};
+
+export const LastPayCertificateReversePrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <LastPayCertificateReversePrint employees={employees} cases={cases} />;
+};
+
+export const LPCPacketPrintWrapper = () => {
+  const { employees, cases } = useEmployeeContext();
+  return <LPCPacketPrint employees={employees} cases={cases} />;
 };

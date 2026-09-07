@@ -19,14 +19,20 @@ import {
   getBenevolentFundChecklist,
   getEEFChecklist,
   getLPRChecklist,
+  getLPCChecklist,
   getFinancialAssistanceChecklist,
   getGPFEligibilityWarnings,
+  calculateGpfRefundable,
+  getGpfRefundableDefaults,
+  calculatePayroll,
   getPensionEligibility,
   formatCurrency,
   isClassIV,
   isBpsGreaterThan4,
-  isDeceasedStatus
+  isDeceasedStatus,
+  getCoverLetterInfo
 } from '../utils';
+import { getRetiringIncrementDetails } from '../utils/RulesEngine';
 import clsx from 'clsx';
 // Existing Forms
 import { RetirementChecklist } from '../forms/retirement/RetirementChecklist';
@@ -36,6 +42,8 @@ import { RetirementClearanceCertificate } from '../forms/retirement/RetirementCl
 import { RetirementNoDemandCertificate } from '../forms/retirement/RetirementNoDemandCertificate';
 import { RetirementNonInvolvementCertificate } from '../forms/retirement/RetirementNonInvolvementCertificate';
 import { RetirementLeaveNotAvailingCertificate } from '../forms/retirement/RetirementLeaveNotAvailingCertificate';
+import { PensionCalculationSheet } from '../forms/regular-pension/PensionCalculationSheet';
+import { ServiceVerificationCertificate } from '../forms/certificates/ServiceVerificationCertificate';
 import { RetirementQualifyingServiceCertificate } from '../forms/retirement/RetirementQualifyingServiceCertificate';
 import { RetirementServiceCertificate } from '../forms/retirement/RetirementServiceCertificate';
 import { RetirementLegalHeirsList } from '../forms/retirement/RetirementLegalHeirsList';
@@ -47,6 +55,7 @@ import { GPFApplicationForSanction } from '../forms/gpf/GPFApplicationForSanctio
 import { PAYF05TemporaryLoan } from '../forms/gpf/PAYF05TemporaryLoan';
 import { PAYF06PermanentLoan } from '../forms/gpf/PAYF06PermanentLoan';
 import { GPFClaimVerificationProforma } from '../forms/gpf/GPFClaimVerificationProforma';
+import { GPFFinalPaymentForm10 } from '../forms/gpf/GPFFinalPaymentForm10';
 // import { DocumentThumbnail } from '../components/DocumentThumbnail';
 import { FamilyPensionTitlePage } from '../forms/family-pension/FamilyPensionTitlePage';
 import { FamilyPensionApplication } from '../forms/family-pension/FamilyPensionApplication';
@@ -67,6 +76,9 @@ import { BenevolentFundChecklist } from '../forms/checklists/BenevolentFundCheck
 import { EEFChecklist } from '../forms/checklists/EEFChecklist';
 import { LPRChecklist } from '../forms/checklists/LPRChecklist';
 import { FinancialAssistanceChecklist } from '../forms/checklists/FinancialAssistanceChecklist';
+import { LPCChecklist } from '../forms/checklists/LPCChecklist';
+import { LastPayCertificate } from '../forms/regular-pension/LastPayCertificate';
+import { LastPayCertificateReverse } from '../forms/regular-pension/LastPayCertificateReverse';
 
 // New Official Applications
 import { RBDCOfficialForm } from '../forms/official/RBDCOfficialForm';
@@ -139,6 +151,7 @@ export const CaseDetail: React.FC = () => {
   const employee = caseRec ? employees.find(e => e.id === caseRec.employee_id) : null;
 
   const pensionEligibility = employee ? getPensionEligibility(employee) : null;
+  const { signatureTitle } = employee ? getCoverLetterInfo(employee) : { signatureTitle: '' };
 
   const isRetirement = caseRec?.case_type === 'retirement';
   const isGPF = caseRec?.case_type?.startsWith('gpf');
@@ -147,6 +160,32 @@ export const CaseDetail: React.FC = () => {
   const isDeceased = isDeceasedStatus(employee?.employees?.status);
   const isDeceasedPension = isPension && isDeceased;
   const isRegularPension = isPension && !isDeceased;
+  const isFullPension = caseRec?.case_type === 'full_pension';
+  const isRetirementRelated = isRetirement || isRegularPension || isFullPension || (caseRec?.case_type === 'lpc');
+
+  const retiringDetails = useMemo(() => {
+    if (!employee) return null;
+    const dor = caseRec?.extras?.lpc_paid_up_to || employee.service_history?.date_of_retirement;
+    const manual = caseRec?.extras?.retiring_year_increment;
+    return getRetiringIncrementDetails(
+      employee.employees?.bps,
+      dor,
+      typeof manual === 'number' ? manual : undefined
+    );
+  }, [employee, caseRec?.extras?.lpc_paid_up_to, caseRec?.extras?.retiring_year_increment]);
+
+  const gpfDefaults = useMemo(() => {
+    return employee ? getGpfRefundableDefaults(employee, caseRec?.extras) : null;
+  }, [employee, caseRec?.extras]);
+
+  const displayMonthlyDeduction = useMemo(() => {
+    const inst = Number(caseRec?.extras?.installments) || 36;
+    const balance = Number(caseRec?.extras?.current_balance) || 0;
+    const req = (caseRec?.extras?.amount_requested !== undefined && caseRec?.extras?.amount_requested !== '' && Number(caseRec?.extras?.amount_requested) > 0)
+      ? Number(caseRec?.extras?.amount_requested)
+      : (balance > 0 ? Math.floor(balance * 0.8) : 0);
+    return (req > 0 && inst > 0) ? Math.ceil(req / inst) : (Number(caseRec?.extras?.monthly_deduction) || 0);
+  }, [caseRec?.extras?.amount_requested, caseRec?.extras?.current_balance, caseRec?.extras?.installments, caseRec?.extras?.monthly_deduction]);
 
   // --- Auto-scroll to top-left when expanded ---
   useEffect(() => {
@@ -329,6 +368,9 @@ export const CaseDetail: React.FC = () => {
       case 'lpr':
         officialList = getLPRChecklist();
         break;
+      case 'lpc':
+        officialList = getLPCChecklist();
+        break;
       case 'financial_assistance':
         officialList = getFinancialAssistanceChecklist(isDeceased);
         break;
@@ -390,6 +432,58 @@ export const CaseDetail: React.FC = () => {
        }
     }
   }, [caseRec?.id, employee?.id]); 
+
+  // --- Auto-fill GPF Refundable Defaults ---
+  useEffect(() => {
+    if (!caseRec || !employee) return;
+    if (caseRec.case_type !== 'gpf_refundable') return;
+
+    const defaults = getGpfRefundableDefaults(employee, caseRec.extras);
+    const extras = caseRec.extras || {};
+
+    const needsUpdate =
+      (!extras.gpf_account_no && defaults.gpf_account_no) ||
+      ((extras.basic_pay === undefined || extras.basic_pay === '' || Number(extras.basic_pay) <= 0) && defaults.basic_pay > 0) ||
+      ((extras.net_pay === undefined || extras.net_pay === '' || Number(extras.net_pay) <= 0) && defaults.net_pay > 0) ||
+      (!extras.installments && defaults.installments > 0) ||
+      ((extras.current_balance === undefined || extras.current_balance === '' || Number(extras.current_balance) <= 0) && defaults.current_balance > 0) ||
+      ((extras.amount_requested === undefined || extras.amount_requested === '' || Number(extras.amount_requested) <= 0) && defaults.amount_requested > 0) ||
+      (!extras.monthly_deduction && defaults.monthly_deduction > 0);
+
+    if (needsUpdate) {
+      setTimeout(() => {
+        onUpdateCase({
+          ...caseRec,
+          extras: {
+            ...extras,
+            gpf_account_no: extras.gpf_account_no || defaults.gpf_account_no,
+            basic_pay: (extras.basic_pay !== undefined && extras.basic_pay !== '' && Number(extras.basic_pay) > 0) ? extras.basic_pay : defaults.basic_pay,
+            net_pay: (extras.net_pay !== undefined && extras.net_pay !== '' && Number(extras.net_pay) > 0) ? extras.net_pay : defaults.net_pay,
+            installments: extras.installments || defaults.installments,
+            current_balance: (extras.current_balance !== undefined && extras.current_balance !== '' && Number(extras.current_balance) > 0) ? extras.current_balance : defaults.current_balance,
+            amount_requested: (extras.amount_requested !== undefined && extras.amount_requested !== '' && Number(extras.amount_requested) > 0) ? extras.amount_requested : defaults.amount_requested,
+            monthly_deduction: extras.monthly_deduction || defaults.monthly_deduction,
+            monthly_recovery: extras.monthly_recovery || defaults.monthly_recovery,
+          },
+          updatedAt: new Date().toISOString(),
+        });
+      }, 0);
+    }
+  }, [
+    caseRec?.id,
+    caseRec?.case_type,
+    caseRec?.extras?.current_balance,
+    caseRec?.extras?.amount_requested,
+    caseRec?.extras?.basic_pay,
+    caseRec?.extras?.net_pay,
+    caseRec?.extras?.installments,
+    caseRec?.extras?.gpf_account_no,
+    employee?.id,
+    employee?.financials?.basic_pay,
+    employee?.financials?.net_pay,
+    employee?.financials?.gpf_account_no,
+    employee?.employees?.gpf_account_no,
+  ]);
 
   if (!caseRec || !employee) {
     return (
@@ -531,11 +625,90 @@ export const CaseDetail: React.FC = () => {
     if (scanInputRef.current) scanInputRef.current.value = '';
   };
 
-  const updateExtra = (key: string, val: any) => {
+  const updateExtra = (key: string, val: unknown) => {
+    if (!caseRec) return;
     onUpdateCase({
       ...caseRec,
       extras: { ...caseRec.extras, [key]: val },
       updatedAt: new Date().toISOString()
+    });
+  };
+
+  const updateExtras = (updates: Record<string, unknown>) => {
+    if (!caseRec) return;
+    onUpdateCase({
+      ...caseRec,
+      extras: { ...caseRec.extras, ...updates },
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const handleGpfAccountNoChange = (accNo: string) => {
+    updateExtra('gpf_account_no', accNo);
+    if (employee && onUpdateEmployee) {
+      onUpdateEmployee({
+        ...employee,
+        employees: {
+          ...employee.employees,
+          gpf_account_no: accNo,
+        },
+        financials: {
+          ...employee.financials,
+          gpf_account_no: accNo,
+        },
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  };
+
+  const handleGpfCurrentBalanceChange = (balanceVal: number) => {
+    if (!caseRec || !employee) return;
+    const balance = isNaN(balanceVal) ? 0 : balanceVal;
+    const installments = Number(caseRec.extras?.installments) || 36;
+    const calc = calculateGpfRefundable(balance, installments);
+    const defaults = getGpfRefundableDefaults(employee, caseRec.extras);
+
+    updateExtras({
+      current_balance: balance,
+      amount_requested: calc.amountRequested,
+      installments: calc.installments,
+      monthly_deduction: calc.monthlyDeduction,
+      monthly_recovery: calc.monthlyDeduction,
+      basic_pay: (caseRec.extras?.basic_pay && Number(caseRec.extras.basic_pay) > 0)
+        ? caseRec.extras.basic_pay
+        : (employee.financials.basic_pay || 0),
+      net_pay: (caseRec.extras?.net_pay && Number(caseRec.extras.net_pay) > 0)
+        ? caseRec.extras.net_pay
+        : defaults.net_pay,
+      gpf_account_no: caseRec.extras?.gpf_account_no || employee.employees.gpf_account_no || '',
+    });
+  };
+
+  const handleGpfAmountRequestedChange = (amountVal: number) => {
+    if (!caseRec) return;
+    const requested = isNaN(amountVal) ? 0 : amountVal;
+    const balance = Number(caseRec.extras?.current_balance) || 0;
+    const installments = Number(caseRec.extras?.installments) || 36;
+    const calc = calculateGpfRefundable(balance, installments, requested);
+
+    updateExtras({
+      amount_requested: requested,
+      monthly_deduction: calc.monthlyDeduction,
+      monthly_recovery: calc.monthlyDeduction,
+    });
+  };
+
+  const handleGpfInstallmentsChange = (instVal: number) => {
+    if (!caseRec) return;
+    const installments = isNaN(instVal) ? 36 : instVal;
+    const balance = Number(caseRec.extras?.current_balance) || 0;
+    const requested = Number(caseRec.extras?.amount_requested) || (balance > 0 ? Math.floor(balance * 0.8) : 0);
+    const calc = calculateGpfRefundable(balance, installments, requested);
+
+    updateExtras({
+      installments,
+      monthly_deduction: calc.monthlyDeduction,
+      monthly_recovery: calc.monthlyDeduction,
     });
   };
 
@@ -854,7 +1027,7 @@ export const CaseDetail: React.FC = () => {
      }
      
      if (caseRec.case_type === 'gpf_final') {
-        documentsList.push({ id: 'form10', title: 'Form-10 (Final Payment)', route: 'gpf-final-payment', Component: <div className="p-8 text-center border-2 border-dashed">Form-10 Coming Soon</div> });
+        documentsList.push({ id: 'form10', title: 'Form-10 (Final Payment)', route: 'gpf-final-payment', Component: <GPFFinalPaymentForm10 employeeRecord={employee} caseRecord={caseRec} /> });
         
         documentsList.push({
            id: 'gpf_payf06',
@@ -938,6 +1111,13 @@ export const CaseDetail: React.FC = () => {
        { id: 'pay_form', title: 'Pay Form (LPR)', route: 'lpr-pay-form', Component: <LPRPayForm employee={employee} caseRecord={caseRec} /> },
        { id: 'packet', title: 'Complete Packet (A4)', route: 'lpr-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full set including Checklist, Cover Letter, Certificates, and Pay Form</div> }
      );
+  } else if (caseRec.case_type === 'lpc') {
+     documentsList.push(
+       { id: 'lpc_checklist', title: '1. Checklist (LPC)', route: 'checklist-lpc', Component: <LPCChecklist employee={employee} caseRecord={caseRec} /> },
+       { id: 'lpc_cert', title: '2. Last Pay Certificate (LPC)', route: 'last-pay-certificate', Component: <LastPayCertificate employee={employee} caseRecord={caseRec} /> },
+       { id: 'lpc_reverse', title: '3. LPC Reverse (Recoveries)', route: 'last-pay-certificate-reverse', Component: <LastPayCertificateReverse employee={employee} caseRecord={caseRec} /> },
+       { id: 'packet', title: 'Complete Packet (A4)', route: 'lpc-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full set including Checklist, LPC, and LPC Reverse</div> }
+     );
   } else if (caseRec.case_type === 'financial_assistance') {
     documentsList.push(
       { id: 'checklist', title: 'Checklist (Financial Assistance)', route: 'checklist-financial-assistance', Component: <FinancialAssistanceChecklist employee={employee} caseRecord={caseRec} /> },
@@ -964,6 +1144,8 @@ export const CaseDetail: React.FC = () => {
          { id: 'rp_checklist', title: 'Checklist (Pension)', route: 'retirement-checklist', Component: <RetirementChecklist employee={employee} caseRecord={caseRec} /> },
          { id: 'rp_title', title: 'Pension Title Page', route: 'regular-pension-packet', Component: <RegularTitlePage employee={employee} /> },
          { id: 'rp_cover', title: 'Pension Forwarding Letter', route: 'regular-pension-packet', Component: <RegularCoverLetter employee={employee} caseRecord={caseRec} /> },
+         { id: 'rp_calc_sheet', title: 'Pension Calculation & Commutation Sheet', route: 'pension-calculation-sheet', Component: <PensionCalculationSheet employee={employee} caseRecord={caseRec} /> },
+         { id: 'rp_service_cert', title: 'Qualifying Service Certificate', route: 'service-verification-certificate', Component: <ServiceVerificationCertificate employee={employee} caseRecord={caseRec} /> },
          { id: 'rp_packet', title: 'Pension Complete Packet (A4)', route: 'regular-pension-packet', Component: <div className="p-8 text-center font-bold text-lg text-gray-500">Full 13-page set</div> },
          { id: 'rp_aff2', title: 'Indemnity Bond [Legal]', route: 'family-pension-affidavit-2', size: 'legal', Component: <Affidavit2 employee={employee} /> },
          { id: 'rp_aff3', title: 'Affidavit: Non-Availment [Legal]', route: 'family-pension-affidavit-3', size: 'legal', Component: <Affidavit3 employee={employee} /> }
@@ -972,7 +1154,7 @@ export const CaseDetail: React.FC = () => {
 
      // 2. GPF Final
      documentsList.push(
-       { id: 'gpf_f_1', title: 'GPF Final Payment (Form-10)', route: 'gpf-final-payment', Component: <div className="p-8 text-center border-2 border-dashed">Form-10 Coming Soon</div> },
+       { id: 'gpf_f_1', title: 'GPF Final Payment (Form-10)', route: 'gpf-final-payment', Component: <GPFFinalPaymentForm10 employeeRecord={employee} caseRecord={caseRec} /> },
        { id: 'gpf_f_2', title: 'GPF PAYF06 Form (Landscape)', route: 'gpf-payf06', orientation: 'landscape', Component: <PAYF06PermanentLoan employeeRecord={employee} caseRecord={caseRec} /> },
        { id: 'gpf_f_3', title: 'GPF GCVP Proforma (Landscape)', route: 'gpf-gcvp', orientation: 'landscape', Component: <GPFClaimVerificationProforma employeeRecord={employee} caseRecord={caseRec} /> }
      );
@@ -1110,6 +1292,112 @@ export const CaseDetail: React.FC = () => {
                            </div>
                         </div>
                       )}
+
+                      {/* LPC Specific Logic */}
+                      {caseRec.case_type === 'lpc' && (
+                        <div className="pt-4 border-t border-dashed border-outline-variant mt-2 space-y-4">
+                           <TextField 
+                             label="Reason / Purpose of LPC" 
+                             value={caseRec.extras?.lpc_reason || ''} 
+                             onChange={e => updateExtra('lpc_reason', e.target.value)} 
+                             placeholder="e.g. Transfer, Retirement, Death"
+                           />
+                           <TextField 
+                             label="Paid Up To Date" 
+                             type="date"
+                             value={caseRec.extras?.lpc_paid_up_to || ''} 
+                             onChange={e => updateExtra('lpc_paid_up_to', e.target.value)} 
+                           />
+                           <div className="grid grid-cols-2 gap-2">
+                             <TextField 
+                               label="Handed Over Date" 
+                               type="date"
+                               value={caseRec.extras?.lpc_handed_over_date || ''} 
+                               onChange={e => updateExtra('lpc_handed_over_date', e.target.value)} 
+                             />
+                             <div className="flex flex-col justify-center">
+                               <label className="text-xs text-on-surface-variant font-medium mb-1">Time</label>
+                               <div className="flex gap-2">
+                                 <label className="flex items-center gap-1 text-xs">
+                                   <input 
+                                     type="radio" 
+                                     name="lpc_time" 
+                                     checked={caseRec.extras?.lpc_handed_over_time !== 'Fore'} 
+                                     onChange={() => updateExtra('lpc_handed_over_time', 'After')} 
+                                   /> Afternoon
+                                 </label>
+                                 <label className="flex items-center gap-1 text-xs">
+                                   <input 
+                                     type="radio" 
+                                     name="lpc_time" 
+                                     checked={caseRec.extras?.lpc_handed_over_time === 'Fore'} 
+                                     onChange={() => updateExtra('lpc_handed_over_time', 'Fore')} 
+                                   /> Forenoon
+                                 </label>
+                               </div>
+                             </div>
+                           </div>
+                           <TextField 
+                             label="Joining Time Allowed (Days)" 
+                             type="number"
+                             value={caseRec.extras?.lpc_joining_time_days || ''} 
+                             onChange={e => updateExtra('lpc_joining_time_days', e.target.value)} 
+                           />
+                           <TextField 
+                             label="Left Signature Name Override" 
+                             value={caseRec.extras?.lpc_left_signature_name || ''} 
+                             onChange={e => updateExtra('lpc_left_signature_name', e.target.value)} 
+                             placeholder={employee.employees.name}
+                           />
+                           <TextField 
+                             label="Right Signature Title Override" 
+                             value={caseRec.extras?.lpc_right_signature_title || ''} 
+                             onChange={e => updateExtra('lpc_right_signature_title', e.target.value)} 
+                             placeholder={signatureTitle}
+                           />
+                        </div>
+                      )}
+
+                      {/* Retiring / Premature Increment Section */}
+                      {isRetirementRelated && retiringDetails && (
+                        <div className="pt-4 border-t border-dashed border-outline-variant mt-2 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-primary uppercase">Premature / Retiring Increment</label>
+                            <Badge 
+                              variant={retiringDetails.eligible ? 'success' : 'neutral'}
+                              className="text-[10px]"
+                            >
+                              {retiringDetails.eligible ? `Eligible (Rs. ${retiringDetails.amount.toLocaleString()})` : 'Not Eligible'}
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-on-surface-variant leading-tight">
+                            {retiringDetails.reason}
+                          </p>
+                          <div className="space-y-2">
+                            <TextField 
+                              label="Retiring Increment Amount (Rs.)"
+                              type="number"
+                              value={caseRec.extras?.retiring_year_increment !== undefined ? caseRec.extras.retiring_year_increment : (retiringDetails.eligible ? retiringDetails.amount : '')}
+                              onChange={e => updateExtra('retiring_year_increment', e.target.value === '' ? undefined : Number(e.target.value))}
+                              placeholder={retiringDetails.eligible ? String(retiringDetails.amount) : '0'}
+                            />
+                            <p className="text-[10px] text-on-surface-variant">
+                              Granted for retirement between 1st June & 30th Nov. Edit to override.
+                            </p>
+                            {caseRec.case_type === 'lpc' && (
+                              <label className="flex items-center gap-2 text-xs cursor-pointer mt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(caseRec.extras?.include_retiring_increment_in_lpc_allowances)}
+                                  onChange={e => updateExtra('include_retiring_increment_in_lpc_allowances', e.target.checked)}
+                                  className="rounded text-primary focus:ring-0"
+                                />
+                                <span>Include in LPC Allowances Table</span>
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                 </Card>
                 
@@ -1120,25 +1408,56 @@ export const CaseDetail: React.FC = () => {
                      <div className="space-y-4">
                         <TextField 
                            label="GPF Account No" 
-                           value={caseRec.extras?.gpf_account_no || employee.employees.gpf_account_no || ''} 
-                           onChange={e => updateExtra('gpf_account_no', e.target.value)} 
+                           value={caseRec.extras?.gpf_account_no || employee.financials?.gpf_account_no || employee.employees.gpf_account_no || ''} 
+                           onChange={e => handleGpfAccountNoChange(e.target.value)} 
                         />
                         <div className="grid grid-cols-2 gap-4">
-                           <TextField label="Current Balance" type="number" value={caseRec.extras?.current_balance} onChange={e => updateExtra('current_balance', Number(e.target.value))} />
-                           <TextField label="Amount Requested" type="number" value={caseRec.extras?.amount_requested} onChange={e => updateExtra('amount_requested', Number(e.target.value))} />
+                           <TextField 
+                             label="Current Balance" 
+                             type="number" 
+                             value={caseRec.extras?.current_balance ?? (gpfDefaults?.current_balance || '')} 
+                             onChange={e => handleGpfCurrentBalanceChange(Number(e.target.value))} 
+                           />
+                           <TextField 
+                             label="Amount Requested" 
+                             type="number" 
+                             value={caseRec.extras?.amount_requested ?? (gpfDefaults?.amount_requested || '')} 
+                             onChange={e => handleGpfAmountRequestedChange(Number(e.target.value))} 
+                           />
                         </div>
                         
                         <TextField label="Purpose of Advance" value={caseRec.extras?.purpose} onChange={e => updateExtra('purpose', e.target.value)} placeholder="e.g. House Repair, Marriage" />
                         
                         <div className="grid grid-cols-2 gap-4">
-                           <TextField label="Basic Pay Override" type="number" value={caseRec.extras?.basic_pay} onChange={e => updateExtra('basic_pay', Number(e.target.value))} placeholder={String(employee.financials.basic_pay)} />
-                           <TextField label="Net Pay" type="number" value={caseRec.extras?.net_pay} onChange={e => updateExtra('net_pay', Number(e.target.value))} />
+                           <TextField 
+                             label="Basic Pay" 
+                             type="number" 
+                             value={caseRec.extras?.basic_pay !== undefined && caseRec.extras?.basic_pay !== '' ? caseRec.extras.basic_pay : (employee.financials.basic_pay || 0)} 
+                             onChange={e => updateExtra('basic_pay', isNaN(Number(e.target.value)) ? 0 : Number(e.target.value))} 
+                             placeholder={String(employee.financials.basic_pay || 0)} 
+                           />
+                           <TextField 
+                             label="Net Pay" 
+                             type="number" 
+                             value={caseRec.extras?.net_pay !== undefined && caseRec.extras?.net_pay !== '' ? caseRec.extras.net_pay : (gpfDefaults?.net_pay || 0)} 
+                             onChange={e => updateExtra('net_pay', isNaN(Number(e.target.value)) ? 0 : Number(e.target.value))} 
+                             placeholder={String(gpfDefaults?.net_pay || 0)} 
+                           />
                         </div>
 
                         {caseRec.case_type === 'gpf_refundable' && (
                            <div className="grid grid-cols-2 gap-4">
-                              <TextField label="Installments (12-36)" type="number" value={caseRec.extras?.installments} onChange={e => updateExtra('installments', Number(e.target.value))} />
-                              <TextField label="Monthly Deduction" value={caseRec.extras?.amount_requested ? Math.ceil(Number(caseRec.extras.amount_requested) / (Number(caseRec.extras.installments) || 24)) : 0} disabled />
+                              <TextField 
+                                label="Installments (12-36)" 
+                                type="number" 
+                                value={caseRec.extras?.installments ?? 36} 
+                                onChange={e => handleGpfInstallmentsChange(Number(e.target.value))} 
+                              />
+                              <TextField 
+                                label="Monthly Deduction" 
+                                value={displayMonthlyDeduction} 
+                                disabled 
+                              />
                            </div>
                         )}
                         
@@ -1455,16 +1774,23 @@ export const CaseDetail: React.FC = () => {
                    </Card>
                  )}
                  {isPayroll && (
-                   <Card variant="elevated" className="bg-green-50 border border-green-200">
-                      <h3 className="font-bold text-lg text-green-800 mb-2">Payroll Amendment Case</h3>
-                      <p className="text-sm text-green-600 mb-4">Source I, II, and III forms are available for generating and printing.</p>
-                      <Button variant="filled" label="Go to Documents" icon="description" onClick={() => setActiveTab('documents')} className="bg-green-700 text-white" />
-                   </Card>
-                 )}
-                 
-                 {/* Fallback for other case types */}
-                 {!isRetirement && !isGPF && !isDeceasedPension && !isRegularPension && (
-                    <Card variant="elevated" className="bg-secondary-container text-on-secondary-container">
+                    <Card variant="elevated" className="bg-green-50 border border-green-200">
+                       <h3 className="font-bold text-lg text-green-800 mb-2">Payroll Amendment Case</h3>
+                       <p className="text-sm text-green-600 mb-4">Source I, II, and III forms are available for generating and printing.</p>
+                       <Button variant="filled" label="Go to Documents" icon="description" onClick={() => setActiveTab('documents')} className="bg-green-700 text-white" />
+                    </Card>
+                  )}
+                  {caseRec.case_type === 'lpc' && (
+                    <Card variant="elevated" className="bg-amber-50 border border-amber-200">
+                       <h3 className="font-bold text-lg text-amber-800 mb-2">Last Pay Certificate (LPC)</h3>
+                       <p className="text-sm text-amber-600 mb-4">LPC Front Page and LPC Reverse Page are ready for review and printing.</p>
+                       <Button variant="filled" label="Go to Documents" icon="description" onClick={() => setActiveTab('documents')} className="bg-amber-700 text-white" />
+                    </Card>
+                  )}
+                  
+                  {/* Fallback for other case types */}
+                  {!isRetirement && !isGPF && !isDeceasedPension && !isRegularPension && caseRec.case_type !== 'lpc' && (
+                     <Card variant="elevated" className="bg-secondary-container text-on-secondary-container">
                        <h3 className="font-bold text-lg mb-2">Next Steps</h3>
                        <p className="text-sm mb-4">Review the checklist and print the application form to proceed.</p>
                        <Button variant="filled" label="View Documents" icon="description" onClick={() => setActiveTab('documents')} className="bg-on-secondary-container text-secondary-container" />

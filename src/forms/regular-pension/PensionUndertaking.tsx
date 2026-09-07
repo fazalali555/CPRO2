@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { EmployeeRecord } from '../../types';
+import { EmployeeRecord, CaseRecord } from '../../types';
 import { format, parseISO } from 'date-fns';
 import { getHeadOfInstitutionTitle } from '../../utils';
 
 interface Props {
   employee: EmployeeRecord;
+  caseRecord?: CaseRecord;
 }
 
 const formatDate = (dateStr?: string) => {
@@ -13,7 +14,7 @@ const formatDate = (dateStr?: string) => {
   try { return format(parseISO(dateStr), 'dd-MM-yyyy'); } catch { return dateStr; }
 };
 
-export const PensionUndertaking: React.FC<Props> = ({ employee }) => {
+export const PensionUndertaking: React.FC<Props> = ({ employee, caseRecord }) => {
   const { service_history, employees } = employee;
   const dor = formatDate(service_history.date_of_retirement);
   
@@ -29,7 +30,7 @@ export const PensionUndertaking: React.FC<Props> = ({ employee }) => {
     ? headTitle 
     : `${headTitle}\n${schoolName}`;
 
-  const rawCommutation = (employee as any).extras?.commutation_portion;
+  const rawCommutation = caseRecord?.extras?.commutation_portion;
   let commutationPercent = typeof rawCommutation === 'number' && isFinite(rawCommutation) ? rawCommutation : 35;
   commutationPercent = Math.max(0, Math.min(35, Number(commutationPercent)));
   const commutationText = `${commutationPercent}%`;

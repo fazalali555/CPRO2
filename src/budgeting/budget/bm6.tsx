@@ -146,7 +146,7 @@ export const PayAllowancesStatement: React.FC<PayAllowancesStatementProps> = ({
         f.spl_allow || f.uaa || f.science_teaching_allow || f.teaching_allow || f.charge_allow || 
         f.computer_allow || f.mphil_allow || f.entertainment_allow || f.spl_allow_female || 
         f.spl_allow_disable || f.adhoc_2013 || f.adhoc_2015 || f.adhoc_10pct || f.adhoc_2022 || 
-        f.adhoc_2022_ps17 || f.adhoc_2023_35 || f.adhoc_2024_25 || f.adhoc_2025_10 || f.dra_2022kp || f.dra_2025_15;
+        f.adhoc_2022_ps17 || f.adhoc_2023_35 || f.adhoc_2024_25 || f.adhoc_2025_10 || f.adhoc_2026 || f.dra_2022kp || f.dra_2025_15;
       const hasAnyExtra = f.allowances_extra && Object.values(f.allowances_extra).some(v => Number(v) > 0);
       
       const statusRaw = emp.employees.status || '';
@@ -262,6 +262,7 @@ export const PayAllowancesStatement: React.FC<PayAllowancesStatementProps> = ({
           A0125P: f.adhoc_2025_10 || 0,
           A0124N: f.dra_2022kp || 0,
           A0125Q: f.dra_2025_15 || 0,
+          A0126A: f.adhoc_2026 || 0,
           A0124L: weatherOneTime,
           A01253: f.science_teaching_allow || 0,
           A01289: f.teaching_allow || 0,

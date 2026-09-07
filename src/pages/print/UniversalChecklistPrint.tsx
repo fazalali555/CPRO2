@@ -14,11 +14,12 @@ import { EEFChecklist } from '../../forms/checklists/EEFChecklist';
 import { LPRChecklist } from '../../forms/checklists/LPRChecklist';
 import { FinancialAssistanceChecklist } from '../../forms/checklists/FinancialAssistanceChecklist';
 import { GPFChecklist } from '../../forms/gpf/GPFChecklist';
+import { LPCChecklist } from '../../forms/checklists/LPCChecklist';
 
 interface Props {
   employees: EmployeeRecord[];
   cases: CaseRecord[];
-  type?: 'retirement' | 'family-pension' | 'rbdc' | 'bf' | 'eef' | 'lpr' | 'financial-assistance' | 'gpf';
+  type?: 'retirement' | 'family-pension' | 'rbdc' | 'bf' | 'eef' | 'lpr' | 'financial-assistance' | 'gpf' | 'lpc';
 }
 
 export const UniversalChecklistPrint: React.FC<Props> = ({ employees, cases, type: propType }) => {
@@ -42,6 +43,8 @@ export const UniversalChecklistPrint: React.FC<Props> = ({ employees, cases, typ
         return { title: 'EEF Checklist', Component: EEFChecklist };
       case 'lpr':
         return { title: 'LPR Checklist', Component: LPRChecklist };
+      case 'lpc':
+        return { title: 'LPC Checklist', Component: LPCChecklist };
       case 'financial-assistance':
         return { title: 'Financial Assistance Checklist', Component: FinancialAssistanceChecklist };
       case 'gpf':

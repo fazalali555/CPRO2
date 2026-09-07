@@ -184,6 +184,104 @@ This transfer is in {{transfer_type}}.
     updatedAt: new Date().toISOString(),
   },
   {
+    id: 'tpl_gpf_sanction',
+    name: 'GPF Advance Sanction Order',
+    nameUrdu: 'جی پی فنڈ ایڈوانس منظوری آرڈر',
+    category: 'order',
+    description: 'Official sanction order for GP Fund advance / loan',
+    body: `Sanction of the Competent Authority is hereby accorded to the grant of Non-Refundable / Refundable GP Fund Advance of PKR {{amount}} (Rupees {{amount_words}}) in respect of {{employee_name}}, {{designation}}, Personal No. {{personal_no}}, GPF Account No. {{gpf_acc_no}}.
+
+The advance is granted for the purpose of {{purpose}} under the Revised GP Fund Rules.
+
+The advance will be recovered in {{installments}} equal monthly installments of PKR {{monthly_inst}} per month starting from {{start_month}}.`,
+    placeholders: [
+      { key: 'employee_name', label: 'Employee Name', type: 'text', required: true },
+      { key: 'designation', label: 'Designation', type: 'text', required: true },
+      { key: 'personal_no', label: 'Personal No', type: 'text', required: true },
+      { key: 'gpf_acc_no', label: 'GPF Account No', type: 'text', required: true },
+      { key: 'amount', label: 'Advance Amount (PKR)', type: 'number', required: true },
+      { key: 'amount_words', label: 'Amount in Words', type: 'text', required: true },
+      { key: 'purpose', label: 'Purpose', type: 'text', required: true, defaultValue: 'house construction / marriage' },
+      { key: 'installments', label: 'No. of Installments', type: 'number', required: true, defaultValue: '36' },
+      { key: 'monthly_inst', label: 'Monthly Recovery (PKR)', type: 'number', required: true },
+      { key: 'start_month', label: 'Recovery Start Month', type: 'text', required: true },
+    ],
+    defaultPrintSettings: DEFAULT_PRINT_SETTINGS,
+    isDefault: true,
+    isSystem: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'tpl_gpf_final_forwarding',
+    name: 'GPF Final Payment Case Forwarding to DAO',
+    nameUrdu: 'جی پی فنڈ فائنل ادائیگی کیس ضلع اکاؤنٹس آفیسر کو ارسال',
+    category: 'official',
+    description: 'Official forwarding letter for GP Fund Final Payment Form 10 to District Accounts Officer',
+    body: `I have the honor to forward herewith the GP Fund Final Payment Case papers (Form-10, PAYF06, and GCVP) in respect of {{employee_name}}, {{designation}}, Personal No. {{personal_no}}, GPF Account No. {{gpf_acc_no}}, who {{retire_status}} on {{event_date}}.
+
+Necessary Stoppage of GPF Deduction Certificate, Pay Slip, and Attested CNIC Copy are enclosed herewith for authorization and payment of the final balance standing to credit of the subscriber.
+
+Early authorization of GP Fund final payment is requested please.`,
+    placeholders: [
+      { key: 'employee_name', label: 'Employee Name', type: 'text', required: true },
+      { key: 'designation', label: 'Designation & BPS', type: 'text', required: true },
+      { key: 'personal_no', label: 'Personal No', type: 'text', required: true },
+      { key: 'gpf_acc_no', label: 'GPF Account No', type: 'text', required: true },
+      { key: 'retire_status', label: 'Status (Retired / Expired)', type: 'text', required: true, defaultValue: 'retired from government service' },
+      { key: 'event_date', label: 'Date of Retirement / Death', type: 'date', required: true },
+    ],
+    defaultPrintSettings: DEFAULT_PRINT_SETTINGS,
+    isDefault: true,
+    isSystem: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'tpl_pension_forwarding',
+    name: 'Pension Packet Forwarding to AG KP',
+    nameUrdu: 'پینشن کیس اے جی کے پی کو ارسال',
+    category: 'official',
+    description: 'Official letter forwarding pension case papers to AG KP / DAO',
+    body: `I am directed to forward herewith the complete Pension Case papers (in duplicate) along with Service Book in respect of {{employee_name}}, {{designation}}, Personal No. {{personal_no}}, who retired from government service on {{retire_date}} on attaining superannuation.
+
+Necessary Service Verification Certificate, LPC, No Demand Certificate, and Pension Form 1 are enclosed herewith for authorization of Pension & Commutation Payment Order (PPO).
+
+Early authorization of pensionary benefits is requested please.`,
+    placeholders: [
+      { key: 'employee_name', label: 'Retired Employee Name', type: 'text', required: true },
+      { key: 'designation', label: 'Designation & BPS', type: 'text', required: true },
+      { key: 'personal_no', label: 'Personal No', type: 'text', required: true },
+      { key: 'retire_date', label: 'Date of Retirement', type: 'date', required: true },
+    ],
+    defaultPrintSettings: DEFAULT_PRINT_SETTINGS,
+    isDefault: true,
+    isSystem: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'tpl_service_book_trans',
+    name: 'Service Book Transmission Letter',
+    nameUrdu: 'سروس بک ارسال کرنے کا خط',
+    category: 'official',
+    description: 'Letter for transmitting Service Book to DAO / New Office',
+    body: `The official Service Book Volume(s) in respect of {{employee_name}}, {{designation}}, Personal No. {{personal_no}}, is hereby transmitted herewith for {{purpose}}.
+
+Kindly acknowledge receipt of the Service Book.`,
+    placeholders: [
+      { key: 'employee_name', label: 'Employee Name', type: 'text', required: true },
+      { key: 'designation', label: 'Designation', type: 'text', required: true },
+      { key: 'personal_no', label: 'Personal No', type: 'text', required: true },
+      { key: 'purpose', label: 'Purpose of Transmission', type: 'text', required: true, defaultValue: 'service verification / pension audit' },
+    ],
+    defaultPrintSettings: DEFAULT_PRINT_SETTINGS,
+    isDefault: true,
+    isSystem: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
     id: 'tpl_leave_sanction',
     name: 'Leave Sanction Order',
     nameUrdu: 'چھٹی منظوری آرڈر',

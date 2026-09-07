@@ -42,10 +42,10 @@ export const GPFChecklist: React.FC<Props> = ({ employee, caseRecord }) => {
       
       <div className="text-center mb-6">
         <h1 className="text-xl font-bold uppercase tracking-wide border-b-2 border-black inline-block pb-1">
-          Checklist Documents Required for GPF Advance
+          {caseRecord.case_type === 'gpf_final' ? 'Checklist Documents Required for GPF Final Payment' : 'Checklist Documents Required for GPF Advance'}
         </h1>
         <div className="text-sm font-bold mt-1 uppercase text-gray-600">
-           ({caseRecord.case_type.replace('gpf_', '').replace('_', ' ')})
+           {caseRecord.case_type === 'gpf_final' ? '(FINAL PAYMENT)' : `(${caseRecord.case_type.replace('gpf_', '').replace('_', ' ')})`}
         </div>
       </div>
 
@@ -56,7 +56,7 @@ export const GPFChecklist: React.FC<Props> = ({ employee, caseRecord }) => {
         <InfoRow label="Designation (BPS)" value={`${employee.employees.designation} (BPS-${employee.employees.bps})`} />
         <InfoRow label="Date of 1st Appointment" value={doa} />
         <InfoRow label="Total Service" value={service.text} />
-        <InfoRow label="GPF Account No" value={employee.employees.gpf_account_no} />
+        <InfoRow label="GPF Account No" value={caseRecord?.extras?.gpf_account_no || employee.financials?.gpf_account_no || employee.employees.gpf_account_no} />
       </div>
 
       {/* Checklist Table */}
@@ -66,7 +66,7 @@ export const GPFChecklist: React.FC<Props> = ({ employee, caseRecord }) => {
             <tr className="text-center text-xs font-bold bg-gray-100 print:bg-transparent">
               <th className="border border-black p-2 w-[8%]">S/No</th>
               <th className="border border-black p-2 w-[42%] text-left">Required Documents</th>
-              <th className="border border-black p-2 w-[12%] leading-tight">Checked<br/>by<br/>Principal</th>
+              <th className="border border-black p-2 w-[12%] leading-tight">Checked<br/>by<br/>DDO / Head</th>
               <th className="border border-black p-2 w-[10%] leading-tight">Yes<br/>or<br/>No</th>
               <th className="border border-black p-2 w-[12%] leading-tight">Checked<br/>by<br/>Dealing</th>
               <th className="border border-black p-2 w-[10%] leading-tight">Yes<br/>or<br/>No</th>

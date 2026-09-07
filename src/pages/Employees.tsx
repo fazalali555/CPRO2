@@ -956,6 +956,7 @@ export const Employees: React.FC = () => {
       adhoc_2024_25: 0,
       adhoc_2025_10: 0,
       dra_2025_15: 0,
+      adhoc_2026: 0,
       other: 0,
       arrears: {},
       gpf: 0,
@@ -2373,6 +2374,8 @@ export const Employees: React.FC = () => {
                           onChange={(e) => updateDeep(['financials', 'adhoc_2025_10'], Number(e.target.value))} />
                         <TextField label="DRA 2025" type="number" value={formData.financials.dra_2025_15}
                           onChange={(e) => updateDeep(['financials', 'dra_2025_15'], Number(e.target.value))} />
+                        <TextField label="Adhoc 2026" type="number" value={formData.financials.adhoc_2026}
+                          onChange={(e) => updateDeep(['financials', 'adhoc_2026'], Number(e.target.value))} />
                       </div>
                     </div>
 

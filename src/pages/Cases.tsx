@@ -47,6 +47,7 @@ const typeLabels: Record<string, string> = {
   rbdc: 'RBDC',
   payroll: 'Payroll',
   full_pension: 'Full Pension Case',
+  lpc: 'Last Pay Certificate (LPC)',
   other: 'General'
 };
 

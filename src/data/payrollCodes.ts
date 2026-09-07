@@ -37,6 +37,7 @@ export const PAY_ALLOWANCE_CODES = [
   { code: '2394', db_short: 'adhoc_2024_25_alt', label: 'Adhoc Relief 2024 (Alt)', object_code_low: 'A0125E' },
   { code: '2419', db_short: 'adhoc_2025_10', label: 'Adhoc Relief 2025 (10%)', object_code_low: 'A0125P' },
   { code: '2431', db_short: 'dra_2025_15', label: 'Dispar. Red. All-15%-2025', object_code_low: 'A0125Q' },
+  { code: '2450', db_short: 'adhoc_2026', label: 'Adhoc Relief 2026 (7%)', object_code_low: 'A0126A' },
 ];
 
 export const DEDUCTION_CODES = [

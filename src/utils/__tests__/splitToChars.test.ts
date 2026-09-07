@@ -17,5 +17,8 @@ describe('splitToChars', () => {
   it('pads left when padLeft option is provided', () => {
     expect(splitToChars('15', 2, { padLeft: '0' })).toEqual(['1', '5']);
     expect(splitToChars('7', 2, { padLeft: '0' })).toEqual(['0', '7']);
+    expect(splitToChars('3244040', 8, { padLeft: '0' })).toEqual(['0', '3', '2', '4', '4', '0', '4', '0']);
+    expect(splitToChars('03244040', 8, { padLeft: '0' })).toEqual(['0', '3', '2', '4', '4', '0', '4', '0']);
+    expect(splitToChars('', 8, { padLeft: '0' })).toEqual(['', '', '', '', '', '', '', '']);
   });
 });

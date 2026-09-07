@@ -191,7 +191,7 @@ export const PayrollAmendmentMultiForm: React.FC<Props> = ({
           </thead>
           <tbody>
             {rows.map((entry, i) => {
-              const personnelChars = splitToChars(entry.personnel_no, 8);
+              const personnelChars = splitToChars(entry.personnel_no, 8, { padLeft: '0' });
               const amount = entry.deduction_amount || 0;
               const rupees = Math.floor(amount);
               const paisa = Math.round((amount - rupees) * 100);

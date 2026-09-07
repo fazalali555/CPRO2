@@ -480,7 +480,7 @@ export const splitToChars = (
   if (onlyDigits) {
     str = str.replace(/\D/g, '');
   }
-  if (resolved?.padLeft) {
+  if (resolved?.padLeft && str.length > 0) {
     str = str.padStart(count, resolved.padLeft);
   }
 

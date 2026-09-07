@@ -130,7 +130,7 @@ export const Form1: React.FC<Props> = ({ employeeRecord }) => {
 
           {/* 09: Computer Number (Personal No) */}
           <div className="absolute top-[8.2mm] left-[104.5mm]">
-             <BoxGrid values={splitToChars(emp?.personal_no || '', 8)} count={8} />
+             <BoxGrid values={splitToChars(emp?.personal_no || '', 8, { padLeft: '0' })} count={8} />
           </div>
 
           {/* 10: NIC */}

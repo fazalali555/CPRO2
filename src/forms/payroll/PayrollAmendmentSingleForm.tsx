@@ -222,9 +222,9 @@ export const PayrollAmendmentSingleForm: React.FC<Props> = ({
                <span className="font-bold block text-[10px]">Personnel</span>
                <span className="font-bold block text-[10px] mt-[1px]">Number <Sup num="7"/></span>
            </div>
-           <div className="mr-4 pb-[1px]">
-              <CombInput values={splitToChars(personnelNo, 8)} count={8} />
-           </div>
+            <div className="mr-4 pb-[1px]">
+               <CombInput values={splitToChars(personnelNo, 8, { padLeft: '0' })} count={8} />
+            </div>
 
            {/* Name */}
            <div className="flex items-end flex-grow mr-4">

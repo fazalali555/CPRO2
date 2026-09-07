@@ -1858,18 +1858,27 @@ export function getDepartmentInfo(
     : baseDesig;
 
   // ------------------------------------------------------------------
-  // Extract location from institutionName if no tehsil/district provided
-  // e.g. "SDEO (F) ALLAI" → extra = "ALLAI"
+  // Extract location from institutionName or officeName if no tehsil provided
+  // e.g. "OFFICE OF THE SUB DIVISIONAL EDUCATION OFFICER (MALE) ALLAI" → "Allai"
+  // e.g. "SDEO (F) ALLAI" → "Allai"
   // ------------------------------------------------------------------
   let extractedLocation = '';
-  if (!districtClean && !tehsilClean && institutionName && config) {
-    let rem = institutionName.toUpperCase().replace(/\s*\([^)]*\)\s*/g, ' '); // strip all (...)
+  const textToExtract = officeNameClean || institutionName;
+  if (!tehsilClean && textToExtract && config) {
+    let rem = textToExtract.toUpperCase().replace(/\s*\([^)]*\)\s*/g, ' '); // strip all (...)
     for (const kw of config.keywords) {
       rem = rem.replace(new RegExp(`\\b${escapeRegExp(kw.toUpperCase())}\\b`, 'g'), ' ');
     }
-    const noise = ['MALE', 'FEMALE', 'BOYS', 'GIRLS', 'OFFICE', 'SUB', 'DIVISIONAL', 'EDUCATION', 'DISTRICT'];
+    const noise = [
+      'MALE', 'FEMALE', 'BOYS', 'GIRLS', 'OFFICE', 'OF', 'THE',
+      'SUB', 'DIVISIONAL', 'EDUCATION', 'DISTRICT', 'DEPARTMENT',
+      'GOVT', 'GOVERNMENT', 'E&SE', 'ESE'
+    ];
     for (const n of noise) {
       rem = rem.replace(new RegExp(`\\b${escapeRegExp(n)}\\b`, 'g'), ' ');
+    }
+    if (districtClean) {
+      rem = rem.replace(new RegExp(`\\b${escapeRegExp(districtClean.toUpperCase())}\\b`, 'g'), ' ');
     }
     const extra = rem.replace(/\s+/g, ' ').trim();
     if (extra && extra.length > 1 && /[A-Z]/.test(extra)) {
@@ -1877,9 +1886,15 @@ export function getDepartmentInfo(
     }
   }
 
-  const locationLabel = extractedLocation
-    ? extractedLocation.charAt(0) + extractedLocation.slice(1).toLowerCase()
-    : '';
+  const formatLocation = (loc: string) =>
+    loc
+      .trim()
+      .split(/\s+/)
+      .map((w) => (w.length > 1 ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w.toUpperCase()))
+      .join(' ');
+
+  const locationLabel = extractedLocation ? formatLocation(extractedLocation) : '';
+  const effectiveTehsil = tehsilClean ? formatLocation(tehsilClean) : locationLabel;
 
   // ------------------------------------------------------------------
   // Build final/header designation
@@ -1890,12 +1905,15 @@ export function getDepartmentInfo(
   if (config?.addDistrictSuffix && districtClean) {
     finalDesignation  = `${desigWithGender} ${districtClean}`;
     headerDesignation = `${desigWithGender.toUpperCase()} ${districtClean.toUpperCase()}`;
-  } else if (config?.addTehsilSuffix && tehsilClean) {
-    finalDesignation  = `${desigWithGender} ${tehsilClean}`;
-    headerDesignation = `${desigWithGender.toUpperCase()} ${tehsilClean.toUpperCase()}`;
-  } else if (locationLabel) {
-    finalDesignation  = `${desigWithGender} ${locationLabel}`;
-    headerDesignation = `${desigWithGender.toUpperCase()} ${locationLabel.toUpperCase()}`;
+  } else if (config?.addTehsilSuffix && effectiveTehsil) {
+    finalDesignation  = `${desigWithGender} ${effectiveTehsil}`;
+    headerDesignation = `${desigWithGender.toUpperCase()} ${effectiveTehsil.toUpperCase()}`;
+  } else if (effectiveTehsil) {
+    finalDesignation  = `${desigWithGender} ${effectiveTehsil}`;
+    headerDesignation = `${desigWithGender.toUpperCase()} ${effectiveTehsil.toUpperCase()}`;
+  } else if (districtClean) {
+    finalDesignation  = `${desigWithGender} ${districtClean}`;
+    headerDesignation = `${desigWithGender.toUpperCase()} ${districtClean.toUpperCase()}`;
   } else {
     finalDesignation  = desigWithGender;
     headerDesignation = desigWithGender.toUpperCase();
@@ -1908,7 +1926,7 @@ export function getDepartmentInfo(
   // Primary school override
   // ------------------------------------------------------------------
   if (config?.organizationType === 'primary_school') {
-    const loc = tehsilClean || districtClean;
+    const loc = effectiveTehsil || districtClean;
     finalDesignation  = `Sub Divisional Education Officer ${genderSuffix}${loc ? ` ${loc}` : ''}`;
     headerDesignation = finalDesignation.toUpperCase();
   }
@@ -1955,48 +1973,13 @@ export function getDepartmentInfo(
     config?.organizationType === 'hospital'                ||
     config?.organizationType === 'dispensary';
 
-  // For education offices (SDEO/DEO): build "Title (Gender)\nLocation, District"
-  // so signature reads neatly as two lines
-  let signatureTitle: string;
-  if (appendInstToSig && institutionName) {
-    // Format the institution name for signature (expand abbreviations to full form)
-    const expanded = expandInstitutionAbbreviations(institutionName, true);
-    
-    // Title-case the rest (which is usually the location part)
-    const formattedSchoolName = expanded.split(' ').map(w =>
-      w.length > 1 ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w.toUpperCase()
-    ).join(' ');
-    
-    signatureTitle = `${desigWithGender}\n${formattedSchoolName}`;
-  } else if (
-    config?.organizationType === 'education_office' &&
-    (locationLabel || districtClean || tehsilClean)
-  ) {
-    // Base title without location
-    const baseTitle = `${desigWithGender}`;
-    const locPart = locationLabel
-      ? districtClean
-        ? `${locationLabel}, District ${districtClean}`
-        : locationLabel
-      : districtClean
-        ? `District ${districtClean}`
-        : tehsilClean;
-    signatureTitle = locPart ? `${baseTitle}\n${locPart}` : finalDesignation;
-  } else {
-    signatureTitle = finalDesignation;
-  }
-
-  // ------------------------------------------------------------------
-  // Authority title (forwarding address / higher authority)
-  // ------------------------------------------------------------------
-  let authorityTitle = config?.customAuthorityTitle ?? finalDesignation;
-
-  const officeNorm = normalizeName(officeNameClean || institutionName);
+  const officeNorm = normalizeName(officeNameClean || institutionName).replace(/-/g, ' ');
 
   const isSDEOOffice =
     officeNorm === 'SDEO' ||
     officeNorm.startsWith('SDEO ') ||
-    officeNorm.includes('SUB DIVISIONAL EDUCATION OFFICER');
+    officeNorm.includes('SUB DIVISIONAL EDUCATION OFFICER') ||
+    officeNorm.includes('ASDEO');
 
   const isDEOOffice =
     officeNorm === 'DEO' ||
@@ -2011,6 +1994,48 @@ export function getDepartmentInfo(
   const isDirectorEducationOffice =
     officeNorm.includes('DIRECTOR EDUCATION') ||
     officeNorm.includes('DIRECTORATE EDUCATION');
+
+  // For education offices (SDEO/DEO): build "Title (Gender)\nLocation"
+  // so signature reflects the office/tehsil for SDEO and district for DEO
+  let signatureTitle: string;
+  if (appendInstToSig && institutionName) {
+    // Format the institution name for signature (expand abbreviations to full form)
+    const expanded = expandInstitutionAbbreviations(institutionName, true);
+    
+    // Title-case the rest (which is usually the location part)
+    const formattedSchoolName = expanded.split(' ').map(w =>
+      w.length > 1 ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w.toUpperCase()
+    ).join(' ');
+    
+    signatureTitle = `${desigWithGender}\n${formattedSchoolName}`;
+  } else if (
+    config?.organizationType === 'education_office' &&
+    (effectiveTehsil || districtClean)
+  ) {
+    const baseTitle = `${desigWithGender}`;
+    let locPart = '';
+    if (config?.addTehsilSuffix || isSDEOOffice) {
+      // Sub-divisional office: reflects Tehsil / Office location first!
+      locPart = effectiveTehsil || (districtClean ? `District ${districtClean}` : '');
+    } else if (config?.addDistrictSuffix) {
+      // District-level office (DEO): reflects District
+      locPart = districtClean ? `District ${districtClean}` : (effectiveTehsil || '');
+    } else {
+      locPart = effectiveTehsil || (districtClean ? `District ${districtClean}` : '');
+    }
+    signatureTitle = locPart ? `${baseTitle}\n${locPart}` : finalDesignation;
+  } else if (config?.organizationType === 'primary_school' && (effectiveTehsil || districtClean)) {
+    const baseTitle = `Sub Divisional Education Officer ${genderSuffix}`;
+    const locPart = effectiveTehsil || (districtClean ? `District ${districtClean}` : '');
+    signatureTitle = locPart ? `${baseTitle}\n${locPart}` : finalDesignation;
+  } else {
+    signatureTitle = finalDesignation;
+  }
+
+  // ------------------------------------------------------------------
+  // Authority title (forwarding address / higher authority)
+  // ------------------------------------------------------------------
+  let authorityTitle = config?.customAuthorityTitle ?? finalDesignation;
 
   const districtLine = districtClean || tehsilClean || '';
   const twoLine = (line1: string, line2?: string) =>

@@ -75,4 +75,40 @@ describe('composeWithGemini', () => {
       keyPoints: ['k1']
     })).rejects.toMatchObject({ code: 'CONTENT_BLOCKED' });
   });
+
+  it('sends the API key as a header and never in the URL', async () => {
+    const seen = [];
+    global.fetch = vi.fn(async (url, init) => {
+      seen.push({ url, headers: init?.headers });
+      return makeResponse(200, { candidates: [{ content: { parts: [{ text: 'Hi' }] } }] });
+    });
+    const { composeWithGemini } = await import('../geminiService.js');
+    await composeWithGemini({ recipient: 'A', tone: 'formal', purpose: 'test', keyPoints: ['k1'] });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].url).not.toContain('key=');
+    expect(seen[0].url).not.toContain('test_key');
+    expect(seen[0].headers['x-goog-api-key']).toBe('test_key');
+  });
+
+  it('bounds the request with an AbortSignal timeout', async () => {
+    const seen = [];
+    global.fetch = vi.fn(async (_url, init) => {
+      seen.push(init?.signal);
+      return makeResponse(200, { candidates: [{ content: { parts: [{ text: 'Hi' }] } }] });
+    });
+    const { composeWithGemini } = await import('../geminiService.js');
+    await composeWithGemini({ recipient: 'A', tone: 'formal', purpose: 'test', keyPoints: ['k1'] });
+
+    expect(seen[0]).toBeInstanceOf(AbortSignal);
+  });
+
+  it('does not retry on auth failure', async () => {
+    global.fetch = vi.fn(async () => makeResponse(401, {}, 'unauthorized'));
+    const { composeWithGemini } = await import('../geminiService.js');
+    await expect(composeWithGemini({
+      recipient: 'A', tone: 'formal', purpose: 'test', keyPoints: ['k1']
+    })).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });

@@ -97,7 +97,7 @@ function parseDateToISO(raw: string): string {
     return ''
   
   // DD/MM/YYYY or DD-MM-YYYY
-  const dmy = raw.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/)
+  const dmy = raw.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/)
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`
   
   // DD Month YYYY e.g. "09 March 2026" or "9 Mar 2026"
@@ -122,7 +122,7 @@ const markdownToHtml = (text: string): string => {
 
   // Specific substitutions
   // vide Endst. No. ...
-  html = html.replace(/vide\s+Endst\.?\s+No\.?\s+([\w\-\/\\]+)/gi, 'vide Endst. No. <strong>$1</strong>');
+  html = html.replace(/vide\s+Endst\.?\s+No\.?\s+([\w\-/\\]+)/gi, 'vide Endst. No. <strong>$1</strong>');
   
   // Underscores
   html = html.replace(/_{3,}/g, '<u>___</u>');
@@ -153,7 +153,7 @@ const markdownToHtml = (text: string): string => {
     }
 
     // Bullet List
-    const bulletMatch = line.match(/^[\*\-]\s+(.*)/);
+    const bulletMatch = line.match(/^[*-]\s+(.*)/);
     if (bulletMatch) {
       if (listType !== 'ul') {
         if (listActive) processedLines.push(`</${listType}>`);
@@ -189,7 +189,7 @@ const markdownToHtml = (text: string): string => {
       let tableHtml = '<table><tbody>';
       let isHeader = true;
       while (i < lines.length && lines[i].match(/^\|.*\|$/)) {
-        if (lines[i].match(/^\|[\s\-\|]+\|$/)) {
+        if (lines[i].match(/^\|[\s\-|]+\|$/)) {
           isHeader = false; // separator line
           i++;
           continue;
@@ -334,8 +334,8 @@ export const parseOfficialLetter = (rawText: string): ParsedLetter => {
     }
 
     // Ref No and Date
-    const refMatch = line.match(/(?:No\.?|Endst\.?\s*No\.?|Ref\.?\s*No\.?)[\s*:]+([\w\/\-\\\(\)_ ]+)(?=\s+Dated|Date|$)/i);
-    const dateMatch = line.match(/(?:Dated?|Date)[\s*:]+([\d\/\-A-Za-z_ ,]+)/i);
+    const refMatch = line.match(/(?:No\.?|Endst\.?\s*No\.?|Ref\.?\s*No\.?)[\s*:]+([\w/\-\\()_ ]+)(?=\s+Dated|Date|$)/i);
+    const dateMatch = line.match(/(?:Dated?|Date)[\s*:]+([\d/\-A-Za-z_ ,]+)/i);
 
     if (refMatch && !parsed.refNo) {
       const refStr = refMatch[1].trim();
@@ -348,7 +348,7 @@ export const parseOfficialLetter = (rawText: string): ParsedLetter => {
         }
       } else {
         parsed.refNo = refStr;
-        const suffixMatch = parsed.refNo.match(/\/([A-Z\/\-_ ]+)$/i);
+        const suffixMatch = parsed.refNo.match(/\/([A-Z/\-_ ]+)$/i);
         if (suffixMatch) parsed.refNoSuffix = suffixMatch[1].trim();
       }
       parsed.detectedFields.push({ field: 'Reference Number', value: parsed.refNo, confidence: 'high' });
@@ -438,7 +438,7 @@ export const parseOfficialLetter = (rawText: string): ParsedLetter => {
 
   if (toBlockLines.length > 0) {
     const combined = toBlockLines.join('\n');
-    const numberedMatches = Array.from(combined.matchAll(/(?:\d+)[\.\)]\s+([^\n]+)/g));
+    const numberedMatches = Array.from(combined.matchAll(/(?:\d+)[.)]\s+([^\n]+)/g));
     if (numberedMatches.length > 0) {
       parsed.recipients = numberedMatches.map(m => m[1].trim());
       parsed.recipient = parsed.recipients.join('\n');
@@ -464,7 +464,7 @@ export const parseOfficialLetter = (rawText: string): ParsedLetter => {
     parsed.hasForwarding = true;
     for (let i = copyIndex + 1; i < lines.length; i++) {
       if (lines[i].trim() === '' || lines[i].includes('---')) break;
-      const clean = lines[i].replace(/^(\d+|[a-z]|[ivx]+)[\.\)]\s*/i, '').trim();
+      const clean = lines[i].replace(/^(\d+|[a-z]|[ivx]+)[.)]\s*/i, '').trim();
       if (clean) parsed.copyTo.push(clean);
     }
     parsed.detectedFields.push({ field: 'Copy To', value: `${parsed.copyTo.length} recipients`, confidence: 'high' });
@@ -475,7 +475,7 @@ export const parseOfficialLetter = (rawText: string): ParsedLetter => {
     const limit = copyIndex !== -1 ? copyIndex : lines.length;
     for (let i = encIndex + 1; i < limit; i++) {
       if (lines[i].trim() === '' || lines[i].includes('---')) break;
-      const clean = lines[i].replace(/^(\d+|[a-z]|[ivx]+)[\.\)]\s*/i, '').trim();
+      const clean = lines[i].replace(/^(\d+|[a-z]|[ivx]+)[.)]\s*/i, '').trim();
       if (clean) parsed.enclosures.push(clean);
     }
   }

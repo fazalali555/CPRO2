@@ -76,9 +76,10 @@ class ReferenceServiceClass {
     switch (format) {
       case 'year_month':
         return `${prefix}/${currentYear}/${currentMonth}/${sequence}`;
-      case 'full_date':
+      case 'full_date': {
         const day = new Date().getDate().toString().padStart(2, '0');
         return `${prefix}/${currentYear}/${currentMonth}/${day}/${sequence}`;
+      }
       default:
         return `${prefix}/${currentYear}/${sequence}`;
     }

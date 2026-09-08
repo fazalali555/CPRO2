@@ -1,20 +1,48 @@
 // services/AIService.ts - AI Integration Service
 
 import { AIGenerationRequest, AIGenerationResponse } from '../types';
+import { getGeminiApiKey, GEMINI_NOT_CONFIGURED_MESSAGE } from '../../../config/geminiKey';
+
+/** Request timeout for a single Gemini call. */
+const REQUEST_TIMEOUT_MS = 30000;
+
+interface GeminiGenerationConfig {
+  temperature?: number;
+  maxOutputTokens?: number;
+  responseMimeType?: string;
+}
+
+/** Discriminated result of a raw Gemini call. */
+type GeminiCallResult =
+  | { ok: true; text: string }
+  | { ok: false; error: string; code: string };
+
+/** Structured fields recovered from raw letter text by `extractLetterData`. */
+export interface ExtractedLetterData {
+  letterType?: string;
+  officeName?: string;
+  recipient?: string;
+  subject?: string;
+  refNo?: string;
+  refNoSuffix?: string;
+  date?: string;
+  bodyHtml?: string;
+  signatoryTitle?: string;
+  signatoryArea?: string;
+  copyTo?: string[];
+  enclosures?: string[];
+  error?: string;
+}
 
 class AIServiceClass {
-  private baseUrl: string;
-  private healthStatus: 'checking' | 'online' | 'offline' = 'checking';
-  private getApiKey(): string {
-    const savedKey = localStorage.getItem('clerk_pro_gemini_api_key');
-    if (savedKey && savedKey.trim()) {
-      return savedKey.trim();
-    }
-    return (import.meta.env as any)?.VITE_GEMINI_API_KEY || 'AIzaSyCIi_33sJbzFBbAhOCHQ2iB7HbXZfoGhUg';
-  }
+  private readonly baseUrl =
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 
-  constructor() {
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
+  private healthStatus: 'checking' | 'online' | 'offline' = 'checking';
+
+  /** True when an operator key or build-time key is available. */
+  isConfigured(): boolean {
+    return getGeminiApiKey() !== null;
   }
 
   async checkHealth(): Promise<'online' | 'offline'> {
@@ -27,14 +55,55 @@ class AIServiceClass {
   }
 
   /**
-   * Scenario A: Generate full official body from scratch
+   * Single guarded path to the Gemini API.
+   *
+   * Every caller previously repeated the same fetch/timeout/parse block, which
+   * is how an unguarded hardcoded key ended up reachable from five places.
+   * Funneling them here means the "is a key configured?" check cannot be
+   * forgotten, and error handling stays consistent.
    */
-  async generateLetter(request: AIGenerationRequest): Promise<AIGenerationResponse> {
+  private async callGemini(
+    promptText: string,
+    generationConfig: GeminiGenerationConfig
+  ): Promise<GeminiCallResult> {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      return { ok: false, error: GEMINI_NOT_CONFIGURED_MESSAGE, code: 'NOT_CONFIGURED' };
+    }
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      const promptText = `You are an expert Senior Superintendent in a Pakistani Government Office (KPK) with 35 years of experience in administrative correspondence. 
+      const response = await fetch(`${this.baseUrl}?key=${encodeURIComponent(apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }],
+          generationConfig,
+        }),
+        signal: controller.signal,
+      });
+
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        return {
+          ok: false,
+          error: data.error?.message || 'API Error',
+          code: 'API_ERROR',
+        };
+      }
+      return { ok: true, text: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '' };
+    } catch {
+      return { ok: false, error: 'Service unavailable.', code: 'NETWORK_ERROR' };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Scenario A: Generate full official body from scratch */
+  async generateLetter(request: AIGenerationRequest): Promise<AIGenerationResponse> {
+    const promptText = `You are an expert Senior Superintendent in a Pakistani Government Office (KPK) with 35 years of experience in administrative correspondence. 
 Your task is to generate a COMPLETE and COMPREHENSIVE body of a highly professional official letter. Do not write half-letters or short snippets. Write a full, detailed document.
 
 ### HIERARCHY LOGIC:
@@ -65,34 +134,16 @@ Final Paragraph (Numbered): Formal closing/action required statement (e.g., "The
 
 Output the FULL COMPLETE body text now:`;
 
-      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: { temperature: 0.6, maxOutputTokens: 1500 }
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-      const data = await response.json();
-      if (!response.ok || data.error) return { text: '', error: data.error?.message || 'API Error', code: 'API_ERROR' };
-      return { text: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '' };
-    } catch (error) {
-      clearTimeout(timeout);
-      return { text: '', error: 'Service unavailable.', code: 'NETWORK_ERROR' };
-    }
+    const result = await this.callGemini(promptText, { temperature: 0.6, maxOutputTokens: 1500 });
+    return result.ok ? { text: result.text } : { text: '', error: result.error, code: result.code };
   }
 
-  /**
-   * Scenario B: Refine rough notes into flawless official English
-   */
-  async refineLetter(request: AIGenerationRequest, currentBody: string): Promise<AIGenerationResponse> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    try {
-      const promptText = `You are a Senior Superintendent in a Pakistani Government Office. Treat the [Rough_Notes] as a base and REWRITE them into a COMPLETE, flawless, and long-form official body. 
+  /** Scenario B: Refine rough notes into flawless official English */
+  async refineLetter(
+    request: AIGenerationRequest,
+    currentBody: string
+  ): Promise<AIGenerationResponse> {
+    const promptText = `You are a Senior Superintendent in a Pakistani Government Office. Treat the [Rough_Notes] as a base and REWRITE them into a COMPLETE, flawless, and long-form official body. 
 Do not provide a summary; provide a full, detailed, professional expansion of these notes.
 
 ### EXECUTION LOGIC:
@@ -112,42 +163,28 @@ ${currentBody}
 
 Output the FULL COMPLETE refined body (Para 1 unnumbered, Paras 2+ numbered):`;
 
-      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 1500 }
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      const data = await response.json();
-      if (!response.ok || data.error) return { text: '', error: data.error?.message || 'API Error', code: 'API_ERROR' };
-      return { text: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '' };
-    } catch (error) {
-      clearTimeout(timeout);
-      return { text: '', error: 'Service unavailable.', code: 'NETWORK_ERROR' };
-    }
+    const result = await this.callGemini(promptText, { temperature: 0.4, maxOutputTokens: 1500 });
+    return result.ok ? { text: result.text } : { text: '', error: result.error, code: result.code };
   }
 
-  /**
-   * Legacy wrapper
-   */
+  /** Legacy wrapper */
   async refineText(text: string): Promise<AIGenerationResponse> {
-    return this.refineLetter({
-      recipient: 'Authority',
-      purpose: 'Official Matter',
-      senderTitle: 'Government Office',
-      keyPoints: [],
-      tone: 'official',
-      length: { maxWords: 500 },
-      language: 'English',
-      senderName: ''
-    }, text);
+    return this.refineLetter(
+      {
+        recipient: 'Authority',
+        purpose: 'Official Matter',
+        senderTitle: 'Government Office',
+        keyPoints: [],
+        tone: 'official',
+        length: { maxWords: 500 },
+        language: 'English',
+        senderName: '',
+      },
+      text
+    );
   }
 
-  async generateSummary(content: string, maxWords: number = 100): Promise<AIGenerationResponse> {
+  async generateSummary(content: string, maxWords = 100): Promise<AIGenerationResponse> {
     return this.generateLetter({
       recipient: 'Summary',
       tone: 'concise',
@@ -160,14 +197,9 @@ Output the FULL COMPLETE refined body (Para 1 unnumbered, Paras 2+ numbered):`;
     });
   }
 
-  /**
-   * Scenario C: Extract structured fields from a raw letter text
-   */
-  async extractLetterData(text: string): Promise<any> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    try {
-      const promptText = `You are a precision data extractor for Pakistani Government correspondence. 
+  /** Scenario C: Extract structured fields from a raw letter text */
+  async extractLetterData(text: string): Promise<ExtractedLetterData> {
+    const promptText = `You are a precision data extractor for Pakistani Government correspondence. 
 Extract the following fields from the provided [Letter_Text] and return ONLY a valid JSON object.
 
 ### JSON FIELDS:
@@ -194,30 +226,26 @@ ${text}
 
 ### OUTPUT (JSON ONLY):`;
 
-      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 2000, responseMimeType: "application/json" }
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      const data = await response.json();
-      if (!response.ok || data.error) return { error: data.error?.message || 'API Error' };
-      
-      const jsonStr = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
+    const result = await this.callGemini(promptText, {
+      temperature: 0.1,
+      maxOutputTokens: 2000,
+      responseMimeType: 'application/json',
+    });
+
+    if (!result.ok) return { error: result.error };
+
+    const jsonStr = result.text || '{}';
+    try {
+      return JSON.parse(jsonStr) as ExtractedLetterData;
+    } catch {
+      // Fallback for non-json-mode models or poor formatting
+      const match = jsonStr.match(/\{[\s\S]*\}/);
+      if (!match) return { error: 'Failed to parse AI response' };
       try {
-        return JSON.parse(jsonStr);
-      } catch (e) {
-        // Fallback for non-json-mode models or poor formatting
-        const match = jsonStr.match(/\{[\s\S]*\}/);
-        return match ? JSON.parse(match[0]) : { error: 'Failed to parse AI response' };
+        return JSON.parse(match[0]) as ExtractedLetterData;
+      } catch {
+        return { error: 'Failed to parse AI response' };
       }
-    } catch (error) {
-      clearTimeout(timeout);
-      return { error: 'Service unavailable.' };
     }
   }
 
@@ -249,14 +277,9 @@ ${text}
     };
   }
 
-  /**
-   * AI Copilot: generic chat/draft assistant
-   */
+  /** AI Copilot: generic chat/draft assistant */
   async chat(prompt: string, documentContext?: string): Promise<AIGenerationResponse> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    try {
-      const promptText = `You are a helpful AI Copilot writing assistant inside Clerk Pro (WordPro), a professional administrative word clone for Khyber Pakhtunkhwa Government offices.
+    const promptText = `You are a helpful AI Copilot writing assistant inside Clerk Pro (WordPro), a professional administrative word clone for Khyber Pakhtunkhwa Government offices.
 Your task is to answer the user's prompt or draft text based on their request.
 
 ${documentContext ? `### CURRENT DOCUMENT CONTENT:\n${documentContext}\n` : ''}
@@ -265,50 +288,30 @@ ${prompt}
 
 Output your response cleanly. If the user asks you to write or draft something, output the draft content directly, ready to be copied/inserted. Do not include chat preamble unless necessary.`;
 
-      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1500 }
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-      const data = await response.json();
-      if (!response.ok || data.error) return { text: '', error: data.error?.message || 'API Error', code: 'API_ERROR' };
-      return { text: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '' };
-    } catch (error) {
-      clearTimeout(timeout);
-      return { text: '', error: 'Service unavailable.', code: 'NETWORK_ERROR' };
-    }
+    const result = await this.callGemini(promptText, { temperature: 0.7, maxOutputTokens: 1500 });
+    return result.ok ? { text: result.text } : { text: '', error: result.error, code: result.code };
   }
 
-  /**
-   * AI Copilot: rewrite text
-   */
-  async rewriteText(text: string, style: string = 'formal'): Promise<AIGenerationResponse> {
-    return this.refineLetter({
-      recipient: 'Recipient',
-      purpose: 'Rewrite Text',
-      senderTitle: 'Government Office',
-      keyPoints: [`Rewrite this text in a ${style} style: ${text}`],
-      tone: style,
-      length: { maxWords: 500 },
-      language: 'English',
-      senderName: ''
-    }, text);
+  /** AI Copilot: rewrite text */
+  async rewriteText(text: string, style = 'formal'): Promise<AIGenerationResponse> {
+    return this.refineLetter(
+      {
+        recipient: 'Recipient',
+        purpose: 'Rewrite Text',
+        senderTitle: 'Government Office',
+        keyPoints: [`Rewrite this text in a ${style} style: ${text}`],
+        tone: style,
+        length: { maxWords: 500 },
+        language: 'English',
+        senderName: '',
+      },
+      text
+    );
   }
 
-  /**
-   * AI Copilot: suggest improvements
-   */
+  /** AI Copilot: suggest improvements */
   async suggestImprovements(content: string): Promise<AIGenerationResponse> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    try {
-      const promptText = `You are a Senior Superintendent in Khyber Pakhtunkhwa government. Review this official document and suggest specific improvements for tone, format, typos, or administrative clarity.
+    const promptText = `You are a Senior Superintendent in Khyber Pakhtunkhwa government. Review this official document and suggest specific improvements for tone, format, typos, or administrative clarity.
 Be specific and construct a list of suggested improvements.
 
 ### DOCUMENT CONTENT:
@@ -316,26 +319,9 @@ ${content}
 
 Output a clean, bulleted list of helpful suggestions and key improvement notes:`;
 
-      const response = await fetch(`${this.baseUrl}?key=${this.getApiKey()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: { temperature: 0.5, maxOutputTokens: 1000 }
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-      const data = await response.json();
-      if (!response.ok || data.error) return { text: '', error: data.error?.message || 'API Error', code: 'API_ERROR' };
-      return { text: data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '' };
-    } catch (error) {
-      clearTimeout(timeout);
-      return { text: '', error: 'Service unavailable.', code: 'NETWORK_ERROR' };
-    }
+    const result = await this.callGemini(promptText, { temperature: 0.5, maxOutputTokens: 1000 });
+    return result.ok ? { text: result.text } : { text: '', error: result.error, code: result.code };
   }
 }
 
 export const AIService = new AIServiceClass();
-

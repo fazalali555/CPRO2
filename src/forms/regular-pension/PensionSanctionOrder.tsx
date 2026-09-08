@@ -47,7 +47,7 @@ export const PensionSanctionOrder: React.FC<Props> = ({ employee, signatureTitle
         ageAtRetirement = differenceInYears(dorDate, dob);
       }
     }
-  } catch {}
+  } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
 
   // Single source of truth for pension calculations
   const calc = calculatePension({

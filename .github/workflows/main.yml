@@ -2,45 +2,91 @@ name: Clerk Pro CI/CD
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+
+# Cancel superseded runs on the same ref instead of burning CI minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
+    name: Build & test
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      # Node 22 LTS: vite 8 requires ^20.19.0 || >=22.12.0 and vitest 5 requires
+      # ^22.12.0 || >=24. The previous Node 20 pin could not run this toolchain.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Lint check
-      run: npm run lint
-      continue-on-error: true
+      - name: Secret scan
+        run: npm run secrets:scan
 
-    - name: Run tests
-      run: npm test
+      - name: Type check
+        run: npm run type-check
 
-    - name: Build project
-      run: npm run build
+      # No `continue-on-error`: this gate used to be advisory, so 800+ findings
+      # accumulated without ever blocking a merge.
+      - name: Lint
+        run: npm run lint
 
-    - name: Upload Build Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist
-        path: dist
+      - name: Lint debt ratchet
+        run: npm run lint:baseline
+
+      - name: Run tests
+        run: npm run test:coverage
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          retention-days: 14
+          if-no-files-found: ignore
 
   security-scan:
+    name: Dependency audit
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Security Scan (npm audit)
-      run: npm audit --audit-level=high
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Uses scripts/audit-gate.mjs rather than a bare `npm audit`: the latter is
+      # permanently red on one unfixable advisory, and a red job gets ignored.
+      - name: Audit dependencies
+        run: npm run deps:audit

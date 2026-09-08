@@ -8,6 +8,11 @@ interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   readonly VITE_APP_ENV?: string;
   readonly VITE_ENABLE_ANALYTICS?: string;
+  /**
+   * Optional build-time Gemini key. Prefer having operators enter their own key
+   * in Settings; baking one into a public bundle exposes it.
+   */
+  readonly VITE_GEMINI_API_KEY?: string;
   readonly PROD: boolean;
   readonly DEV: boolean;
 }
@@ -34,5 +39,8 @@ declare module 'react-dom/client' {
     render(children: ReactNode): void;
     unmount(): void;
   }
-  export function createRoot(container: Element | DocumentFragment, options?: any): Root;
+  export function createRoot(
+    container: Element | DocumentFragment,
+    options?: { identifierPrefix?: string; onUncaughtError?: unknown; onCaughtError?: unknown }
+  ): Root;
 }

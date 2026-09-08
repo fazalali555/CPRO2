@@ -403,7 +403,7 @@ export const unflattenEmployee = (
         newRecord.financials.deductions_extra = parsed as Record<string, number>;
       }
     }
-  } catch {}
+  } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
 
   if (!newRecord.extras) newRecord.extras = {};
   const comm = num('commutation_portion');

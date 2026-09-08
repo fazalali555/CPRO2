@@ -20,7 +20,7 @@ const formatLetterDate = (dateStr?: string): string => {
     return `${iso[3]} / ${iso[2]} / ${iso[1]}`;
   }
   // Handle DD/MM/YYYY
-  const dmy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const dmy = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmy) {
     return `${dmy[1].padStart(2, "0")} / ${dmy[2].padStart(2, "0")} / ${dmy[3]}`;
   }
@@ -37,7 +37,7 @@ export const LetterPrint: React.FC = () => {
       if (saved) {
         return JSON.parse(saved);
       }
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
     return {
       paperSize: 'A4',
       marginTop: 12,

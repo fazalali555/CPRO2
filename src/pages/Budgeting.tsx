@@ -15,7 +15,12 @@ import { PayAllowancesStatement } from '../budgeting/budget/bm6';
 import { BudgetEstimatesForm } from '../budgeting/budget/bm2';
 import { SanctionedPostsReport } from '../budgeting/budget/posts';
 import * as XLSX from 'xlsx';
-import { listBudgetSnapshots, saveBudgetSnapshot } from '../budgeting/budget/storage';
+import {
+  listBudgetSnapshots,
+  saveBudgetSnapshot,
+  loadBm2Edits,
+  saveBm2Edits,
+} from '../budgeting/budget/storage';
 
 // Import centralized constants
 import {
@@ -563,12 +568,14 @@ const BudgetHeadsTab = () => {
     let sanctioned: Record<string, number> = {};
     let bm2Edits: Record<string, { rev25?: number; est26?: number }> = {};
 
-    try { overrides = JSON.parse(localStorage.getItem(ddoKey) || '{}'); } catch {}
-    try { sanctioned = JSON.parse(localStorage.getItem(sancKey) || '{}'); } catch {}
+    try { overrides = JSON.parse(localStorage.getItem(ddoKey) || '{}'); } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
+    try { sanctioned = JSON.parse(localStorage.getItem(sancKey) || '{}'); } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
     try {
-      const { loadBm2Edits } = require('../budgeting/budget/storage');
       bm2Edits = loadBm2Edits(ddoCode || '') || {};
-    } catch {}
+    } catch (err) {
+      // Corrupt or unavailable localStorage must not block taking a snapshot.
+      console.warn('[budget] could not read BM-2 edits for snapshot:', err);
+    }
 
     const snapshot = {
       id,
@@ -603,15 +610,16 @@ const BudgetHeadsTab = () => {
     try {
       const ddoKey = `budgeting/posts/overrides/${(snap.ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`;
       localStorage.setItem(ddoKey, JSON.stringify(snap.overrides || {}));
-    } catch {}
+    } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
     try {
       const sancKey = `budgeting/posts/sanctioned/${(snap.ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`;
       localStorage.setItem(sancKey, JSON.stringify(snap.sanctioned || {}));
-    } catch {}
+    } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
     try {
-      const { saveBm2Edits } = require('../budgeting/budget/storage');
       saveBm2Edits(snap.ddoCode || '', snap.bm2Edits || {});
-    } catch {}
+    } catch (err) {
+      console.warn('[budget] could not restore BM-2 edits from snapshot:', err);
+    }
   };
 
   const formTabs = [

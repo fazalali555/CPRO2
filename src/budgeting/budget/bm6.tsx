@@ -528,7 +528,7 @@ export const PayAllowancesStatement: React.FC<PayAllowancesStatementProps> = ({
         `budgeting/bm6/projections/${(ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`,
         JSON.stringify(projectionByCode || {})
       );
-    } catch {}
+    } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
   }, [projectionByCode, ddoCode]);
 
   useEffect(() => {
@@ -537,7 +537,7 @@ export const PayAllowancesStatement: React.FC<PayAllowancesStatementProps> = ({
         `budgeting/bm6/groupBasic/${(ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`,
         JSON.stringify(basicByDesignation || {})
       );
-    } catch {}
+    } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
   }, [basicByDesignation, ddoCode]);
 
   return (

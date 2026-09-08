@@ -668,7 +668,7 @@ export const SplashGate: React.FC<{ children: React.ReactNode }> = ({ children }
         clearInterval(interval);
         try {
           sessionStorage.setItem('clerk_pro_splash_shown', 'true');
-        } catch {}
+        } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
         setTimeout(() => setShow(false), 300);
       }
     }, 50);
@@ -701,7 +701,7 @@ export const SplashGate: React.FC<{ children: React.ReactNode }> = ({ children }
               onClick={() => {
                 try {
                   sessionStorage.setItem('clerk_pro_splash_shown', 'true');
-                } catch {}
+                } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
                 setShow(false);
               }}
               className="absolute top-6 right-6 px-4 py-2 rounded-full border border-outline-variant/30 text-xs font-semibold hover:bg-surface-container transition-all cursor-pointer z-[100] text-on-surface"

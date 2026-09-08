@@ -129,7 +129,7 @@ export const SanctionedPostsReport: React.FC<SanctionedPostsReportProps> = ({
       const raw = localStorage.getItem(key);
       const obj = raw ? JSON.parse(raw) : null;
       if (obj && typeof obj === 'object') return obj;
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
     return {};
   });
   const [overridesLoadedForDdo, setOverridesLoadedForDdo] = useState<string | null>(null);
@@ -200,13 +200,13 @@ export const SanctionedPostsReport: React.FC<SanctionedPostsReportProps> = ({
       const existingRaw = localStorage.getItem(key);
       const existing = existingRaw ? JSON.parse(existingRaw) : {};
       localStorage.setItem(key, JSON.stringify({ ...(existing && typeof existing === 'object' ? existing : {}), ...payload }));
-    } catch {}
+    } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
   }, [rowsWithCounts, ddoCode, overridesLoadedForDdo]);
 
   useEffect(() => {
     try {
       localStorage.setItem(`budgeting/posts/overrides/${(ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`, JSON.stringify(overrides));
-    } catch {}
+    } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
   }, [overrides, ddoCode]);
 
   useEffect(() => {
@@ -221,7 +221,7 @@ export const SanctionedPostsReport: React.FC<SanctionedPostsReportProps> = ({
         setOverrides({});
         setOverridesLoadedForDdo((ddoCode || '').trim().toUpperCase() || 'DEFAULT');
       }
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
   }, [ddoCode]);
 
   useEffect(() => {
@@ -238,13 +238,13 @@ export const SanctionedPostsReport: React.FC<SanctionedPostsReportProps> = ({
           if (typeof ui.newNext === 'string') setNewNext(ui.newNext);
         }
       }
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
   }, [ddoCode]);
 
   useEffect(() => {
     try {
       localStorage.setItem(`budgeting/posts/ui`, JSON.stringify({ isEditing, isAdding, newDesig, newBps, newCfy, newNext }));
-    } catch {}
+    } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
   }, [isEditing, isAdding, newDesig, newBps, newCfy, newNext]);
 
   const gazettedGroups = rowsWithCounts.filter(g => g.isGazetted);
@@ -462,13 +462,13 @@ export const SanctionedPostsReport: React.FC<SanctionedPostsReportProps> = ({
                   const raw = localStorage.getItem(ddoKey);
                   const obj = raw ? JSON.parse(raw) : {};
                   localStorage.setItem(ddoKey, JSON.stringify({ ...(obj && typeof obj === 'object' ? obj : {}), [key]: { cfy: cfyFinal, next: nextFinal } }));
-                } catch {}
+                } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
                 try {
                   const sancKey = `budgeting/posts/sanctioned/${(ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`;
                   const rawS = localStorage.getItem(sancKey);
                   const objS = rawS ? JSON.parse(rawS) : {};
                   localStorage.setItem(sancKey, JSON.stringify({ ...(objS && typeof objS === 'object' ? objS : {}), [key]: nextFinal }));
-                } catch {}
+                } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
                 setNewDesig(''); setNewBps(''); setNewCfy(''); setNewNext('');
               }}
             >
@@ -538,13 +538,13 @@ export const SanctionedPostsReport: React.FC<SanctionedPostsReportProps> = ({
                             const raw = localStorage.getItem(ddoKey);
                             const obj = raw ? JSON.parse(raw) : {};
                             if (obj && typeof obj === 'object') { delete obj[g.key]; localStorage.setItem(ddoKey, JSON.stringify(obj)); }
-                          } catch {}
+                          } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
                           try {
                             const sancKey = `budgeting/posts/sanctioned/${(ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`;
                             const rawS = localStorage.getItem(sancKey);
                             const objS = rawS ? JSON.parse(rawS) : {};
                             if (objS && typeof objS === 'object') { delete objS[g.key]; localStorage.setItem(sancKey, JSON.stringify(objS)); }
-                          } catch {}
+                          } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
                         }}
                       >
                         Remove
@@ -587,13 +587,13 @@ export const SanctionedPostsReport: React.FC<SanctionedPostsReportProps> = ({
                             const raw = localStorage.getItem(ddoKey);
                             const obj = raw ? JSON.parse(raw) : {};
                             if (obj && typeof obj === 'object') { delete obj[g.key]; localStorage.setItem(ddoKey, JSON.stringify(obj)); }
-                          } catch {}
+                          } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
                           try {
                             const sancKey = `budgeting/posts/sanctioned/${(ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`;
                             const rawS = localStorage.getItem(sancKey);
                             const objS = rawS ? JSON.parse(rawS) : {};
                             if (objS && typeof objS === 'object') { delete objS[g.key]; localStorage.setItem(sancKey, JSON.stringify(objS)); }
-                          } catch {}
+                          } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
                         }}
                       >
                         Remove

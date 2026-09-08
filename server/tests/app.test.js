@@ -155,15 +155,86 @@ describe('AI Server', () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     vi.stubEnv('GEMINI_API_KEY', 'test_key');
-    vi.doMock('fs', () => ({
-      promises: { readFile: vi.fn(async () => { throw new Error('missing'); }) }
-    }));
-    vi.doMock('path', () => ({
-      resolve: () => 'missing'
-    }));
+    vi.doMock('node:fs', async (importOriginal) => {
+      const actual = await importOriginal();
+      const failing = { ...actual.promises, readFile: vi.fn(async () => { throw new Error('missing'); }) };
+      // Provide both the named `promises` binding and `default` so CJS/ESM
+      // interop resolves either way.
+      return { ...actual, promises: failing, default: { ...actual, promises: failing } };
+    });
     const mod = await import('../app.js');
     const appMissing = mod.createApp();
     const res = await request(appMissing).get('/openapi.json');
     expect(res.status).toBe(500);
+    expect(res.body.code).toBe('SPEC_UNAVAILABLE');
+  });
+});
+
+describe('AI Server hardening', () => {
+  let app;
+
+  beforeAll(async () => {
+    // The module mocks for geminiService/auditLogger are declared at the top of
+    // this file; vitest hoists them, so they apply to this re-import too.
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.stubEnv('GEMINI_API_KEY', 'test_key');
+    const mod = await import('../app.js');
+    app = mod.createApp();
+  });
+
+  const validPayload = (extra = {}) => ({
+    recipient: 'District Education Officer',
+    tone: 'formal',
+    purpose: 'Submit report',
+    keyPoints: ['Report attached'],
+    ...extra
+  });
+
+  it('allows a configured CORS origin', async () => {
+    const res = await request(app).get('/health').set('Origin', 'http://localhost:3003');
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3003');
+  });
+
+  it('does not echo an origin that is not on the allow list', async () => {
+    const res = await request(app).get('/health').set('Origin', 'https://evil.example');
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('returns JSON 404 for unknown api routes', async () => {
+    const res = await request(app).get('/api/does-not-exist');
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('NOT_FOUND');
+  });
+
+  it('rejects SSRF webhook targets at the validation layer', async () => {
+    const res = await request(app).post('/api/ai/compose-letter').send(
+      validPayload({ async: true, webhookUrl: 'http://169.254.169.254/latest/meta-data/' })
+    );
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects loopback webhook targets', async () => {
+    const res = await request(app).post('/api/ai/compose-letter').send(
+      validPayload({ async: true, webhookUrl: 'https://localhost:3000/hook' })
+    );
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects malformed JSON bodies with a JSON error', async () => {
+    const res = await request(app)
+      .post('/api/ai/compose-letter')
+      .set('Content-Type', 'application/json')
+      .send('{"recipient": ');
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('MALFORMED_JSON');
+  });
+
+  it('returns 400 for an empty body', async () => {
+    const res = await request(app).post('/api/ai/compose-letter').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
   });
 });

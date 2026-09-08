@@ -63,7 +63,7 @@ const loadPdfJs = async (): Promise<PdfJsLib> => {
         lib.GlobalWorkerOptions.workerSrc = c.base + c.worker;
       }
       return lib;
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
   }
   const umdCandidates = [
     {
@@ -101,7 +101,7 @@ const loadPdfJs = async (): Promise<PdfJsLib> => {
         lib.GlobalWorkerOptions.workerSrc = c.base + c.worker;
       }
       if (lib) return lib;
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
   }
   throw new Error('Failed to load PDF.js from CDN');
 };
@@ -135,7 +135,7 @@ const parseIdentity = (text: string) => {
   };
   const name = get(/(?:Employee\s+Name|Name)\s*:\s*(.+?)\n/);
   const personnel_no = get(/Person(?:nel|al)\s+No\.?\s*:\s*(\S+)/i);
-  const cnic_no = get(/CNIC\s*No\.?\s*[:\-]?\s*([0-9\-]+)/i);
+  const cnic_no = get(/CNIC\s*No\.?\s*[:-]?\s*([0-9-]+)/i);
   const designation_full = get(/Designation\s*:\s*(.+?)\n/i);
   const bps = get(/(?:Pay\s*Scale|BPS)\s*:\s*(\d{1,2})/i);
   const school_full_name = get(/School\s*:\s*([^]+?)(?:\n|$)/i) || get(/Office\s*Name\s*:\s*([^]+?)(?:\n|$)/i);

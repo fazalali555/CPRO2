@@ -1,0 +1,10 @@
+{
+  "$comment": "Committed ESLint debt ceiling. Regenerate with `npm run lint:baseline -- --update`. Counts may go down, never up.",
+  "generatedAt": "2026-09-08T05:26:49.853Z",
+  "rules": {
+    "@typescript-eslint/no-explicit-any": 395,
+    "@typescript-eslint/no-unused-vars": 294,
+    "react-hooks/exhaustive-deps": 27,
+    "react-refresh/only-export-components": 44
+  }
+}

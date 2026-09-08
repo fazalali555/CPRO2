@@ -63,7 +63,7 @@ export const CoverLetterLayout: React.FC<Props> = ({
   if (caseRecord.extras?.letter_date) {
     try {
       year = format(parseISO(caseRecord.extras.letter_date), 'yyyy');
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
   }
 
   return (

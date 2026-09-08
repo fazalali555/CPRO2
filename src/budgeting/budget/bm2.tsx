@@ -510,7 +510,7 @@ export const BudgetEstimatesForm: React.FC<BudgetEstimatesFormProps> = ({
       const key = `budgeting/bm6/projections/${(ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`;
       const raw = localStorage.getItem(key);
       if (raw) { const parsed = JSON.parse(raw); if (parsed && typeof parsed === 'object') return parsed as Record<string, number>; }
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
     return {} as Record<string, number>;
   }, [ddoCode]);
 
@@ -519,7 +519,7 @@ export const BudgetEstimatesForm: React.FC<BudgetEstimatesFormProps> = ({
       const key = `budgeting/bm6/groupBasic/${(ddoCode || '').trim().toUpperCase() || 'DEFAULT'}`;
       const raw = localStorage.getItem(key);
       if (raw) { const parsed = JSON.parse(raw); if (parsed && typeof parsed === 'object') return parsed as Record<string, number>; }
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
     return {} as Record<string, number>;
   }, [ddoCode]);
 
@@ -544,7 +544,7 @@ export const BudgetEstimatesForm: React.FC<BudgetEstimatesFormProps> = ({
           return aggregated;
         }
       }
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
     return {} as Record<string, number>;
   }, [ddoCode]);
 

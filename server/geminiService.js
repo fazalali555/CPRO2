@@ -1,8 +1,22 @@
 import { config } from './config.js';
 
-const delay = (ms) => new Promise(res => setTimeout(res, ms));
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
-const buildPrompt = ({ recipient, tone, purpose, keyPoints, length, language, senderName, senderTitle, referenceNo, fromOffice, letterhead, forwardedTo }) => {
+const MAX_ATTEMPTS = 3;
+
+const buildPrompt = ({
+  recipient,
+  purpose,
+  keyPoints,
+  length,
+  language,
+  senderName,
+  senderTitle,
+  referenceNo,
+  fromOffice,
+  letterhead,
+  forwardedTo,
+}) => {
   const constraints = [];
   if (length?.minWords) constraints.push(`Minimum ${length.minWords} words`);
   if (length?.maxWords) constraints.push(`Maximum ${length.maxWords} words`);
@@ -23,61 +37,70 @@ const buildPrompt = ({ recipient, tone, purpose, keyPoints, length, language, se
     constraints.length ? `Constraints: ${constraints.join('; ')}` : '',
     forwardList ? `Forwarded To:\n${forwardList}` : '',
     `Include a standard formal closing and sender block: ${senderName || 'Clerk'}, ${senderTitle || 'Education Office'}.`,
-    `Output only the pure plain text document, formatted with paragraphs and proper salutations.`
-  ].filter(Boolean).join('\n');
+    `Output only the pure plain text document, formatted with paragraphs and proper salutations.`,
+  ]
+    .filter(Boolean)
+    .join('\n');
 };
+
+/**
+ * Tag an Error with a stable machine-readable code so `toErrorResponse` can map
+ * it to an HTTP status without string matching at the edge.
+ */
+const taggedError = (message, code) => Object.assign(new Error(message), { code });
 
 export const composeWithGemini = async (payload, attempt = 1) => {
   const prompt = buildPrompt(payload);
-  const url = `${config.geminiBaseUrl}/models/${config.geminiModel}:generateContent?key=${encodeURIComponent(config.geminiApiKey)}`;
-  
+  const url = `${config.geminiBaseUrl}/models/${config.geminiModel}:generateContent`;
+
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    safetySettings: config.geminiSafetySettings
+    safetySettings: config.geminiSafetySettings,
   };
 
   const startedAt = Date.now();
-  let tokens = 0;
 
   try {
     const resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // Sent as a header rather than a `?key=` query parameter: query strings
+        // end up in proxy, CDN and access logs in cleartext.
+        'x-goog-api-key': config.geminiApiKey,
+      },
       body: JSON.stringify(body),
-      timeout: 30000
+      // `fetch` has no `timeout` option — an AbortSignal is the only thing that
+      // actually bounds this request.
+      signal: AbortSignal.timeout(config.geminiTimeoutMs),
     });
 
     if (!resp.ok) {
       const text = await resp.text();
-      if (resp.status === 429) {
-        const err = new Error('Quota exceeded');
-        err.code = 'QUOTA_EXCEEDED';
-        throw err;
-      }
+      if (resp.status === 429) throw taggedError('Quota exceeded', 'QUOTA_EXCEEDED');
       if (resp.status === 400 && text.includes('safety')) {
-        const err = new Error('Content blocked by safety policy');
-        err.code = 'CONTENT_BLOCKED';
-        throw err;
+        throw taggedError('Content blocked by safety policy', 'CONTENT_BLOCKED');
       }
       if (resp.status === 401 || resp.status === 403) {
-        const err = new Error('Invalid or missing API key');
-        err.code = 'UNAUTHORIZED';
-        throw err;
+        throw taggedError('Invalid or missing API key', 'UNAUTHORIZED');
       }
-      const err = new Error(`Network error ${resp.status}`);
-      err.code = 'NETWORK_ERROR';
-      throw err;
+      throw taggedError(`Network error ${resp.status}`, 'NETWORK_ERROR');
     }
 
     const json = await resp.json();
     const candidate = json?.candidates?.[0];
-    const text = candidate?.content?.parts?.map(p => p.text).join('\n') || '';
-    tokens = json?.usageMetadata?.totalTokenCount || 0;
+    const text = candidate?.content?.parts?.map((p) => p.text).join('\n') || '';
+    const tokens = json?.usageMetadata?.totalTokenCount || 0;
 
     return { text, tokens, ms: Date.now() - startedAt };
   } catch (err) {
-    console.error('Exact Gemini Fetch Error:', err);
-    if (attempt < 3 && (err.code === 'NETWORK_ERROR' || err.code === 'QUOTA_EXCEEDED')) {
+    const retryable = err?.code === 'NETWORK_ERROR' || err?.code === 'QUOTA_EXCEEDED';
+    // Never log the message for auth failures — upstream bodies can echo request
+    // material back, and the API key must not reach the log sink.
+    if (err?.code !== 'UNAUTHORIZED') {
+      console.error(`[gemini] attempt ${attempt}/${MAX_ATTEMPTS} failed:`, err?.code || err?.message);
+    }
+    if (attempt < MAX_ATTEMPTS && retryable) {
       await delay(500 * attempt);
       return composeWithGemini(payload, attempt + 1);
     }

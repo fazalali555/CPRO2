@@ -17,7 +17,7 @@ export const RegularCoverLetter: React.FC<Props> = ({ employee, caseRecord }) =>
   const refNo = caseRecord.extras?.ref_no || '';
   let year = new Date().getFullYear().toString();
   if (caseRecord.extras?.letter_date) {
-    try { year = format(parseISO(caseRecord.extras.letter_date), 'yyyy'); } catch {}
+    try { year = format(parseISO(caseRecord.extras.letter_date), 'yyyy'); } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
   }
 
   return (

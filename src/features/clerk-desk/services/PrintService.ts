@@ -613,8 +613,8 @@ class PrintServiceClass {
     const paragraphs = letter.body.split('\n\n').filter(p => p.trim());
     const formattedParagraphs = paragraphs.map(p => {
       // Check for numbered list
-      if (/^\d+[\.\)]\s/.test(p.trim())) {
-        return `<div class="numbered-para"><span class="para-number">${p.match(/^\d+[\.\)]/)?.[0]}</span><span>${p.replace(/^\d+[\.\)]\s*/, '')}</span></div>`;
+      if (/^\d+[.)]\s/.test(p.trim())) {
+        return `<div class="numbered-para"><span class="para-number">${p.match(/^\d+[.)]/)?.[0]}</span><span>${p.replace(/^\d+[.)]\s*/, '')}</span></div>`;
       }
       return `<p>${p}</p>`;
     });

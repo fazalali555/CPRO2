@@ -170,6 +170,20 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ group, allEmployees, allCases
   // Helper to get nested value
   const getVal = (obj: any, path: string) => path.split('.').reduce((o, i) => o?.[i], obj);
 
+  /**
+   * The merge below treats the nested sections as dynamic maps (it iterates
+   * `Object.keys(...)` and indexes with the resulting strings), so model them
+   * as index signatures rather than suppressing the resulting type errors.
+   */
+  type MergeableRecord = {
+    id: string;
+    employees: Record<string, unknown>;
+    service_history: Record<string, unknown>;
+    financials: Record<string, unknown>;
+    extras: Record<string, unknown>;
+    family_members: Array<{ cnic?: string; relative_name?: string }>;
+  };
+
   const handleConfirm = () => {
     if (confirmText !== 'DELETE') return;
 
@@ -180,51 +194,47 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ group, allEmployees, allCases
     const finalRecord = JSON.parse(JSON.stringify(keptOriginal)); // Deep copy
 
     if (merge) {
-       records.forEach(source => {
+       records.forEach((rawSource) => {
+          const source = rawSource as unknown as MergeableRecord;
           if (source.id === selectedId) return; // Skip self
           
           // Merge Logic: Recursive strategy is complex, let's do shallow merge of key sections
           // A) Employees Identity
           Object.keys(source.employees).forEach(key => {
-             // @ts-ignore
              if (!finalRecord.employees[key] && source.employees[key]) {
-                // @ts-ignore
-                finalRecord.employees[key] = source.employees[key];
+                   finalRecord.employees[key] = source.employees[key];
              }
           });
 
           // B) Service
           Object.keys(source.service_history).forEach(key => {
-             // @ts-ignore
              if (!finalRecord.service_history[key] && source.service_history[key]) {
-                // @ts-ignore
-                finalRecord.service_history[key] = source.service_history[key];
+                   finalRecord.service_history[key] = source.service_history[key];
              }
           });
 
           // C) Financials
           Object.keys(source.financials).forEach(key => {
-             // @ts-ignore
              const targetVal = finalRecord.financials[key];
-             // @ts-ignore
              const sourceVal = source.financials[key];
              
              // Handle Arrays/Objects (Arrears, Extras)
              if (typeof sourceVal === 'object' && sourceVal !== null && !Array.isArray(sourceVal)) {
                  // Deep merge for numbers in maps
-                 const mergedMap = { ...targetVal }; // Start with target
-                 Object.keys(sourceVal).forEach(k => {
+                 const srcObj = sourceVal as Record<string, unknown>;
+                 const mergedMap: Record<string, unknown> = {
+                   ...(targetVal as Record<string, unknown> | undefined),
+                 }; // Start with target
+                 Object.keys(srcObj).forEach(k => {
                      const tV = mergedMap[k];
-                     const sV = sourceVal[k];
+                     const sV = srcObj[k];
                      if (!tV && sV) mergedMap[k] = sV; // If missing/zero in target, take source
                  });
-                 // @ts-ignore
-                 finalRecord.financials[key] = mergedMap;
+                     finalRecord.financials[key] = mergedMap;
              }
              // If numeric and target is 0 but source has value, take source
-             else if (typeof targetVal === 'number' && targetVal === 0 && sourceVal > 0) {
-                // @ts-ignore
-                finalRecord.financials[key] = sourceVal;
+             else if (typeof targetVal === 'number' && targetVal === 0 && typeof sourceVal === 'number' && sourceVal > 0) {
+                   finalRecord.financials[key] = sourceVal;
              }
           });
 
@@ -234,7 +244,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ group, allEmployees, allCases
           // E) Family Members (Simple concat for now, maybe dedup in future)
           // Just taking unique by name/cnic is safer
           source.family_members.forEach(m => {
-             if (!finalRecord.family_members.some((fm: any) => fm.cnic === m.cnic || fm.relative_name === m.relative_name)) {
+             if (!finalRecord.family_members.some((fm: { cnic?: string; relative_name?: string }) => fm.cnic === m.cnic || fm.relative_name === m.relative_name)) {
                 finalRecord.family_members.push(m);
              }
           });

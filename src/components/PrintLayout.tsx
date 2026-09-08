@@ -19,11 +19,43 @@ export const PrintLayout: React.FC<PrintLayoutProps> = ({
   caseId,
   documentId
 }) => {
-  const handlePrint = () => {
-    // Timeout ensures UI updates (like ripples) finish before print dialog freezes the thread
-    setTimeout(() => {
-      window.print();
-    }, 100);
+  /**
+   * Print only once the page is actually ready to be captured.
+   *
+   * The previous implementation waited a fixed 100ms, which is a race: webfonts
+   * and the QR/logo images are frequently still in flight at that point, and the
+   * print dialog freezes the thread — so the user silently gets a page rendered
+   * in fallback metrics or with missing graphics. Waiting on `document.fonts.ready`
+   * plus outstanding images makes this deterministic, with a hard ceiling so a
+   * stalled font CDN can never wedge the button.
+   */
+  const handlePrint = async () => {
+    const MAX_WAIT_MS = 3000;
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, MAX_WAIT_MS));
+
+    const assetsReady = (async () => {
+      try {
+        // Fonts drive every metric on the page; Urdu/Nastaliq faces are large.
+        await document.fonts?.ready;
+        const pending = Array.from(document.images).filter((img) => !img.complete);
+        await Promise.all(
+          pending.map(
+            (img) =>
+              new Promise<void>((resolve) => {
+                img.addEventListener('load', () => resolve(), { once: true });
+                img.addEventListener('error', () => resolve(), { once: true });
+              })
+          )
+        );
+        // Let the browser commit a paint with the resolved assets.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      } catch {
+        /* fall through to the timeout guard — printing late beats never printing */
+      }
+    })();
+
+    await Promise.race([assetsReady, timeout]);
+    window.print();
   };
 
   const verificationUrl = caseId 

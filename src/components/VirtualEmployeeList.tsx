@@ -62,7 +62,8 @@ export const VirtualEmployeeList: React.FC<VirtualEmployeeListProps> = ({
 
   return (
     <div className="border border-outline-variant/20 rounded-xl overflow-hidden">
-      <List<{}>
+      {/* rowProps carries nothing, so type it as an exactly-empty object. */}
+      <List<Record<string, never>>
         rowCount={employees.length}
         rowHeight={itemHeight}
         rowComponent={Row}

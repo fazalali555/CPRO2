@@ -96,5 +96,5 @@ export const resetBudgetingStorage = () => {
     });
     // Mark version
     localStorage.setItem('budgeting/cache/version', CURRENT_BUDGET_CACHE_VERSION);
-  } catch {}
+  } catch (err) { console.warn('[storage] write failed — changes may not be persisted:', err); }
 };

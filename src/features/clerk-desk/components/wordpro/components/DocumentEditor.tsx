@@ -52,7 +52,7 @@ const formatLetterDate = (dateStr?: string): string => {
     return `${iso[3]} / ${iso[2]} / ${iso[1]}`;
   }
   // Handle DD/MM/YYYY
-  const dmy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const dmy = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dmy) {
     return `${dmy[1].padStart(2, "0")} / ${dmy[2].padStart(2, "0")} / ${dmy[3]}`;
   }

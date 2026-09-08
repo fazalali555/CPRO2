@@ -1,4 +1,3 @@
-// @ts-nocheck  
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -17,7 +16,19 @@ export const Print: React.FC = () => {
       try {
         const data = await getFileFromIDB(fileId);
         if (data) {
-          const blob = new Blob([data as Uint8Array], { type: 'application/pdf' });
+          // getFileFromIDB can hand back a Blob, raw bytes, or text — only the
+          // first is already usable, so normalise instead of casting blindly.
+          const blob =
+            data instanceof Blob
+              ? data
+              : new Blob(
+                  [
+                    data instanceof Uint8Array
+                      ? data.slice()
+                      : new TextEncoder().encode(String(data)),
+                  ],
+                  { type: 'application/pdf' }
+                );
           const url = URL.createObjectURL(blob);
           setBlobUrl(url);
         } else {

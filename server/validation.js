@@ -1,10 +1,25 @@
 import { z } from 'zod';
+import { isSafeWebhookUrl } from './webhook.js';
 
-const lengthSchema = z.object({
-  minWords: z.number().int().positive().optional(),
-  maxWords: z.number().int().positive().optional(),
-  maxChars: z.number().int().positive().optional()
-}).optional();
+const lengthSchema = z
+  .object({
+    minWords: z.number().int().positive().optional(),
+    maxWords: z.number().int().positive().optional(),
+    maxChars: z.number().int().positive().optional(),
+  })
+  .optional();
+
+/**
+ * `webhookUrl` is fetched server-side, so a bare `.url()` check is not enough —
+ * it happily accepts `http://169.254.169.254/`. Route it through the SSRF guard
+ * so the rejection happens at the edge with a clear reason.
+ */
+const safeWebhookUrl = z
+  .string()
+  .url()
+  .refine((value) => isSafeWebhookUrl(value).ok, {
+    message: 'webhookUrl must be a public https:// URL',
+  });
 
 export const composeLetterSchema = z.object({
   recipient: z.string().min(2).max(200),
@@ -20,22 +35,35 @@ export const composeLetterSchema = z.object({
   forwardedTo: z.array(z.string().min(2).max(200)).max(12).optional(),
   referenceNo: z.string().min(2).max(80).optional(),
   async: z.boolean().optional(),
-  webhookUrl: z.string().url().optional()
+  webhookUrl: safeWebhookUrl.optional(),
 });
 
+/** Strip C0 control characters and DEL, then trim. */
+const cleanString = (value) =>
+  typeof value === 'string' ? value.replace(/[\u0000-\u001F\u007F]/g, '').trim() : value;
+
+/**
+ * Recursively strip control characters from a payload.
+ *
+ * Returns a fresh object graph — the previous implementation mutated nested
+ * objects of the caller's request body in place, which is surprising for any
+ * middleware that inspects `req.body` afterwards.
+ *
+ * @param {unknown} payload
+ * @returns {Record<string, unknown>}
+ */
 export const sanitizePayload = (payload) => {
-  const clean = { ...payload };
-  const cleanString = (v) => typeof v === 'string' ? v.replace(/[\u0000-\u001F\u007F]/g, '').trim() : v;
-  Object.keys(clean).forEach((k) => {
-    if (Array.isArray(clean[k])) {
-      clean[k] = clean[k].map(cleanString);
-    } else if (typeof clean[k] === 'object' && clean[k] !== null) {
-      Object.keys(clean[k]).forEach((inner) => {
-        clean[k][inner] = cleanString(clean[k][inner]);
-      });
-    } else {
-      clean[k] = cleanString(clean[k]);
+  if (payload === null || typeof payload !== 'object') return {};
+
+  const walk = (value) => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (value !== null && typeof value === 'object') {
+      const out = {};
+      for (const [key, inner] of Object.entries(value)) out[key] = walk(inner);
+      return out;
     }
-  });
-  return clean;
+    return cleanString(value);
+  };
+
+  return walk(payload);
 };

@@ -157,9 +157,9 @@ export const LeaveAccountProforma: React.FC<Props> = ({ employeeRecord, caseReco
               zIndex: 50, // Force higher z-index for print
               pointerEvents: 'none',
               lineHeight: 1,
-              // @ts-ignore - CSS Custom Property for print override
+              // Custom properties are not in CSSProperties; widen just this object.
               '--print-transform': transform,
-            }}
+            } as React.CSSProperties}
             className="print-overlay"
           >
             {/* Label (Above - Screen Only) */}

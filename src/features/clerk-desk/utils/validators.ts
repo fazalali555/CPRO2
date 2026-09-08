@@ -173,7 +173,7 @@ export function isValidEmail(email: string): boolean {
  */
 export function isValidPhone(phone: string): boolean {
   // Accepts various formats: +92-xxx-xxxxxxx, 03xx-xxxxxxx, etc.
-  const phoneRegex = /^[\d\s\-\+\(\)]{7,20}$/;
+  const phoneRegex = /^[\d\s\-+()]{7,20}$/;
   return phoneRegex.test(phone);
 }
 
@@ -182,7 +182,7 @@ export function isValidPhone(phone: string): boolean {
  */
 export function isValidReference(ref: string): boolean {
   // Basic format: PREFIX/YEAR/NUMBER
-  const refRegex = /^[A-Z]{2,10}\/\d{4}\/[\w\-]+$/i;
+  const refRegex = /^[A-Z]{2,10}\/\d{4}\/[\w-]+$/i;
   return refRegex.test(ref);
 }
 

@@ -111,7 +111,7 @@ class StorageServiceClass {
   getStorageStats(): { used: number; total: number; percentage: number } {
     let used = 0;
     for (const key in localStorage) {
-      if (localStorage.hasOwnProperty(key)) {
+      if (Object.hasOwn(localStorage, key)) {
         used += localStorage.getItem(key)?.length || 0;
       }
     }

@@ -1,4 +1,3 @@
-// @ts-nocheck  
 /**
  * ENHANCED Export Service - Production Ready
  * 
@@ -321,7 +320,9 @@ export class PDFExportService {
 
     const pdfBytes = await pdfDoc.save();
     this.downloadBlob(
-      new Blob([pdfBytes], { type: 'application/pdf' }),
+      // .slice() yields a Uint8Array<ArrayBuffer>, which is a valid BlobPart
+      // (TS 5.7+ rejects the ArrayBufferLike-backed view pdf-lib returns).
+      new Blob([pdfBytes.slice()], { type: 'application/pdf' }),
       filename || `employees_${format(new Date(), 'yyyy-MM-dd')}.pdf`
     );
   }

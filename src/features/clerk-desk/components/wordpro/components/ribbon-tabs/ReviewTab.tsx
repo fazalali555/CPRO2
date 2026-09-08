@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getGeminiApiKey, GEMINI_NOT_CONFIGURED_MESSAGE } from "../../../../../../config/geminiKey";
 import { useEditorContext } from "../../contexts/EditorContext";
 import { Button } from "../../components/ui/button";
 import { 
@@ -41,12 +42,15 @@ interface EditorAnalysis {
   recommendations: string[];
 }
 
-const getGeminiApiKey = (): string => {
-  const savedKey = localStorage.getItem('clerk_pro_gemini_api_key');
-  if (savedKey && savedKey.trim()) {
-    return savedKey.trim();
-  }
-  return (import.meta.env as any)?.VITE_GEMINI_API_KEY || 'AIzaSyCIi_33sJbzFBbAhOCHQ2iB7HbXZfoGhUg';
+/**
+ * The key resolution lives in `src/config/geminiKey.ts` so there is exactly one
+ * definition in the app — an earlier copy here carried a hardcoded API key that
+ * was shipped inside the production bundle.
+ */
+const requireGeminiKey = (): string => {
+  const key = getGeminiApiKey();
+  if (!key) throw new Error(GEMINI_NOT_CONFIGURED_MESSAGE);
+  return key;
 };
 
 export function ReviewTab({ isMobile = false }: ReviewTabProps) {
@@ -95,7 +99,7 @@ Calculate:
 Format the output as a clean raw JSON object:
 {"readability": "Normal", "toneIndex": 92, "passiveVoice": "12%", "recommendations": ["Ensure clear subject alignment in the opening paragraph.", "Keep active voice prominent in orders.", "Check for KPK secretariat honorific formats."]}`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${getGeminiApiKey()}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(requireGeminiKey())}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -137,7 +141,7 @@ If there are no errors, return an empty array [].
 Text to scan:
 ${text}`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${getGeminiApiKey()}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(requireGeminiKey())}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -198,7 +202,7 @@ Output ONLY the clean, translated paragraphs. Do not write introduction, notes, 
 Text:
 ${text}`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${getGeminiApiKey()}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(requireGeminiKey())}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

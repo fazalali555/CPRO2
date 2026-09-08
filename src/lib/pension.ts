@@ -100,7 +100,7 @@ export const getApplicableIncreases = (retirementDate?: string): typeof FAMILY_P
         retYear = d.getFullYear();
         retDateStr = retirementDate;
       }
-    } catch {}
+    } catch { /* ignored: stored value may be absent or corrupt; fall back to the default below */ }
   }
 
   return FAMILY_PENSION_INCREASES.filter((inc) => {

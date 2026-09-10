@@ -279,7 +279,6 @@ export const LetterComposer: React.FC = () => {
       Typography,
     ],
     content: formState.body || "<p></p>",
-// ... existing code ...
     editorProps: {
       handlePaste: (view, event, slice) => {
         const text = event.clipboardData?.getData('text/plain');

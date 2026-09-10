@@ -1739,6 +1739,20 @@ export const LetterComposer: React.FC = () => {
     departmentType: (resolvedValues as any).departmentType,
   }), [formState, officeProfile, resolvedValues]);
 
+  // Guard: don't render editor-dependent tree until TipTap is ready
+  // ProseMirror internals access `.cached` on nodes during rendering,
+  // which crashes if the editor instance is still null.
+  if (!editor) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] bg-surface">
+        <div className="flex flex-col items-center gap-3 text-on-surface-variant animate-pulse">
+          <span className="material-symbols-outlined text-[48px] text-primary/40">edit_document</span>
+          <p className="text-sm font-medium">Initializing Letter Editor...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <EditorProvider editorInstance={editor}>
       <EditorStateBridge value={formState.body} />

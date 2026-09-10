@@ -187,7 +187,7 @@ export default function Editor() {
     }
   };
 
-  if (!user) {
+  if (!user || !editor) {
     return (
       <div className="flex h-[500px] items-center justify-center">
         <div className="text-center">

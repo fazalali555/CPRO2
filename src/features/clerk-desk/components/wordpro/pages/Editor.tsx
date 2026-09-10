@@ -16,8 +16,8 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { CharacterCount } from "@tiptap/extension-character-count";
 import { Comment } from "../lib/CommentExtension";
-import FontSize from "tiptap-extension-font-size";
-import LineHeight from "tiptap-extension-line-height";
+import FontSize from "../lib/FontSizeExtension";
+import LineHeight from "../lib/LineHeightExtension";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
 
